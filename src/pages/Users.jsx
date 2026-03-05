@@ -73,7 +73,7 @@ export default function Users({ userRole }) {
   const roleColor = { admin:"#f5a0a0", data_entry:"#c9a84c", view_print:"#a0c4f5", view:"rgba(245,237,224,0.4)" };
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#0a0a0a", color:"#f5ede0", overflow:"hidden" }}>
+    <div style={{ display:"flex", flexDirection:"row", minHeight:"100vh", width:"100vw", maxWidth:"100vw", background:"#0a0a0a", color:"#f5ede0", overflow:"hidden" }}>
       <div className="pattern-bg" style={{ position:"fixed" }} />
       <Sidebar userRole={userRole} userEmail={currentUser?.email} />
       <main style={{ flex:1, padding:"2rem", overflowX:"auto", overflowY:"auto", position:"relative", zIndex:1, minWidth:0 }}>
