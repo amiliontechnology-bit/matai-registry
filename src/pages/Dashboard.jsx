@@ -63,11 +63,11 @@ export default function Dashboard({ userRole }) {
   );
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#0a0a0a", color:"#f5ede0" }}>
+    <div style={{ display:"flex", minHeight:"100vh", background:"#0a0a0a", color:"#f5ede0", overflow:"hidden" }}>
       <div className="pattern-bg" style={{ position:"fixed" }} />
       <Sidebar userRole={userRole} userEmail={user?.email} />
 
-      <main style={{ flex:1, padding:"2.5rem", overflowX:"hidden", position:"relative", zIndex:1 }}>
+      <main style={{ flex:1, padding:"2rem", overflowX:"auto", overflowY:"auto", position:"relative", zIndex:1, minWidth:0 }}>
         {/* Header */}
         <div style={{ marginBottom:"2rem" }}>
           <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.25em", color:"rgba(201,168,76,0.6)", textTransform:"uppercase", marginBottom:"0.4rem" }}>
@@ -86,7 +86,7 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* Stats */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"1rem", marginBottom:"2rem" }}>
           {statCard("Total Registered", records.length, "#c9a84c")}
           {statCard("Ali'i", totalAli, "#e8c96a")}
           {statCard("Faipule", totalFaipule, "#c9a84c")}
@@ -94,7 +94,7 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* Filters */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto", gap:"1rem", marginBottom:"1.5rem", alignItems:"end" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto", gap:"1rem", marginBottom:"1.5rem", alignItems:"end", flexWrap:"wrap" }}>
           <div className="form-group">
             <label>Search</label>
             <input type="text" placeholder="Search by title, name or village…" value={search} onChange={e => setSearch(e.target.value)} />
