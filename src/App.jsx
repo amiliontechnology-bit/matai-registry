@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -45,7 +45,7 @@ export default function App() {
   const authed = (el) => user ? el : <Navigate to="/" />;
 
   return (
-    <BrowserRouter basename={process.env.PUBLIC_URL}>
+    <HashRouter>
       <Routes>
         <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/dashboard" element={authed(<Dashboard userRole={userRole} />)} />
@@ -55,6 +55,6 @@ export default function App() {
         <Route path="/users" element={authed(<Users userRole={userRole} />)} />
         <Route path="/audit" element={authed(<AuditLog userRole={userRole} />)} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
