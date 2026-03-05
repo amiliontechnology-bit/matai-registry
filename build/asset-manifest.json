@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/matai-registry/static/css/main.7d755723.css",
+    "main.js": "/matai-registry/static/js/main.337e8b7b.js",
+    "index.html": "/matai-registry/index.html",
+    "main.7d755723.css.map": "/matai-registry/static/css/main.7d755723.css.map",
+    "main.337e8b7b.js.map": "/matai-registry/static/js/main.337e8b7b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.7d755723.css",
+    "static/js/main.337e8b7b.js"
+  ]
+}

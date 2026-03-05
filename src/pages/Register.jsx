@@ -208,7 +208,7 @@ export default function Register({ userRole }) {
                   placeholder="Full name of person receiving the title" />
               </div>
               <div className="form-group" style={{ gridColumn: "2 / 3" }}>
-                <label>Gender (Itūlagi)</label>
+                <label>Gender</label>
                 <select value={form.gender} onChange={set("gender")}>
                   <option value="">— Select —</option>
                   <option>Tane (Male)</option>
@@ -290,11 +290,7 @@ export default function Register({ userRole }) {
                 <input type="text" value={form.mataiCertNumber} onChange={set("mataiCertNumber")}
                   placeholder="e.g. 02/53/192" />
               </div>
-              <div className="form-group">
-                <label>Suli</label>
-                <input type="text" value={form.suli} onChange={set("suli")}
-                  placeholder="e.g. Suli" />
-              </div>
+
             </div>
           </div>
 
@@ -305,7 +301,7 @@ export default function Register({ userRole }) {
               <div className="form-group">
                 <label>Faapogai</label>
                 <input type="text" value={form.faapogai} onChange={set("faapogai")}
-                  placeholder="Enter Faapogai text" />
+                  placeholder="e.g. SULI" />
               </div>
               <div className="form-group">
                 <label>Notes (optional)</label>

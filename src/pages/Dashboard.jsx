@@ -44,7 +44,7 @@ export default function Dashboard({ userRole }) {
   };
 
   const districts = ["All", ...new Set(records.map(r => r.district).filter(Boolean))].sort();
-  const types = ["All", "Ali'i", "Faipule", "Tulafale"];
+  const types = ["All", "Ali'i", "Tulafale"];
 
   const filtered = records.filter(r => {
     const s = search.toLowerCase();
@@ -58,7 +58,6 @@ export default function Dashboard({ userRole }) {
   });
 
   const totalAli      = records.filter(r => r.mataiType === "Ali'i").length;
-  const totalFaipule  = records.filter(r => r.mataiType === "Faipule").length;
   const totalTulafale = records.filter(r => r.mataiType === "Tulafale").length;
 
   return (
@@ -81,11 +80,10 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
             { label:"Total Registered", value: records.length, accent:"#155c31" },
             { label:"Ali'i",            value: totalAli,        accent:"#1e7a42" },
-            { label:"Faipule",          value: totalFaipule,    accent:"#155c31" },
             { label:"Tulafale",         value: totalTulafale,   accent:"#0d2818" },
           ].map(s => (
             <div key={s.label} className="stat-card">
