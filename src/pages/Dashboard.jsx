@@ -1,169 +1,184 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { signOut } from "firebase/auth";
 import { collection, getDocs, deleteDoc, doc, orderBy, query } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { getPermissions } from "../utils/roles";
+import { logAudit } from "../utils/audit";
+import Sidebar from "../components/Sidebar";
 
-const VILLAGE_DISTRICTS = [
-  "All Districts", "Aana", "Aiga-i-le-Tai", "Atua", "Faasaleleaga",
-  "Gaga'emauga", "Gaga'ifomauga", "Palauli", "Satupa'itea",
-  "Tuamasaga", "Va'a-o-Fonoti", "Vaisigano"
-];
-
-const MATAI_TYPES = ["Ali'i", "Faipule", "Tulafale"];
-
-export default function Dashboard() {
+export default function Dashboard({ userRole }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterDistrict, setFilterDistrict] = useState("All Districts");
+  const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterType, setFilterType] = useState("All");
   const [deleting, setDeleting] = useState(null);
+  const perms = getPermissions(userRole);
+  const user = auth.currentUser;
 
   const fetchRecords = async () => {
     try {
       const q = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
       setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchRecords(); }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, title) => {
     if (!window.confirm("Remove this registration permanently?")) return;
     setDeleting(id);
     await deleteDoc(doc(db, "registrations", id));
+    await logAudit("DELETE", { mataiTitle: title, recordId: id });
     setRecords(prev => prev.filter(r => r.id !== id));
     setDeleting(null);
   };
 
+  const districts = ["All", ...new Set(records.map(r => r.district).filter(Boolean))].sort();
+  const types = ["All", "Ali'i", "Faipule", "Tulafale"];
+
   const filtered = records.filter(r => {
+    const s = search.toLowerCase();
     const matchSearch = !search ||
-      r.mataiTitle?.toLowerCase().includes(search.toLowerCase()) ||
-      r.holderName?.toLowerCase().includes(search.toLowerCase());
-    const matchDistrict = filterDistrict === "All Districts" || r.district === filterDistrict;
+      r.mataiTitle?.toLowerCase().includes(s) ||
+      r.holderName?.toLowerCase().includes(s) ||
+      r.village?.toLowerCase().includes(s);
+    const matchDistrict = filterDistrict === "All" || r.district === filterDistrict;
     const matchType = filterType === "All" || r.mataiType === filterType;
     return matchSearch && matchDistrict && matchType;
   });
 
-  return (
-    <div className="page">
-      <div className="pattern-bg" />
-      <nav>
-        <Link to="/dashboard" className="nav-brand">⬡ Matai Registry</Link>
-        <div className="nav-links">
-          <Link to="/register" className="nav-link">+ Register Title</Link>
-          <button className="btn-logout" onClick={() => signOut(auth)}>Sign Out</button>
-        </div>
-      </nav>
+  // Stats
+  const totalAli = records.filter(r => r.mataiType === "Ali'i").length;
+  const totalFaipule = records.filter(r => r.mataiType === "Faipule").length;
+  const totalTulafale = records.filter(r => r.mataiType === "Tulafale").length;
 
-      <main style={{ flex: 1, padding: "3rem 2.5rem", maxWidth: 1200, margin: "0 auto", width: "100%", position: "relative" }}>
+  const statCard = (label, value, color) => (
+    <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(201,168,76,0.2)", borderRadius:"4px", padding:"1.2rem 1.5rem" }}>
+      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.2em", color:"rgba(201,168,76,0.6)", textTransform:"uppercase", marginBottom:"0.4rem" }}>{label}</p>
+      <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.8rem", color: color || "#c9a84c" }}>{value}</p>
+    </div>
+  );
+
+  return (
+    <div style={{ display:"flex", minHeight:"100vh", background:"#0a0a0a", color:"#f5ede0" }}>
+      <div className="pattern-bg" style={{ position:"fixed" }} />
+      <Sidebar userRole={userRole} userEmail={user?.email} />
+
+      <main style={{ flex:1, padding:"2.5rem", overflowX:"hidden", position:"relative", zIndex:1 }}>
         {/* Header */}
-        <div className="fade-in" style={{ marginBottom: "3rem" }}>
-          <p style={{ fontFamily: "'Cinzel', serif", fontSize: "0.72rem", letterSpacing: "0.25em", color: "var(--gold)", opacity: 0.7, textTransform: "uppercase", marginBottom: "0.5rem" }}>
+        <div style={{ marginBottom:"2rem" }}>
+          <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.25em", color:"rgba(201,168,76,0.6)", textTransform:"uppercase", marginBottom:"0.4rem" }}>
             Official Record
           </p>
-          <h2 style={{ fontFamily: "'Cinzel Decorative', serif", fontSize: "2rem", color: "var(--cream)", marginBottom: "0.5rem" }}>
-            Title Registry
-          </h2>
-          <p style={{ color: "rgba(245,237,224,0.5)", fontStyle: "italic" }}>
-            {records.length} registered Matai title{records.length !== 1 ? "s" : ""}
-          </p>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+            <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.8rem", color:"#f5ede0" }}>
+              Title Registry
+            </h1>
+            {perms.canAdd && (
+              <Link to="/register">
+                <button className="btn-primary" style={{ fontSize:"0.78rem" }}>＋ Register Title</button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+          {statCard("Total Registered", records.length, "#c9a84c")}
+          {statCard("Ali'i", totalAli, "#e8c96a")}
+          {statCard("Faipule", totalFaipule, "#c9a84c")}
+          {statCard("Tulafale", totalTulafale, "#a07828")}
         </div>
 
         {/* Filters */}
-        <div className="fade-in-delay-1" style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "1rem", marginBottom: "2rem", alignItems: "end" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr auto auto", gap:"1rem", marginBottom:"1.5rem", alignItems:"end" }}>
           <div className="form-group">
             <label>Search</label>
-            <input
-              type="text" placeholder="Search by title or name…"
-              value={search} onChange={e => setSearch(e.target.value)}
-            />
+            <input type="text" placeholder="Search by title, name or village…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="form-group">
-            <label>District</label>
+            <label>District (Itūmālō)</label>
             <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
-              {VILLAGE_DISTRICTS.map(d => <option key={d}>{d}</option>)}
+              {districts.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
           <div className="form-group">
             <label>Type</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)}>
-              {["All", ...MATAI_TYPES].map(t => <option key={t}>{t}</option>)}
+              {types.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         </div>
 
+        {/* Results count */}
+        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", color:"rgba(201,168,76,0.5)", letterSpacing:"0.1em", marginBottom:"1rem" }}>
+          Showing {filtered.length} of {records.length} records
+        </p>
+
         {/* Table */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "5rem", color: "var(--gold)", fontStyle: "italic", opacity: 0.7 }}>
-            Loading registry…
-          </div>
+          <div style={{ textAlign:"center", padding:"5rem", color:"rgba(201,168,76,0.5)", fontStyle:"italic" }}>Loading registry…</div>
         ) : filtered.length === 0 ? (
-          <div className="card fade-in" style={{ textAlign: "center", padding: "5rem" }}>
-            <p style={{ color: "rgba(245,237,224,0.4)", fontStyle: "italic", marginBottom: "1.5rem" }}>
+          <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(201,168,76,0.2)", borderRadius:"4px", textAlign:"center", padding:"5rem" }}>
+            <p style={{ color:"rgba(245,237,224,0.3)", fontStyle:"italic" }}>
               {records.length === 0 ? "No titles registered yet." : "No titles match your search."}
             </p>
-            {records.length === 0 && (
-              <Link to="/register"><button className="btn-primary">Register First Title</button></Link>
-            )}
           </div>
         ) : (
-          <div className="fade-in-delay-2" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ overflowX:"auto", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(201,168,76,0.15)", borderRadius:"4px" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Matai Title", "Title Holder", "Type", "Village", "District", "Date Conferred", "Actions"].map(h => (
-                    <th key={h} style={{
-                      textAlign: "left", padding: "0.75rem 1rem",
-                      fontFamily: "'Cinzel', serif", fontSize: "0.68rem",
-                      letterSpacing: "0.15em", textTransform: "uppercase",
-                      color: "var(--gold)", opacity: 0.8, whiteSpace: "nowrap"
-                    }}>{h}</th>
+                <tr style={{ borderBottom:"1px solid rgba(201,168,76,0.2)", background:"rgba(201,168,76,0.05)" }}>
+                  {["Ref No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
+                    <th key={h} style={{ textAlign:"left", padding:"0.85rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.15em", textTransform:"uppercase", color:"rgba(201,168,76,0.7)", whiteSpace:"nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r, i) => (
-                  <tr key={r.id} style={{
-                    borderBottom: "1px solid rgba(201,168,76,0.1)",
-                    animation: `fadeIn 0.4s ${i * 0.04}s ease both`
-                  }}>
-                    <td style={{ padding: "1rem", fontFamily: "'Cinzel', serif", color: "var(--gold)", fontSize: "0.95rem" }}>
+                  <tr key={r.id} style={{ borderBottom:"1px solid rgba(201,168,76,0.08)", transition:"background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(201,168,76,0.04)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding:"0.9rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"rgba(201,168,76,0.5)" }}>
+                      {r.refNumber || "—"}
+                    </td>
+                    <td style={{ padding:"0.9rem 1rem", fontFamily:"'Cinzel',serif", color:"#c9a84c", fontSize:"0.9rem", fontWeight:600 }}>
                       {r.mataiTitle}
                     </td>
-                    <td style={{ padding: "1rem", fontWeight: 500 }}>{r.holderName}</td>
-                    <td style={{ padding: "1rem" }}>
-                      <span style={{
-                        background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                        color: "var(--gold-light)", padding: "0.2rem 0.6rem",
-                        borderRadius: "2px", fontSize: "0.78rem", fontFamily: "'Cinzel', serif"
-                      }}>{r.mataiType}</span>
+                    <td style={{ padding:"0.9rem 1rem", fontWeight:500 }}>{r.holderName}</td>
+                    <td style={{ padding:"0.9rem 1rem" }}>
+                      <span style={{ background:"rgba(201,168,76,0.1)", border:"1px solid rgba(201,168,76,0.25)", color:"#e8c96a", padding:"2px 8px", borderRadius:"2px", fontSize:"0.72rem", fontFamily:"'Cinzel',serif", whiteSpace:"nowrap" }}>
+                        {r.mataiType || "—"}
+                      </span>
                     </td>
-                    <td style={{ padding: "1rem", opacity: 0.8 }}>{r.village}</td>
-                    <td style={{ padding: "1rem", opacity: 0.8 }}>{r.district}</td>
-                    <td style={{ padding: "1rem", opacity: 0.7, fontSize: "0.88rem" }}>
-                      {r.dateConferred ? new Date(r.dateConferred).toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+                    <td style={{ padding:"0.9rem 1rem", opacity:0.75, fontSize:"0.88rem" }}>{r.village || "—"}</td>
+                    <td style={{ padding:"0.9rem 1rem", opacity:0.75, fontSize:"0.88rem" }}>{r.district || "—"}</td>
+                    <td style={{ padding:"0.9rem 1rem", opacity:0.6, fontSize:"0.82rem", whiteSpace:"nowrap" }}>
+                      {r.dateRegistration ? new Date(r.dateRegistration).toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" }) : "—"}
                     </td>
-                    <td style={{ padding: "1rem" }}>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <Link to={`/certificate/${r.id}`}>
-                          <button className="btn-ghost" title="Print Certificate">🏅</button>
-                        </Link>
-                        <Link to={`/register/${r.id}`}>
-                          <button className="btn-ghost" title="Edit">✎</button>
-                        </Link>
-                        <button
-                          className="btn-ghost" title="Delete"
-                          onClick={() => handleDelete(r.id)}
-                          disabled={deleting === r.id}
-                          style={{ color: "#f5a0a0" }}
-                        >✕</button>
+                    <td style={{ padding:"0.9rem 1rem" }}>
+                      <div style={{ display:"flex", gap:"0.4rem" }}>
+                        {perms.canPrint && (
+                          <Link to={`/certificate/${r.id}`}>
+                            <button className="btn-ghost" title="View Certificate" onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>🏅</button>
+                          </Link>
+                        )}
+                        {perms.canEdit && (
+                          <Link to={`/register/${r.id}`}>
+                            <button className="btn-ghost" title="Edit">✎</button>
+                          </Link>
+                        )}
+                        {!perms.canEdit && (
+                          <Link to={`/certificate/${r.id}`}>
+                            <button className="btn-ghost" title="View">👁</button>
+                          </Link>
+                        )}
+                        {perms.canDelete && (
+                          <button className="btn-ghost" title="Delete" onClick={() => handleDelete(r.id, r.mataiTitle)} disabled={deleting === r.id} style={{ color:"#f5a0a0" }}>✕</button>
+                        )}
                       </div>
                     </td>
                   </tr>

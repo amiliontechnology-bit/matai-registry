@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { logAudit } from "../utils/audit";
+import { getPermissions } from "../utils/roles";
 
 const DISTRICT_VILLAGES = {
   "AANA ALOFI Nu.03": ["FALEATIU","FASITOO-TAI","SATAPUALA","SATUIMALUFILUFI","VAILUUTAI"],
@@ -58,7 +60,7 @@ const EMPTY = {
   registrarName: "", registrarTitle: "", notes: ""
 };
 
-export default function Register() {
+export default function Register({ userRole }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY);
@@ -68,6 +70,7 @@ export default function Register() {
   const [success, setSuccess] = useState("");
   const [dupWarning, setDupWarning] = useState("");
   const isEdit = !!id;
+  const perms = getPermissions(userRole);
 
   const villages = form.district ? DISTRICT_VILLAGES[form.district] || [] : [];
 
@@ -119,9 +122,11 @@ export default function Register() {
     try {
       if (isEdit) {
         await updateDoc(doc(db, "registrations", id), { ...form, updatedAt: serverTimestamp() });
+        await logAudit("UPDATE", { mataiTitle: form.mataiTitle, recordId: id });
         setSuccess("Registration updated successfully.");
       } else {
         const docRef = await addDoc(collection(db, "registrations"), { ...form, createdAt: serverTimestamp() });
+        await logAudit("CREATE", { mataiTitle: form.mataiTitle });
         setSuccess("Title registered successfully.");
         setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
       }
