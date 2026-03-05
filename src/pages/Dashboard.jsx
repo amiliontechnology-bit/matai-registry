@@ -63,11 +63,10 @@ export default function Dashboard({ userRole }) {
   );
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#0a0a0a", color:"#f5ede0", overflow:"hidden" }}>
+    <div style={{ display:"flex", minHeight:"100vh", width:"100%", background:"#0a0a0a", color:"#f5ede0" }}>
       <div className="pattern-bg" style={{ position:"fixed" }} />
       <Sidebar userRole={userRole} userEmail={user?.email} />
-
-      <main style={{ flex:1, padding:"2rem", overflowX:"auto", overflowY:"auto", position:"relative", zIndex:1, minWidth:0 }}>
+      <main style={{ flex:1, minWidth:0, padding:"2rem", overflowX:"auto", position:"relative", zIndex:1 }}>
         {/* Header */}
         <div style={{ marginBottom:"2rem" }}>
           <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.25em", color:"rgba(201,168,76,0.6)", textTransform:"uppercase", marginBottom:"0.4rem" }}>
