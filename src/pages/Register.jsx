@@ -149,9 +149,7 @@ export default function Register({ userRole }) {
   };
 
   const sectionHead = (title) => (
-    <h3 style={{ fontFamily: "'Cinzel', serif", fontSize: "0.78rem", letterSpacing: "0.2em", color: "var(--gold)", textTransform: "uppercase", marginBottom: "1.5rem", opacity: 0.9 }}>
-      ◈ {title}
-    </h3>
+    <h3 className="section-head">◈ {title}</h3>
   );
 
   if (fetching) return (
@@ -165,12 +163,8 @@ export default function Register({ userRole }) {
       <div className="sidebar-content">
 
         <div className="fade-in" style={{ marginBottom: "2.5rem" }}>
-          <p style={{ fontFamily: "'Cinzel', serif", fontSize: "0.72rem", letterSpacing: "0.25em", color: "var(--gold)", opacity: 0.7, textTransform: "uppercase", marginBottom: "0.5rem" }}>
-            {isEdit ? "Edit Record" : "New Registration"}
-          </p>
-          <h2 style={{ fontFamily: "'Cinzel Decorative', serif", fontSize: "1.8rem", color: "var(--cream)" }}>
-            {isEdit ? "Update Matai Title" : "Register Matai Title"}
-          </h2>
+          <p className="page-eyebrow">{isEdit ? "Edit Record" : "New Registration"}</p>
+          <h2 className="page-title">{isEdit ? "Update Matai Title" : "Register Matai Title"}</h2>
         </div>
 
         {error && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{error}</div>}

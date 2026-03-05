@@ -5,7 +5,7 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 
 export default function Sidebar({ userRole, userEmail }) {
-  const loc = useLocation();
+  const loc   = useLocation();
   const perms = getPermissions(userRole);
 
   const handleLogout = async () => {
@@ -17,7 +17,7 @@ export default function Sidebar({ userRole, userEmail }) {
     const active = loc.pathname === to || loc.pathname.startsWith(to + "/");
     return (
       <Link to={to} className={`nav-item${active ? " active" : ""}`}>
-        <span style={{ fontSize:"13px" }}>{icon}</span>
+        <span style={{ fontSize:"14px", minWidth:"18px", textAlign:"center" }}>{icon}</span>
         <span>{label}</span>
       </Link>
     );
@@ -25,52 +25,58 @@ export default function Sidebar({ userRole, userEmail }) {
 
   return (
     <aside className="sidebar">
-      {/* Logo */}
+
+      {/* ── Logo ── */}
       <div className="sidebar-logo">
-        <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem" }}>
-          <div style={{ width:"40px", height:"40px", minWidth:"40px", borderRadius:"50%", border:"1px solid rgba(255,255,255,0.3)", overflow:"hidden" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", marginBottom:"0.5rem" }}>
+          <div style={{ width:"42px", height:"42px", minWidth:"42px", borderRadius:"50%",
+            border:"2px solid rgba(74,222,128,0.4)", overflow:"hidden", background:"rgba(255,255,255,0.05)" }}>
             <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
               style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           </div>
           <div>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.68rem", color:"#7dd3a8", lineHeight:1.3 }}>Matai</p>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.68rem", color:"#7dd3a8", lineHeight:1.3 }}>Registry</p>
+            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.72rem", color:"#4ade80", lineHeight:1.4 }}>Matai</p>
+            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.72rem", color:"#4ade80", lineHeight:1.4 }}>Registry</p>
           </div>
         </div>
-        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.58rem", color:"rgba(45,122,79,0.4)", letterSpacing:"0.06em", textTransform:"uppercase" }}>
+        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.55rem", color:"rgba(255,255,255,0.3)",
+          letterSpacing:"0.08em", textTransform:"uppercase" }}>
           Resitalaina o Matai
         </p>
       </div>
 
-      {/* User */}
+      {/* ── User ── */}
       <div className="sidebar-user">
-        <p style={{ fontSize:"0.62rem", color:"rgba(255,255,255,0.4)", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"3px" }}>
+        <p style={{ fontSize:"0.6rem", color:"rgba(255,255,255,0.35)", fontFamily:"'Cinzel',serif",
+          letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"4px" }}>
           Logged in as
         </p>
-        <p style={{ fontSize:"0.7rem", color:"rgba(255,255,255,0.75)", wordBreak:"break-all", lineHeight:1.4, marginBottom:"4px" }}>
+        <p style={{ fontSize:"0.72rem", color:"rgba(255,255,255,0.8)", wordBreak:"break-all",
+          lineHeight:1.4, marginBottom:"6px" }}>
           {userEmail}
         </p>
         <span className="role-badge">{userRole || "view"}</span>
       </div>
 
-      {/* Nav */}
+      {/* ── Nav ── */}
       <nav className="sidebar-nav">
-        {navItem("/dashboard", "⬡", "Dashboard")}
-        {perms.canAdd && navItem("/register", "+", "New Title")}
-        {perms.canAdd && navItem("/import", "📥", "Import")}
-        {navItem("/export", "📤", "Export")}
-        {perms.canViewAudit && navItem("/notifications", "🔔", "Notifications")}
-        {perms.canViewUsers && navItem("/users", "👤", "Users")}
-        {perms.canViewAudit && navItem("/audit", "📋", "Audit Log")}
+        {navItem("/dashboard",     "⊞",  "Dashboard")}
+        {perms.canAdd    && navItem("/register",      "＋",  "New Title")}
+        {perms.canAdd    && navItem("/import",         "↑",   "Import")}
+        {                   navItem("/export",         "↓",   "Export")}
+        {perms.canViewAudit && navItem("/notifications","🔔",  "Notifications")}
+        {perms.canViewUsers && navItem("/users",       "👤",  "Users")}
+        {perms.canViewAudit && navItem("/audit",       "📋",  "Audit Log")}
       </nav>
 
-      {/* Sign out */}
+      {/* ── Sign out ── */}
       <div className="sidebar-footer">
         <button onClick={handleLogout} style={{
-          width:"100%", background:"transparent", border:"1px solid rgba(45,122,79,0.3)",
-          color:"rgba(255,255,255,0.5)", padding:"0.5rem", cursor:"pointer",
-          fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em",
-          textTransform:"uppercase", borderRadius:"2px"
+          width:"100%", background:"rgba(255,255,255,0.05)",
+          border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.55)",
+          padding:"0.6rem", cursor:"pointer", fontFamily:"'Cinzel',serif",
+          fontSize:"0.7rem", letterSpacing:"0.1em", textTransform:"uppercase",
+          borderRadius:"4px", transition:"all 0.2s"
         }}>
           Sign Out
         </button>
