@@ -3,21 +3,21 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --gold: #c9a84c;
-  --gold-light: #e8c96a;
-  --gold-dark: #8b6914;
-  --cream: #f5ede0;
-  --ink: #0a0a0a;
-  --ink-soft: #1a1208;
+  --gold: #1e6b3c;
+  --gold-light: #2d9b57;
+  --gold-dark: #14482a;
+  --cream: #1a1a1a;
+  --ink: #f7f4ef;
+  --ink-soft: #eee9e0;
   --red-samoan: #8b1a1a;
   --teal: #1a4a4a;
-  --border: rgba(201,168,76,0.3);
+  --border: rgba(30,107,60,0.3);
 }
 
 html, body, #root {
   height: 100%;
-  background: var(--ink);
-  color: var(--cream);
+  background: #f7f4ef;
+  color: #1a1a1a;
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
@@ -116,7 +116,7 @@ nav {
 
 /* ── Buttons ── */
 .btn-primary {
-  background: linear-gradient(135deg, var(--gold-dark), var(--gold), var(--gold-light));
+  background: linear-gradient(135deg, #1a5c35, #2d7a4f, #4aab72);
   color: var(--ink);
   border: none;
   padding: 0.85rem 2.2rem;
@@ -127,11 +127,11 @@ nav {
   text-transform: uppercase;
   border-radius: 2px;
   transition: all 0.25s;
-  box-shadow: 0 4px 20px rgba(201,168,76,0.25);
+  box-shadow: 0 4px 20px rgba(45,122,79,0.25);
 }
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 30px rgba(201,168,76,0.4);
+  box-shadow: 0 8px 30px rgba(45,122,79,0.4);
 }
 .btn-primary:active { transform: translateY(0); }
 
@@ -147,7 +147,7 @@ nav {
   border-radius: 2px;
   transition: all 0.2s;
 }
-.btn-secondary:hover { background: rgba(201,168,76,0.1); }
+.btn-secondary:hover { background: rgba(45,122,79,0.1); }
 
 .btn-ghost {
   background: transparent;
@@ -172,14 +172,14 @@ label {
   font-size: 0.72rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: #1e6b3c;
   opacity: 0.9;
 }
 
 input, select, textarea {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border);
-  color: var(--cream);
+  background: #ffffff;
+  border: 1px solid rgba(30,107,60,0.3);
+  color: #1a1a1a;
   padding: 0.85rem 1rem;
   font-size: 1rem;
   border-radius: 2px;
@@ -188,19 +188,19 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--gold);
-  background: rgba(201,168,76,0.05);
+  background: rgba(45,122,79,0.05);
 }
-select option { background: #1a1208; }
+select option { background: #ffffff; color: #1a1a1a; }
 
 /* ── Cards ── */
 .card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1px solid rgba(30,107,60,0.2);
   border-radius: 4px;
   padding: 2rem;
   transition: border-color 0.2s, transform 0.2s;
 }
-.card:hover { border-color: rgba(201,168,76,0.5); }
+.card:hover { border-color: rgba(45,122,79,0.5); }
 
 /* ── Divider ── */
 .divider {
@@ -236,25 +236,26 @@ select option { background: #1a1208; }
   font-size: 0.9rem;
   border-left: 3px solid;
 }
-.alert-error { background: rgba(139,26,26,0.15); border-color: var(--red-samoan); color: #f5a0a0; }
-.alert-success { background: rgba(26,74,74,0.2); border-color: var(--teal); color: #7dd3c8; }
+.alert-error { background: rgba(139,26,26,0.08); border-color: #8b1a1a; color: #8b1a1a; }
+.alert-success { background: rgba(30,107,60,0.08); border-color: #1e6b3c; color: #1e6b3c; }
 
 /* ── App Layout ── */
 .app-layout {
   display: flex;
   min-height: 100vh;
+  background: #f7f4ef;
 }
 
 .sidebar {
-  width: 185px;
-  min-width: 185px;
-  max-width: 185px;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
   height: 100vh;
   position: fixed;
   top: 0;
   left: 0;
-  background: rgba(5,5,5,0.98);
-  border-right: 1px solid rgba(201,168,76,0.2);
+  background: #0f2e1a;
+  border-right: 1px solid rgba(45,122,79,0.2);
   display: flex;
   flex-direction: column;
   z-index: 200;
@@ -262,23 +263,25 @@ select option { background: #1a1208; }
 }
 
 .sidebar-content {
-  margin-left: 185px;
+  margin-left: 220px;
   flex: 1;
   min-height: 100vh;
   padding: 2rem;
   box-sizing: border-box;
   overflow-x: hidden;
+  background: #f7f4ef;
+  color: #1a1a1a;
 }
 
 .sidebar-logo {
   padding: 1rem 0.8rem;
-  border-bottom: 1px solid rgba(201,168,76,0.15);
+  border-bottom: 1px solid rgba(45,122,79,0.15);
   flex-shrink: 0;
 }
 
 .sidebar-user {
   padding: 0.65rem 0.8rem;
-  border-bottom: 1px solid rgba(201,168,76,0.1);
+  border-bottom: 1px solid rgba(45,122,79,0.1);
   flex-shrink: 0;
 }
 
@@ -291,7 +294,7 @@ select option { background: #1a1208; }
 
 .sidebar-footer {
   padding: 0.65rem 0.6rem;
-  border-top: 1px solid rgba(201,168,76,0.15);
+  border-top: 1px solid rgba(45,122,79,0.15);
   flex-shrink: 0;
   margin-top: auto;
 }
@@ -300,36 +303,36 @@ select option { background: #1a1208; }
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 0.8rem;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
   margin-bottom: 2px;
   font-family: 'Cinzel', serif;
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.2s;
   text-decoration: none;
-  color: rgba(245,237,224,0.55);
+  color: rgba(255,255,255,0.6);
   border-left: 3px solid transparent;
   box-sizing: border-box;
   width: 100%;
 }
 .nav-item:hover { 
-  background: rgba(201,168,76,0.08); 
-  color: rgba(201,168,76,0.8); 
+  background: rgba(255,255,255,0.1); 
+  color: rgba(255,255,255,0.9); 
 }
 .nav-item.active { 
-  background: rgba(201,168,76,0.15); 
-  border-left: 3px solid #c9a84c; 
-  color: #c9a84c; 
+  background: rgba(255,255,255,0.15); 
+  border-left: 3px solid #7dd3a8; 
+  color: #7dd3a8; 
 }
 
 .role-badge {
   display: inline-block;
-  background: rgba(201,168,76,0.12);
-  border: 1px solid rgba(201,168,76,0.3);
-  color: #c9a84c;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #7dd3a8;
   padding: 1px 6px;
   border-radius: 2px;
   font-family: 'Cinzel', serif;
@@ -339,8 +342,9 @@ select option { background: #1a1208; }
 }
 
 .stat-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(201,168,76,0.2);
+  background: #ffffff;
+  border: 1px solid rgba(30,107,60,0.2);
   border-radius: 4px;
   padding: 1.2rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }

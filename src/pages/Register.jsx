@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { logAudit } from "../utils/audit";
+import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
 
@@ -122,12 +122,21 @@ export default function Register({ userRole }) {
     setLoading(true);
     try {
       if (isEdit) {
+        // Get old record for diff
+        const oldSnap = await getDoc(doc(db, "registrations", id));
+        const oldRec = oldSnap.exists() ? oldSnap.data() : {};
+        const changes = diffRecords(oldRec, form);
         await updateDoc(doc(db, "registrations", id), { ...form, updatedAt: serverTimestamp() });
-        await logAudit("UPDATE", { mataiTitle: form.mataiTitle, recordId: id });
+        await logAudit("UPDATE", {
+          mataiTitle: form.mataiTitle,
+          recordId: id,
+          fieldsChanged: changes.length,
+          changes: changes.join(" | ")
+        });
         setSuccess("Registration updated successfully.");
       } else {
         const docRef = await addDoc(collection(db, "registrations"), { ...form, createdAt: serverTimestamp() });
-        await logAudit("CREATE", { mataiTitle: form.mataiTitle });
+        await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
         setSuccess("Title registered successfully.");
         setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
       }
@@ -229,7 +238,7 @@ export default function Register({ userRole }) {
               </div>
             </div>
             {!form.district && (
-              <p style={{ fontSize: "0.8rem", color: "rgba(201,168,76,0.5)", fontStyle: "italic", marginTop: "0.5rem" }}>
+              <p style={{ fontSize: "0.8rem", color: "rgba(45,122,79,0.6)", fontStyle: "italic", marginTop: "0.5rem" }}>
                 Select a district first to see its villages
               </p>
             )}
@@ -258,9 +267,9 @@ export default function Register({ userRole }) {
             </div>
           </div>
 
-          {/* Registrar & Seal */}
+          {/* Reference & Faapogai */}
           <div className="card fade-in-delay-3">
-            {sectionHead("Registrar & Seal (Faapogai)")}
+            {sectionHead("Reference & Faapogai")}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem" }}>
               <div className="form-group">
                 <label>Reference Number (e.g. 02/53/192)</label>
@@ -268,16 +277,8 @@ export default function Register({ userRole }) {
                   placeholder="e.g. 02/53/192" />
               </div>
               <div className="form-group">
-                <label>Registrar Name</label>
-                <input type="text" value={form.registrarName} onChange={set("registrarName")} placeholder="Full name" />
-              </div>
-              <div className="form-group">
-                <label>Registrar Title / Role</label>
-                <input type="text" value={form.registrarTitle} onChange={set("registrarTitle")} placeholder="e.g. District Registrar" />
-              </div>
-              <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                <label>Seal Reference (Faapogai)</label>
-                <input type="text" value={form.faapogai} onChange={set("faapogai")} placeholder="e.g. Official Seal No. 001" />
+                <label>Faapogai</label>
+                <input type="text" value={form.faapogai} onChange={set("faapogai")} placeholder="e.g. Faapogai text" />
               </div>
               <div className="form-group" style={{ gridColumn: "1 / -1" }}>
                 <label>Notes (optional)</label>

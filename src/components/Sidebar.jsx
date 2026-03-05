@@ -28,26 +28,26 @@ export default function Sidebar({ userRole, userEmail }) {
       {/* Logo */}
       <div className="sidebar-logo">
         <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem" }}>
-          <div style={{ width:"32px", height:"32px", minWidth:"32px", borderRadius:"50%", border:"1px solid #c9a84c", overflow:"hidden" }}>
+          <div style={{ width:"40px", height:"40px", minWidth:"40px", borderRadius:"50%", border:"1px solid rgba(255,255,255,0.3)", overflow:"hidden" }}>
             <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
               style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           </div>
           <div>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.58rem", color:"#c9a84c", lineHeight:1.3 }}>Matai</p>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.58rem", color:"#c9a84c", lineHeight:1.3 }}>Registry</p>
+            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.68rem", color:"#7dd3a8", lineHeight:1.3 }}>Matai</p>
+            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.68rem", color:"#7dd3a8", lineHeight:1.3 }}>Registry</p>
           </div>
         </div>
-        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.5rem", color:"rgba(201,168,76,0.35)", letterSpacing:"0.06em", textTransform:"uppercase" }}>
+        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.58rem", color:"rgba(45,122,79,0.4)", letterSpacing:"0.06em", textTransform:"uppercase" }}>
           Resitalaina o Matai
         </p>
       </div>
 
       {/* User */}
       <div className="sidebar-user">
-        <p style={{ fontSize:"0.55rem", color:"rgba(245,237,224,0.35)", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"3px" }}>
+        <p style={{ fontSize:"0.62rem", color:"rgba(255,255,255,0.4)", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"3px" }}>
           Logged in as
         </p>
-        <p style={{ fontSize:"0.62rem", color:"rgba(245,237,224,0.65)", wordBreak:"break-all", lineHeight:1.4, marginBottom:"4px" }}>
+        <p style={{ fontSize:"0.7rem", color:"rgba(255,255,255,0.75)", wordBreak:"break-all", lineHeight:1.4, marginBottom:"4px" }}>
           {userEmail}
         </p>
         <span className="role-badge">{userRole || "view"}</span>
@@ -59,6 +59,7 @@ export default function Sidebar({ userRole, userEmail }) {
         {perms.canAdd && navItem("/register", "+", "New Title")}
         {perms.canAdd && navItem("/import", "📥", "Import")}
         {navItem("/export", "📤", "Export")}
+        {perms.canViewAudit && navItem("/notifications", "🔔", "Notifications")}
         {perms.canViewUsers && navItem("/users", "👤", "Users")}
         {perms.canViewAudit && navItem("/audit", "📋", "Audit Log")}
       </nav>
@@ -66,9 +67,9 @@ export default function Sidebar({ userRole, userEmail }) {
       {/* Sign out */}
       <div className="sidebar-footer">
         <button onClick={handleLogout} style={{
-          width:"100%", background:"transparent", border:"1px solid rgba(201,168,76,0.25)",
-          color:"rgba(245,237,224,0.45)", padding:"0.5rem", cursor:"pointer",
-          fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.08em",
+          width:"100%", background:"transparent", border:"1px solid rgba(45,122,79,0.3)",
+          color:"rgba(255,255,255,0.5)", padding:"0.5rem", cursor:"pointer",
+          fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em",
           textTransform:"uppercase", borderRadius:"2px"
         }}>
           Sign Out

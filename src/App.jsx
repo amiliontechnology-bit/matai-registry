@@ -12,6 +12,7 @@ import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 import Import from "./pages/Import";
 import Export from "./pages/Export";
+import Notifications from "./pages/Notifications";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/audit" element={authed(<AuditLog userRole={userRole} />)} />
         <Route path="/import" element={authed(<Import userRole={userRole} />)} />
         <Route path="/export" element={authed(<Export userRole={userRole} />)} />
+        <Route path="/notifications" element={authed(<Notifications userRole={userRole} />)} />
       </Routes>
     </HashRouter>
   );
