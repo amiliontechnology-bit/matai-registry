@@ -145,7 +145,7 @@ export default function Dashboard({ userRole }) {
                   {filtered.map(r => (
                     <tr key={r.id}>
                       <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280" }}>
-                        {r.refNumber || "—"}
+                        {r.mataiCertNumber || r.refNumber || "—"}
                       </td>
                       <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
                         {r.mataiTitle}

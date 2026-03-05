@@ -6,7 +6,7 @@ import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
 
 const ALL_FIELDS = [
-  { key:"refNumber",        label:"Reference Number" },
+  { key:"mataiCertNumber",  label:"Matai Certificate Number" },
   { key:"mataiTitle",       label:"Matai Title" },
   { key:"holderName",       label:"Holder Name" },
   { key:"gender",           label:"Gender" },

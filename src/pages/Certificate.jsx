@@ -100,7 +100,7 @@ export default function Certificate({ userRole }) {
 
             {/* Reference number top right */}
             <div style={{ position:"absolute", top:28, right:70, border:"1px solid #1a5c35", padding:"3px 10px", fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.1em" }}>
-              {record.refNumber || "___/___/___"}
+              {record.mataiCertNumber || record.refNumber || "___/___/___"}
             </div>
 
             {/* Logo + headings */}

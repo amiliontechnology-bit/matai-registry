@@ -51,14 +51,14 @@ const DISTRICT_VILLAGES = {
   "VAISIGANO Nu.1": ["AUALA","MATAVAI ASAU","UTULOA ASAU","VAISALA"]
 };
 
-const MATAI_TYPES = ["Ali'i", "Faipule", "Tulafale"];
+const MATAI_TYPES = ["Ali'i", "Tulafale"];
 
 const EMPTY = {
   mataiTitle: "", holderName: "", gender: "", mataiType: "Ali'i",
   village: "", district: "",
   dateConferred: "", dateProclamation: "", dateRegistration: "", dateIssued: "",
-  familyName: "", faapogai: "", refNumber: "",
-  registrarName: "", registrarTitle: "", notes: ""
+  familyName: "", faapogai: "", mataiCertNumber: "", suli: "",
+  notes: ""
 };
 
 export default function Register({ userRole }) {
@@ -118,6 +118,24 @@ export default function Register({ userRole }) {
     if (!form.mataiTitle.trim() || !form.holderName.trim()) {
       setError("Matai Title (Suafa Matai) and Untitled Name (Suafa Taulealea) are required.");
       return;
+    }
+    // Date validations
+    if (form.dateConferred && form.dateProclamation) {
+      if (form.dateProclamation <= form.dateConferred) {
+        setError("Aso Faasalalau le Savali must be AFTER the Aso o le Saofai (Date of Conferral).");
+        return;
+      }
+    }
+    if (form.dateProclamation && form.dateRegistration) {
+      const proclamation = new Date(form.dateProclamation);
+      const registration = new Date(form.dateRegistration);
+      // Registration must be at least 4 months before proclamation
+      const fourMonthsBefore = new Date(proclamation);
+      fourMonthsBefore.setMonth(fourMonthsBefore.getMonth() - 4);
+      if (registration > fourMonthsBefore) {
+        setError("Date of Registration must be at least 4 months before the Aso Faasalalau le Savali (Proclamation Date).");
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -248,11 +266,13 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Date of Proclamation (Aso Faasalalau le Savali)</label>
-                <input type="date" value={form.dateProclamation} onChange={set("dateProclamation")} />
+                <input type="date" value={form.dateProclamation} onChange={set("dateProclamation")} min={form.dateConferred || undefined} />
+                {form.dateConferred && <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Must be after {new Date(form.dateConferred).toLocaleDateString("en-GB")}</p>}
               </div>
               <div className="form-group">
                 <label>Date of Registration (Aso Resitala ai)</label>
                 <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")} />
+                {form.dateProclamation && <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Must be ≥4 months before proclamation date</p>}
               </div>
               <div className="form-group">
                 <label>Date Issued (Aso Tuuina Mai)</label>
@@ -261,20 +281,33 @@ export default function Register({ userRole }) {
             </div>
           </div>
 
-          {/* Reference & Faapogai */}
+          {/* Certificate & Faapogai */}
           <div className="card fade-in-delay-3">
-            {sectionHead("Reference & Faapogai")}
+            {sectionHead("Certificate Details")}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem" }}>
               <div className="form-group">
-                <label>Reference Number (e.g. 02/53/192)</label>
-                <input type="text" value={form.refNumber} onChange={set("refNumber")}
+                <label>Matai Certificate Number</label>
+                <input type="text" value={form.mataiCertNumber} onChange={set("mataiCertNumber")}
                   placeholder="e.g. 02/53/192" />
               </div>
               <div className="form-group">
-                <label>Faapogai</label>
-                <input type="text" value={form.faapogai} onChange={set("faapogai")} placeholder="e.g. Faapogai text" />
+                <label>Suli</label>
+                <input type="text" value={form.suli} onChange={set("suli")}
+                  placeholder="e.g. Suli" />
               </div>
-              <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+            </div>
+          </div>
+
+          {/* Faapogai */}
+          <div className="card fade-in-delay-3">
+            {sectionHead("Faapogai")}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.2rem" }}>
+              <div className="form-group">
+                <label>Faapogai</label>
+                <input type="text" value={form.faapogai} onChange={set("faapogai")}
+                  placeholder="Enter Faapogai text" />
+              </div>
+              <div className="form-group">
                 <label>Notes (optional)</label>
                 <textarea rows={3} value={form.notes} onChange={set("notes")}
                   placeholder="Any additional notes…" style={{ resize: "vertical" }} />
