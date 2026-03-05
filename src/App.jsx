@@ -10,6 +10,8 @@ import Register from "./pages/Register";
 import Certificate from "./pages/Certificate";
 import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
+import Import from "./pages/Import";
+import Export from "./pages/Export";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -54,6 +56,8 @@ export default function App() {
         <Route path="/certificate/:id" element={authed(<Certificate userRole={userRole} />)} />
         <Route path="/users" element={authed(<Users userRole={userRole} />)} />
         <Route path="/audit" element={authed(<AuditLog userRole={userRole} />)} />
+        <Route path="/import" element={authed(<Import userRole={userRole} />)} />
+        <Route path="/export" element={authed(<Export userRole={userRole} />)} />
       </Routes>
     </HashRouter>
   );

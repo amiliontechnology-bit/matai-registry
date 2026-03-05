@@ -57,6 +57,8 @@ export default function Sidebar({ userRole, userEmail }) {
       <nav className="sidebar-nav">
         {navItem("/dashboard", "⬡", "Dashboard")}
         {perms.canAdd && navItem("/register", "+", "New Title")}
+        {perms.canAdd && navItem("/import", "📥", "Import")}
+        {navItem("/export", "📤", "Export")}
         {perms.canViewUsers && navItem("/users", "👤", "Users")}
         {perms.canViewAudit && navItem("/audit", "📋", "Audit Log")}
       </nav>
