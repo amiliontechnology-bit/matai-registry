@@ -15,7 +15,20 @@ export default function Login() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (err) {
-      setError("Invalid credentials. Please check your email and password.");
+      // Show specific error to help diagnose
+      const code = err.code || "";
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("Invalid email or password. Please try again.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many failed attempts. Please wait a few minutes before trying again.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Network error. Please check your internet connection.");
+      } else if (code === "auth/invalid-email") {
+        setError("Invalid email format. Please check your email address.");
+      } else {
+        // Show the raw error code so we can diagnose
+        setError(`Sign-in failed: ${err.code || err.message}`);
+      }
     } finally {
       setLoading(false);
     }
