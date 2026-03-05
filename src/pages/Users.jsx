@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { auth, db } from "../firebase";
+import { auth, db, secondaryAuth } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
@@ -59,12 +59,15 @@ export default function Users({ userRole }) {
     if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setSaving(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      const trimmedEmail = form.email.trim().toLowerCase();
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, trimmedEmail, form.password);
       await setDoc(doc(db, "users", cred.user.uid), {
-        email: form.email, role: form.role, createdAt: serverTimestamp()
+        email: trimmedEmail, role: form.role, createdAt: serverTimestamp()
       });
-      await logAudit("CREATE_USER", { email: form.email, role: form.role });
-      setSuccess(`✓ User ${form.email} created with role: ${ROLE_LABELS[form.role]}`);
+      await logAudit("CREATE_USER", { email: trimmedEmail, role: form.role });
+      // Sign out the secondary auth instance so it doesn't interfere
+      await secondaryAuth.signOut();
+      setSuccess(`✓ User ${trimmedEmail} created with role: ${ROLE_LABELS[form.role]}`);
       fetchUsers();
       setTimeout(resetForm, 1500);
     } catch (err) {
