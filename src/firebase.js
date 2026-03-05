@@ -40,6 +40,3 @@ export const auth = getAuth(app);
 // This prevents the admin from being signed out when creating a new user
 const secondaryApp = initializeApp(firebaseConfig, "secondary");
 export const secondaryAuth = getAuth(secondaryApp);
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
