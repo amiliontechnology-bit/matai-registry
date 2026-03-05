@@ -73,10 +73,10 @@ export default function Users({ userRole }) {
   const roleColor = { admin:"#f5a0a0", data_entry:"#c9a84c", view_print:"#a0c4f5", view:"rgba(245,237,224,0.4)" };
 
   return (
-    <div style={{ display:"flex", flexDirection:"row", minHeight:"100vh", width:"100vw", maxWidth:"100vw", background:"#0a0a0a", color:"#f5ede0", overflow:"hidden" }}>
-      <div className="pattern-bg" style={{ position:"fixed" }} />
+    <div className="app-layout">
+      <div className="pattern-bg" />
       <Sidebar userRole={userRole} userEmail={currentUser?.email} />
-      <main style={{ flex:1, padding:"2rem", overflowX:"auto", overflowY:"auto", position:"relative", zIndex:1, minWidth:0 }}>
+      <div className="sidebar-content">
         <div style={{ marginBottom:"2rem", display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
           <div>
             <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.25em", color:"rgba(201,168,76,0.6)", textTransform:"uppercase", marginBottom:"0.4rem" }}>Administration</p>
@@ -173,7 +173,7 @@ export default function Users({ userRole }) {
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

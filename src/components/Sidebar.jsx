@@ -16,43 +16,17 @@ export default function Sidebar({ userRole, userEmail }) {
   const navItem = (to, icon, label) => {
     const active = loc.pathname === to || loc.pathname.startsWith(to + "/");
     return (
-      <Link to={to} style={{ textDecoration:"none", display:"block", width:"100%" }}>
-        <div style={{
-          display:"flex", flexDirection:"row", alignItems:"center", gap:"0.5rem",
-          padding:"0.65rem 0.8rem", marginBottom:"2px",
-          background: active ? "rgba(201,168,76,0.15)" : "transparent",
-          borderLeft: active ? "3px solid #c9a84c" : "3px solid transparent",
-          color: active ? "#c9a84c" : "rgba(245,237,224,0.55)",
-          fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em",
-          textTransform:"uppercase", cursor:"pointer", transition:"all 0.2s",
-          boxSizing:"border-box"
-        }}>
-          <span style={{ fontSize:"12px", flexShrink:0 }}>{icon}</span>
-          <span style={{ flexShrink:0 }}>{label}</span>
-        </div>
+      <Link to={to} className={`nav-item${active ? " active" : ""}`}>
+        <span style={{ fontSize:"13px" }}>{icon}</span>
+        <span>{label}</span>
       </Link>
     );
   };
 
   return (
-    <aside style={{
-      width:"185px",
-      minWidth:"185px",
-      maxWidth:"185px",
-      height:"100vh",
-      position:"sticky",
-      top:0,
-      background:"rgba(5,5,5,0.98)",
-      borderRight:"1px solid rgba(201,168,76,0.2)",
-      display:"flex",
-      flexDirection:"column",
-      flexShrink:0,
-      overflowY:"auto",
-      boxSizing:"border-box",
-      zIndex:50
-    }}>
+    <aside className="sidebar">
       {/* Logo */}
-      <div style={{ padding:"1rem 0.8rem", borderBottom:"1px solid rgba(201,168,76,0.15)", flexShrink:0 }}>
+      <div className="sidebar-logo">
         <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.35rem" }}>
           <div style={{ width:"32px", height:"32px", minWidth:"32px", borderRadius:"50%", border:"1px solid #c9a84c", overflow:"hidden" }}>
             <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
@@ -68,26 +42,19 @@ export default function Sidebar({ userRole, userEmail }) {
         </p>
       </div>
 
-      {/* User info */}
-      <div style={{ padding:"0.65rem 0.8rem", borderBottom:"1px solid rgba(201,168,76,0.1)", flexShrink:0 }}>
+      {/* User */}
+      <div className="sidebar-user">
         <p style={{ fontSize:"0.55rem", color:"rgba(245,237,224,0.35)", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:"3px" }}>
           Logged in as
         </p>
         <p style={{ fontSize:"0.62rem", color:"rgba(245,237,224,0.65)", wordBreak:"break-all", lineHeight:1.4, marginBottom:"4px" }}>
           {userEmail}
         </p>
-        <span style={{
-          display:"inline-block",
-          background:"rgba(201,168,76,0.12)", border:"1px solid rgba(201,168,76,0.3)",
-          color:"#c9a84c", padding:"1px 6px", borderRadius:"2px",
-          fontFamily:"'Cinzel',serif", fontSize:"0.55rem", letterSpacing:"0.06em", textTransform:"uppercase"
-        }}>
-          {userRole || "view"}
-        </span>
+        <span className="role-badge">{userRole || "view"}</span>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex:1, paddingTop:"0.5rem", paddingBottom:"0.5rem", display:"flex", flexDirection:"column" }}>
+      <nav className="sidebar-nav">
         {navItem("/dashboard", "⬡", "Dashboard")}
         {perms.canAdd && navItem("/register", "+", "New Title")}
         {perms.canViewUsers && navItem("/users", "👤", "Users")}
@@ -95,12 +62,12 @@ export default function Sidebar({ userRole, userEmail }) {
       </nav>
 
       {/* Sign out */}
-      <div style={{ padding:"0.65rem 0.6rem", borderTop:"1px solid rgba(201,168,76,0.15)", flexShrink:0 }}>
+      <div className="sidebar-footer">
         <button onClick={handleLogout} style={{
           width:"100%", background:"transparent", border:"1px solid rgba(201,168,76,0.25)",
           color:"rgba(245,237,224,0.45)", padding:"0.5rem", cursor:"pointer",
           fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.08em",
-          textTransform:"uppercase", borderRadius:"2px", boxSizing:"border-box"
+          textTransform:"uppercase", borderRadius:"2px"
         }}>
           Sign Out
         </button>

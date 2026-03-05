@@ -5,6 +5,7 @@ import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, q
 import { auth, db } from "../firebase";
 import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
+import Sidebar from "../components/Sidebar";
 
 const DISTRICT_VILLAGES = {
   "AANA ALOFI Nu.03": ["FALEATIU","FASITOO-TAI","SATAPUALA","SATUIMALUFILUFI","VAILUUTAI"],
@@ -149,17 +150,11 @@ export default function Register({ userRole }) {
   );
 
   return (
-    <div className="page">
+    <div className="app-layout">
       <div className="pattern-bg" />
-      <nav>
-        <Link to="/dashboard" className="nav-brand">⬡ Matai Registry</Link>
-        <div className="nav-links">
-          <Link to="/dashboard" className="nav-link">← Registry</Link>
-          <button className="btn-logout" onClick={() => signOut(auth)}>Sign Out</button>
-        </div>
-      </nav>
+      <Sidebar userRole={userRole} userEmail={auth.currentUser?.email} />
+      <div className="sidebar-content">
 
-      <main style={{ flex: 1, padding: "3rem 2.5rem", maxWidth: 800, margin: "0 auto", width: "100%", position: "relative" }}>
         <div className="fade-in" style={{ marginBottom: "2.5rem" }}>
           <p style={{ fontFamily: "'Cinzel', serif", fontSize: "0.72rem", letterSpacing: "0.25em", color: "var(--gold)", opacity: 0.7, textTransform: "uppercase", marginBottom: "0.5rem" }}>
             {isEdit ? "Edit Record" : "New Registration"}
@@ -299,7 +294,7 @@ export default function Register({ userRole }) {
             </button>
           </div>
         </form>
-      </main>
+      </div>
     </div>
   );
 }
