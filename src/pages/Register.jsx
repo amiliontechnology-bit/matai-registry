@@ -53,8 +53,8 @@ const MATAI_TYPES = ["Ali'i", "Faipule", "Tulafale"];
 const EMPTY = {
   mataiTitle: "", holderName: "", gender: "", mataiType: "Ali'i",
   village: "", district: "",
-  dateConferred: "", dateProclamation: "", dateRegistration: "",
-  familyName: "", faapogai: "",
+  dateConferred: "", dateProclamation: "", dateRegistration: "", dateIssued: "",
+  familyName: "", faapogai: "", refNumber: "",
   registrarName: "", registrarTitle: "", notes: ""
 };
 
@@ -238,7 +238,7 @@ export default function Register() {
           {/* Dates */}
           <div className="card fade-in-delay-2">
             {sectionHead("Important Dates")}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.2rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem" }}>
               <div className="form-group">
                 <label>Date of Conferral (Aso o le Saofai)</label>
                 <input type="date" value={form.dateConferred} onChange={set("dateConferred")} />
@@ -251,6 +251,10 @@ export default function Register() {
                 <label>Date of Registration (Aso Resitala ai)</label>
                 <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")} />
               </div>
+              <div className="form-group">
+                <label>Date Issued (Aso Tuuina Mai)</label>
+                <input type="date" value={form.dateIssued} onChange={set("dateIssued")} />
+              </div>
             </div>
           </div>
 
@@ -258,6 +262,11 @@ export default function Register() {
           <div className="card fade-in-delay-3">
             {sectionHead("Registrar & Seal (Faapogai)")}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.2rem" }}>
+              <div className="form-group">
+                <label>Reference Number (e.g. 02/53/192)</label>
+                <input type="text" value={form.refNumber} onChange={set("refNumber")}
+                  placeholder="e.g. 02/53/192" />
+              </div>
               <div className="form-group">
                 <label>Registrar Name</label>
                 <input type="text" value={form.registrarName} onChange={set("registrarName")} placeholder="Full name" />
