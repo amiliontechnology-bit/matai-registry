@@ -565,22 +565,12 @@ export default function Register({ userRole }) {
                   {MATAI_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Family / Other Titles (Isi Suafa Matai)</label>
-                <input type="text" value={form.familyTitles || ""} onChange={set("familyTitles")}
-                  placeholder="Other family Matai titles" />
-              </div>
-              <div className="form-group">
-                <label>Village of Other Title (Nu'u o loo Matai ai)</label>
-                <input type="text" value={form.nuuMataiAi || ""} onChange={set("nuuMataiAi")}
-                  placeholder="Village where the other title is held" />
-              </div>
             </div>
           </div>
 
           {/* ── Village & District ── */}
           <div className="card fade-in-delay-2">
-            {sectionHead("Village & District")}
+            {sectionHead("Village & District (of New Title)")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>District (Itūmālō)</label>
@@ -604,6 +594,23 @@ export default function Register({ userRole }) {
                 Select a district first to see its villages
               </p>
             )}
+          </div>
+
+          {/* ── Other Matai Title ── */}
+          <div className="card fade-in-delay-2">
+            {sectionHead("Other Matai Title (for Records)")}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+              <div className="form-group">
+                <label>Other Matai Title (Isi Suafa Matai)</label>
+                <input type="text" value={form.familyTitles || ""} onChange={set("familyTitles")}
+                  placeholder="Other Matai title this person holds" />
+              </div>
+              <div className="form-group">
+                <label>Village of Other Title (Nu'u o loo Matai ai)</label>
+                <input type="text" value={form.nuuMataiAi || ""} onChange={set("nuuMataiAi")}
+                  placeholder="Village where the other title is held" />
+              </div>
+            </div>
           </div>
 
           {/* ── Certificate Numbers ── */}
