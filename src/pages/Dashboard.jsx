@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { collection, getDocs, deleteDoc, doc, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -8,6 +8,12 @@ import Sidebar from "../components/Sidebar";
 
 const fmtDate = (str) => {
   if (!str) return "—";
+  // Parse YYYY-MM-DD directly to avoid timezone shifting
+  const parts = String(str).split("T")[0].split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
+  }
+  // Fallback for any other format
   const d = new Date(str);
   if (isNaN(d)) return "—";
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
@@ -25,9 +31,11 @@ export default function Dashboard({ userRole }) {
 
   const fetchRecords = async () => {
     try {
-      const q = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const snap = await getDocs(collection(db, "registrations"));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort newest first in JS — avoids needing a Firestore composite index
+      list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      setRecords(list);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -57,8 +65,13 @@ export default function Dashboard({ userRole }) {
     return matchSearch && matchDistrict && matchType;
   });
 
-  const totalAli      = records.filter(r => r.mataiType === "Ali'i").length;
-  const totalTulafale = records.filter(r => r.mataiType === "Tulafale").length;
+  const normalizeType = (t) => (t || "").trim().toLowerCase();
+  const totalAli      = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
+  const totalTulafale = records.filter(r => normalizeType(r.mataiType) === "tulafale").length;
+  const totalOther    = records.filter(r => {
+    const t = normalizeType(r.mataiType);
+    return t && t !== "ali'i" && t !== "alii" && t !== "tulafale" && t !== "faipule";
+  }).length;
 
   return (
     <div className="app-layout">
@@ -80,11 +93,12 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
-            { label:"Total Registered", value: records.length, accent:"#155c31" },
-            { label:"Ali'i",            value: totalAli,        accent:"#1e7a42" },
-            { label:"Tulafale",         value: totalTulafale,   accent:"#0d2818" },
+            { label:"Total Registered", value: records.length,  accent:"#155c31" },
+            { label:"Ali'i",            value: totalAli,         accent:"#1e7a42" },
+            { label:"Tulafale",         value: totalTulafale,    accent:"#0d2818" },
+            { label:"Other / Unknown",  value: totalOther,       accent:"#6b7280" },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.18em", color:"#6b7280", textTransform:"uppercase", marginBottom:"0.5rem" }}>{s.label}</p>
@@ -134,7 +148,7 @@ export default function Dashboard({ userRole }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {["Ref No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
+                    {["Cert No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>
@@ -142,8 +156,12 @@ export default function Dashboard({ userRole }) {
                 <tbody>
                   {filtered.map(r => (
                     <tr key={r.id}>
-                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280" }}>
-                        {r.mataiCertNumber || r.refNumber || "—"}
+                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280", whiteSpace:"nowrap" }}>
+                        {/* Show combined cert number: Itumalo/Laupepa/RegBook */}
+                        {r.certItumalo && r.certLaupepa && r.certRegBook
+                          ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
+                          : r.mataiCertNumber || r.refNumber || "—"
+                        }
                       </td>
                       <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
                         {r.mataiTitle}
