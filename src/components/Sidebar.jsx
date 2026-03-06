@@ -60,13 +60,14 @@ export default function Sidebar({ userRole, userEmail }) {
 
       {/* ── Nav ── */}
       <nav className="sidebar-nav">
-        {navItem("/dashboard",     "⊞",  "Dashboard")}
-        {perms.canAdd    && navItem("/register",      "＋",  "New Title")}
-        {perms.canAdd    && navItem("/import",         "↑",   "Import")}
-        {                   navItem("/export",         "↓",   "Export")}
+        {navItem("/dashboard",      "⊞",  "Dashboard")}
+        {perms.canAdd    && navItem("/register",       "＋",  "New Title")}
+        {perms.canAdd    && navItem("/import",          "↑",   "Import")}
+        {                   navItem("/export",          "↓",   "Export")}
         {perms.canViewAudit && navItem("/notifications","🔔",  "Notifications")}
-        {perms.canViewUsers && navItem("/users",       "👤",  "Users")}
-        {perms.canViewAudit && navItem("/audit",       "📋",  "Audit Log")}
+        {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
+        {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}
+        {perms.canViewAudit && navItem("/data-manage",  "🗄️",  "Data Manage")}
       </nav>
 
       {/* ── Sign out ── */}

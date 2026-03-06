@@ -13,6 +13,7 @@ import AuditLog from "./pages/AuditLog";
 import Import from "./pages/Import";
 import Export from "./pages/Export";
 import Notifications from "./pages/Notifications";
+import DataManage from "./pages/DataManage";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -21,7 +22,6 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // Fetch role from Firestore users collection
         try {
           const snap = await getDoc(doc(db, "users", u.uid));
           const role = snap.exists() ? (snap.data().role || "view") : "view";
@@ -60,6 +60,7 @@ export default function App() {
         <Route path="/import" element={authed(<Import userRole={userRole} />)} />
         <Route path="/export" element={authed(<Export userRole={userRole} />)} />
         <Route path="/notifications" element={authed(<Notifications userRole={userRole} />)} />
+        <Route path="/data-manage" element={authed(<DataManage userRole={userRole} />)} />
       </Routes>
     </HashRouter>
   );
