@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 
 export default function Certificate({ userRole }) {
@@ -27,6 +28,8 @@ export default function Certificate({ userRole }) {
     const d = new Date(str);
     return `${d.getDate()} ${MONTHS_SA[d.getMonth()]} ${d.getFullYear()}`;
   };
+
+  const perms = getPermissions(userRole);
 
   const handlePrint = () => {
     logAudit("PRINT", { mataiTitle: record?.mataiTitle, recordId: id });
@@ -59,7 +62,7 @@ export default function Certificate({ userRole }) {
           </Link>
         </div>
         <div style={{ display:"flex", gap:"0.75rem" }}>
-          <button onClick={handlePrint} style={{
+          {perms.canPrint && <button onClick={handlePrint} style={{
             background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none",
             padding:"0.6rem 1.5rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem",
             fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer"
@@ -105,9 +108,9 @@ export default function Certificate({ userRole }) {
 
             {/* Logo + headings */}
             <div style={{ textAlign:"center", marginBottom:"12px" }}>
-              <div style={{ width:"80px", height:"80px", margin:"0 auto 6px", borderRadius:"50%", border:"2px solid #1a5c35", boxShadow:"0 0 0 4px rgba(26,92,53,0.1)", overflow:"hidden", background:"#fdf8f0" }}>
-                <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
-                  style={{ width:"76px", height:"76px", objectFit:"cover", borderRadius:"50%", filter:"sepia(20%) contrast(1.05)" }} />
+              <div style={{ width:"90px", height:"90px", margin:"0 auto 6px", background:"transparent" }}>
+                <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+                  style={{ width:"76px", height:"76px", objectFit:"contain", borderRadius:"0" }} />
               </div>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"7px", letterSpacing:"0.35em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                 Independent State of Samoa

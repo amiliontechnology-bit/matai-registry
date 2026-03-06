@@ -119,24 +119,6 @@ export default function Register({ userRole }) {
       setError("Matai Title (Suafa Matai) and Untitled Name (Suafa Taulealea) are required.");
       return;
     }
-    // Date validations
-    if (form.dateConferred && form.dateProclamation) {
-      if (form.dateProclamation <= form.dateConferred) {
-        setError("Aso Faasalalau le Savali must be AFTER the Aso o le Saofai (Date of Conferral).");
-        return;
-      }
-    }
-    if (form.dateProclamation && form.dateRegistration) {
-      const proclamation = new Date(form.dateProclamation);
-      const registration = new Date(form.dateRegistration);
-      // Registration must be at least 4 months before proclamation
-      const fourMonthsBefore = new Date(proclamation);
-      fourMonthsBefore.setMonth(fourMonthsBefore.getMonth() - 4);
-      if (registration > fourMonthsBefore) {
-        setError("Date of Registration must be at least 4 months before the Aso Faasalalau le Savali (Proclamation Date).");
-        return;
-      }
-    }
     setLoading(true);
     try {
       if (isEdit) {
@@ -266,13 +248,11 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Date of Proclamation (Aso Faasalalau le Savali)</label>
-                <input type="date" value={form.dateProclamation} onChange={set("dateProclamation")} min={form.dateConferred || undefined} />
-                {form.dateConferred && <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Must be after {new Date(form.dateConferred).toLocaleDateString("en-GB")}</p>}
+                <input type="date" value={form.dateProclamation} onChange={set("dateProclamation")} />
               </div>
               <div className="form-group">
                 <label>Date of Registration (Aso Resitala ai)</label>
                 <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")} />
-                {form.dateProclamation && <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Must be ≥4 months before proclamation date</p>}
               </div>
               <div className="form-group">
                 <label>Date Issued (Aso Tuuina Mai)</label>
