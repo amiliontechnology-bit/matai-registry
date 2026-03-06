@@ -324,7 +324,7 @@ const EMPTY = {
   dateConferred: "",    // Aso o le Saofai
   dateProclamation: "", // Aso o le Faasalalauga
   dateRegistration: "", // Aso na Resitala ai
-  dateIssued: new Date().toISOString().split("T")[0],
+  dateIssued: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
   dateBirth: "",        // Aso Fanau
   nuuFanau: "",         // Nuu na Fanau ai
   // Certificate numbers
@@ -346,10 +346,21 @@ export default function Register({ userRole }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [dupWarning, setDupWarning] = useState("");
+  const [districtVillagesFS, setDistrictVillagesFS] = useState(null);
   const isEdit = !!id;
   const perms = getPermissions(userRole);
 
-  const villages = form.district ? DISTRICT_VILLAGES[form.district] || [] : [];
+  // Load district/villages from Firestore (falls back to hardcoded if not set)
+  useEffect(() => {
+    getDoc(doc(db, "settings", "districtVillages"))
+      .then(snap => { if (snap.exists()) setDistrictVillagesFS(snap.data().data); })
+      .catch(() => {});
+  }, []);
+
+  const activeDistrictVillages = districtVillagesFS || DISTRICT_VILLAGES;
+  const activeDistrictOptions = Object.keys(activeDistrictVillages).sort()
+    .map((name, i) => ({ num: i + 1, name }));
+  const villages = form.district ? (activeDistrictVillages[form.district] || []) : [];
 
   useEffect(() => {
     if (!id) return;
@@ -388,7 +399,7 @@ export default function Register({ userRole }) {
           data.dateConferred    = toDateStr(data.dateConferred);
           data.dateProclamation = toDateStr(data.dateProclamation);
           data.dateRegistration = toDateStr(data.dateRegistration);
-          data.dateIssued       = toDateStr(data.dateIssued) || new Date().toISOString().split("T")[0];
+          data.dateIssued       = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
           data.dateBirth        = toDateStr(data.dateBirth);
 
           // ── 2. Cert number: parse combined string if parts missing ──
@@ -576,7 +587,7 @@ export default function Register({ userRole }) {
                 <label>District (Itūmālō)</label>
                 <select value={form.district} onChange={set("district")}>
                   <option value="">— Select District —</option>
-                  {DISTRICT_OPTIONS.map(({ num, name }) => (
+                  {activeDistrictOptions.map(({ num, name }) => (
                     <option key={num} value={name}>{num} – {name}</option>
                   ))}
                 </select>
