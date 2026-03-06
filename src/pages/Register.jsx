@@ -570,6 +570,11 @@ export default function Register({ userRole }) {
                 <input type="text" value={form.familyTitles || ""} onChange={set("familyTitles")}
                   placeholder="Other family Matai titles" />
               </div>
+              <div className="form-group">
+                <label>Village of Other Title (Nu'u o loo Matai ai)</label>
+                <input type="text" value={form.nuuMataiAi || ""} onChange={set("nuuMataiAi")}
+                  placeholder="Village where the other title is held" />
+              </div>
             </div>
           </div>
 
@@ -592,11 +597,6 @@ export default function Register({ userRole }) {
                   <option value="">— Select Village —</option>
                   {villages.map(v => <option key={v}>{v}</option>)}
                 </select>
-              </div>
-              <div className="form-group">
-                <label>Village where Matai title held (Nu'u o loo Matai ai)</label>
-                <input type="text" value={form.nuuMataiAi || ""} onChange={set("nuuMataiAi")}
-                  placeholder="Village where title is exercised" />
               </div>
             </div>
             {!form.district && (
