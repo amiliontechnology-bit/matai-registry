@@ -281,6 +281,34 @@ const SAMPLES = [
     objection:"no", idType:"drivers_licence", idNumber:"DL112244",
     notes:"Entered last month — no proclamation yet", status:"pending"
   },
+
+  // ════════════════════════════════════════════════
+  // SECTION 6 — INTENTIONAL DUPLICATES (for testing duplicate detection)
+  // ════════════════════════════════════════════════
+  // This record has same cert number as FALEOLO (01/53/188)
+  {
+    mataiTitle:"FALEOLO II", holderName:"Tama Faleolo Sapa", gender:"Male", mataiType:"Ali'i",
+    village:"Fagalii", district:"VAIMAUGA SASA'E",
+    dateConferred:daysAgo(30), dateProclamation:"",
+    dateRegistration:"", dateIssued:"",
+    dateBirth:"1980-06-15", nuuFanau:"Fagalii",
+    certItumalo:"01", certLaupepa:"53", certRegBook:"188",
+    mataiCertNumber:"01/53/188",
+    objection:"no", idType:"passport", idNumber:"P1122334",
+    notes:"TEST: Duplicate cert number 01/53/188 — same as FALEOLO", status:"pending"
+  },
+  // This record has same cert number as FAUMUINA (02/08/154)
+  {
+    mataiTitle:"FAUMUINA JUNIOR", holderName:"Lupe Faumuina Tuu", gender:"Female", mataiType:"Tulafale",
+    village:"Magiagi", district:"VAIMAUGA SISIFO",
+    dateConferred:daysAgo(15), dateProclamation:"",
+    dateRegistration:"", dateIssued:"",
+    dateBirth:"1992-11-03", nuuFanau:"Magiagi",
+    certItumalo:"02", certLaupepa:"08", certRegBook:"154",
+    mataiCertNumber:"02/08/154",
+    objection:"no", idType:"national_id", idNumber:"NID445566",
+    notes:"TEST: Duplicate cert number 02/08/154 — same as FAUMUINA", status:"pending"
+  },
 ];
 
 export async function seedTestData(onProgress) {

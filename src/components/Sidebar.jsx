@@ -54,7 +54,7 @@ export default function Sidebar({ userRole, userEmail }) {
       {/* ── Nav ── */}
       <nav className="sidebar-nav">
         {navItem("/dashboard",      "⊞",  "Dashboard")}
-        {perms.canAdd    && navItem("/register",       "＋",  "New Title")}
+        {perms.canAdd    && navItem("/register",       "＋",  "New Matai Entry")}
         {perms.canAdd    && navItem("/import",          "↑",   "Import")}
         {                   navItem("/reports",         "📋",  "Reports")}
         {perms.canViewAudit && navItem("/notifications","🔔",  "Notifications")}

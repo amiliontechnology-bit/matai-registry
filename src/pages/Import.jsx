@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
@@ -496,6 +496,7 @@ export default function Import({ userRole }) {
     setImporting(true); setProgress(0); setDone(0);
     const errs = [];
     const skippedRows = [];
+    const dupWarnings = [];
     let count = 0;
 
     // Identify skipped rows with their numbers and available content
@@ -506,28 +507,57 @@ export default function Import({ userRole }) {
       }
     });
 
+    // Load existing records once for dupe checking
+    const existingSnap = await getDocs(collection(db, "registrations"));
+    const existingRecords = existingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const existingCertNums = new Map(
+      existingRecords
+        .filter(r => r.mataiCertNumber)
+        .map(r => [r.mataiCertNumber, r])
+    );
+    const existingTitles = new Map(
+      existingRecords
+        .filter(r => r.mataiTitle)
+        .map(r => [r.mataiTitle.trim().toUpperCase(), r])
+    );
+
     const valid = preview.filter(r => r.mataiTitle);
     for (let i = 0; i < valid.length; i++) {
+      const row = valid[i];
+
+      // Check for duplicate cert number
+      if (row.mataiCertNumber && existingCertNums.has(row.mataiCertNumber)) {
+        const existing = existingCertNums.get(row.mataiCertNumber);
+        dupWarnings.push(`⚠ Row ${i+1} — Cert No. ${row.mataiCertNumber} already exists: "${existing.mataiTitle}" (${existing.holderName}). Imported anyway — please review.`);
+        await logAudit("DUPLICATE_WARNING", { certNumber: row.mataiCertNumber, mataiTitle: row.mataiTitle, existingTitle: existing.mataiTitle, source: "import" });
+      }
+
+      // Check for duplicate matai title
+      const titleKey = row.mataiTitle.trim().toUpperCase();
+      if (existingTitles.has(titleKey)) {
+        const existing = existingTitles.get(titleKey);
+        dupWarnings.push(`⚠ Row ${i+1} — Title "${row.mataiTitle}" already exists (holder: ${existing.holderName}). Imported anyway — please review.`);
+      }
+
       try {
-        await addDoc(collection(db, "registrations"), { ...valid[i], createdAt: serverTimestamp() });
+        await addDoc(collection(db, "registrations"), { ...row, createdAt: serverTimestamp() });
         count++;
       } catch (err) {
-        errs.push(`Row ${i + 1} (${valid[i].mataiTitle}): ${err.message}`);
+        errs.push(`Row ${i + 1} (${row.mataiTitle}): ${err.message}`);
       }
       setProgress(Math.round(((i + 1) / valid.length) * 100));
     }
 
-    await logAudit("IMPORT", { count, file: file?.name, skipped: skippedRows.length });
-    // Clear registrations cache so Dashboard shows fresh data
+    await logAudit("IMPORT", { count, file: file?.name, skipped: skippedRows.length, duplicates: dupWarnings.length });
     const { cacheClear } = await import("../utils/cache");
     cacheClear("registrations");
     cacheClear("auditLog");
     setDone(count);
-    setErrors([...skippedRows, ...errs]);
+    setErrors([...skippedRows, ...dupWarnings, ...errs]);
     setImporting(false);
     setStep("done");
-    // Auto-redirect to dashboard after 2s if no errors
-    if (errs.length === 0 && skippedRows.length === 0) {
+    // Auto-redirect to dashboard after 2s if no issues
+    if (errs.length === 0 && skippedRows.length === 0 && dupWarnings.length === 0) {
       setTimeout(() => navigate("/dashboard"), 2000);
     }
   };

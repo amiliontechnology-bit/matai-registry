@@ -11,12 +11,15 @@ const ACTION_COLORS = {
   CREATE: "#a0f5a0", UPDATE: "#1e6b3c",
   DELETE: "#f5a0a0", DELETE_USER: "#f5a0a0",
   PRINT: "#2d9b57", CREATE_USER: "#a0f5a0",
-  UPDATE_ROLE: "#1e6b3c"
+  UPDATE_ROLE: "#1e6b3c", IMPORT: "#7c3aed",
+  REPORT_PDF: "#155c31", CONFIRM_REGISTRATION: "#155c31",
+  DUPLICATE_WARNING: "#c0392b"
 };
 
 const ACTION_ICONS = {
   LOGIN:"🔑", LOGOUT:"🚪", CREATE:"＋", UPDATE:"✎",
-  DELETE:"✕", PRINT:"🖨", CREATE_USER:"👤", DELETE_USER:"✕", UPDATE_ROLE:"🔄"
+  DELETE:"✕", PRINT:"🖨", CREATE_USER:"👤", DELETE_USER:"✕", UPDATE_ROLE:"🔄",
+  IMPORT:"📥", REPORT_PDF:"📄", CONFIRM_REGISTRATION:"✓", DUPLICATE_WARNING:"⚠"
 };
 
 export default function AuditLog({ userRole }) {
@@ -128,24 +131,83 @@ export default function AuditLog({ userRole }) {
                       </span>
                     </td>
                     <td style={{ padding:"0.8rem 1rem", fontSize:"0.82rem" }}>
-                      {log.details?.changes ? (
-                        <div>
-                          <span style={{ color:"rgba(30,107,60,0.7)", fontSize:"0.75rem" }}>
-                            {log.details.fieldsChanged} field{log.details.fieldsChanged !== 1 ? "s" : ""} changed
-                          </span>
-                          <div style={{ marginTop:"4px" }}>
-                            {log.details.changes.split(" | ").map((ch, i) => (
-                              <div key={i} style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.65)", lineHeight:1.6, borderLeft:"2px solid rgba(30,107,60,0.3)", paddingLeft:"6px", marginBottom:"2px" }}>
-                                {ch}
+                      {(() => {
+                        const d = log.details;
+                        if (!d) return <span style={{ opacity:0.4 }}>—</span>;
+                        const action = log.action;
+                        // ── UPDATE: show record name + field-by-field changes ──
+                        if (action === "UPDATE" || action === "CONFIRM_REGISTRATION") {
+                          const title = d.mataiTitle || d.recordId || "record";
+                          return (
+                            <div>
+                              <span style={{ fontWeight:600, color:"#1a5c35", fontSize:"0.82rem" }}>
+                                {action === "CONFIRM_REGISTRATION" ? `Confirmed registration of ${title}` : `Edited record: ${title}`}
+                              </span>
+                              {d.dateRegistration && <div style={{ fontSize:"0.75rem", color:"#155c31", marginTop:"2px" }}>Registered: {d.dateRegistration}</div>}
+                              {d.changes && (
+                                <div style={{ marginTop:"4px" }}>
+                                  <span style={{ fontSize:"0.72rem", color:"rgba(30,107,60,0.6)" }}>{d.fieldsChanged} field{d.fieldsChanged !== 1 ? "s" : ""} changed:</span>
+                                  {d.changes.split(" | ").map((ch, i) => (
+                                    <div key={i} style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.65)", lineHeight:1.6, borderLeft:"2px solid rgba(30,107,60,0.3)", paddingLeft:"6px", marginTop:"2px" }}>
+                                      {ch}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        // ── CREATE: new record ──
+                        if (action === "CREATE") {
+                          return (
+                            <div>
+                              <span style={{ fontWeight:600, color:"#1a5c35" }}>New entry: {d.mataiTitle || "—"}</span>
+                              <div style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.55)", marginTop:"2px" }}>
+                                {[d.holderName, d.village, d.district].filter(Boolean).join(" · ")}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : log.details ? (
-                        <span style={{ opacity:0.65 }}>
-                          {Object.entries(log.details).filter(([k]) => k !== "userId").map(([k,v]) => `${k}: ${v}`).join(" | ")}
-                        </span>
-                      ) : "—"}
+                            </div>
+                          );
+                        }
+                        // ── IMPORT: file name + count ──
+                        if (action === "IMPORT") {
+                          return (
+                            <div>
+                              <span style={{ fontWeight:600, color:"#1a5c35" }}>
+                                {d.count} record{d.count !== 1 ? "s" : ""} imported
+                              </span>
+                              {d.file && <div style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.55)", marginTop:"2px" }}>File: {d.file}</div>}
+                              {d.skipped > 0 && <div style={{ fontSize:"0.75rem", color:"#c0392b", marginTop:"2px" }}>{d.skipped} row{d.skipped !== 1 ? "s" : ""} skipped</div>}
+                            </div>
+                          );
+                        }
+                        // ── DELETE ──
+                        if (action === "DELETE") {
+                          return <span style={{ color:"#c0392b", fontWeight:600 }}>Deleted: {d.mataiTitle || d.recordId || "record"}</span>;
+                        }
+                        // ── PRINT ──
+                        if (action === "PRINT") {
+                          return <span>Certificate printed: <strong>{d.mataiTitle || "—"}</strong></span>;
+                        }
+                        // ── REPORT_PDF ──
+                        if (action === "REPORT_PDF") {
+                          const typeLabels = { monthly_full:"Monthly Full Report", monthly_ready:"Ready to Register", monthly_proc:"Proclamation Report", monthly_obj:"Objections Report", monthly_new:"New Matai Titles", full_ready:"Full Ready Report", full_obj:"Full Objections", full_proc:"Full Proclamation", registered_month:`Registered — ${d.month||""}`, registered_all:"All Registered", filtered:"Filtered Report", proclamation:"Proclamation Alerts", ready:"Ready to Register", new_matai:"New Matai Titles", objections:"Objections Report" };
+                          return <span>PDF generated: <strong>{typeLabels[d.type] || d.type}</strong>{d.count !== undefined ? ` (${d.count} records)` : ""}</span>;
+                        }
+                        // ── DUPLICATE_WARNING ──
+                        if (action === "DUPLICATE_WARNING") {
+                          return <span style={{ color:"#c0392b", fontWeight:600 }}>⚠ Duplicate cert no. detected: <strong>{d.certNumber}</strong> — {d.mataiTitle}</span>;
+                        }
+                        // ── LOGIN/LOGOUT ──
+                        if (action === "LOGIN" || action === "LOGOUT") {
+                          return <span style={{ opacity:0.6 }}>{action === "LOGIN" ? "Signed in" : "Signed out"}</span>;
+                        }
+                        // ── Fallback ──
+                        return (
+                          <span style={{ opacity:0.65, fontSize:"0.78rem" }}>
+                            {Object.entries(d).filter(([k]) => !["userId","recordId"].includes(k)).map(([k,v]) => `${k}: ${v}`).join(" · ")}
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}

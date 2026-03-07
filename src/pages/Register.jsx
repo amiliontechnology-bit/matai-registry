@@ -540,7 +540,7 @@ export default function Register({ userRole }) {
     }));
   };
 
-  // Check for duplicate Matai title
+  // Check for duplicate Matai title OR cert number
   const checkDuplicate = async (title) => {
     if (!title.trim()) return;
     try {
@@ -549,11 +549,26 @@ export default function Register({ userRole }) {
       const existing = snap.docs.filter(d => d.id !== id);
       if (existing.length > 0) {
         const rec = existing[0].data();
-        setDupWarning(`⚠️ A registration for "${title}" already exists (holder: ${rec.holderName}). Please verify before proceeding.`);
+        setDupWarning(`⚠️ A registration for "${title}" already exists (holder: ${rec.holderName}, village: ${rec.village}). Please verify before proceeding.`);
       } else {
         setDupWarning("");
       }
     } catch { setDupWarning(""); }
+  };
+
+  // Check cert number uniqueness on blur
+  const checkCertDuplicate = async () => {
+    const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
+    if (!certNum || certNum.split("/").length < 3) return;
+    try {
+      const snap = await getDocs(collection(db, "registrations"));
+      const existing = snap.docs.filter(d => d.id !== id && d.data().mataiCertNumber === certNum);
+      if (existing.length > 0) {
+        const rec = existing[0].data();
+        setDupWarning(`⚠️ Certificate number ${certNum} already exists on record: "${rec.mataiTitle}" (${rec.holderName}, ${rec.village}). Please check before saving.`);
+        logAudit("DUPLICATE_WARNING", { certNumber: certNum, mataiTitle: form.mataiTitle, existingTitle: rec.mataiTitle });
+      }
+    } catch { /* ignore */ }
   };
 
   const handleSubmit = async (e) => {
@@ -617,7 +632,7 @@ export default function Register({ userRole }) {
 
         <div className="fade-in" style={{ marginBottom: "2.5rem" }}>
           <p className="page-eyebrow">{isEdit ? "Edit Record" : "New Registration"}</p>
-          <h2 className="page-title">{isEdit ? "Update Matai Title" : "Register Matai Title"}</h2>
+          <h2 className="page-title">{isEdit ? "Update Matai Title" : "New Matai Entry"}</h2>
         </div>
 
         {error && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{error}</div>}
@@ -726,6 +741,7 @@ export default function Register({ userRole }) {
               <div className="form-group">
                 <label>Registry Book Numbers</label>
                 <input type="text" value={form.certRegBook} onChange={set("certRegBook")}
+                  onBlur={checkCertDuplicate}
                   placeholder="Entry number" />
               </div>
             </div>

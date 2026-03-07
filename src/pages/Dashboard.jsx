@@ -264,11 +264,6 @@ export default function Dashboard({ userRole }) {
                       <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
                           {r.mataiTitle}
-                          {r.status === "completed" && (
-                            <span title={`Printed ${r.printedAt || ""}`} style={{ fontSize:"0.6rem", background:"#dcfce7", color:"#166534", border:"1px solid #86efac", borderRadius:"2px", padding:"1px 5px", fontFamily:"'Cinzel',serif", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>
-                              ✓ PRINTED
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td style={{ color:"#111827", fontWeight:500 }}>{r.holderName}</td>

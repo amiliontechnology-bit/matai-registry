@@ -366,17 +366,9 @@ export default function Certificate({ userRole }) {
 
   const perms = getPermissions(userRole);
 
-  const handlePrint = async () => {
+  const handlePrint = () => {
     if (!record) return;
     logAudit("PRINT", { mataiTitle: record.mataiTitle, recordId: id });
-    if (!record.printedAt) {
-      try {
-        const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
-        await setDoc(doc(db, "registrations", id), { printedAt: today, status: "completed" }, { merge: true });
-        cacheClear("registrations");
-        setRecord(prev => ({ ...prev, printedAt: today, status: "completed" }));
-      } catch (err) { console.error("Could not mark printed:", err); }
-    }
     window.print();
   };
 
@@ -440,11 +432,7 @@ export default function Certificate({ userRole }) {
                 ✎ Edit Record
               </Link>
             )}
-            {record?.printedAt && (
-              <span style={{ background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.4)", color:"#4ade80", fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", padding:"3px 10px", borderRadius:"2px" }}>
-                ✓ Completed {formatDate(record.printedAt)}
-              </span>
-            )}
+
           </div>
 
           <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>

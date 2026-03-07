@@ -154,18 +154,37 @@ export default function Notifications({ userRole }) {
 
   // ── Data cuts ──────────────────────────────────────────
 
-  // Proclamation alerts: in proclamation window but NOT yet past the 4-month registration date
+  // Proclamation alerts: show records where days until REG DATE <= filterWindow
+  // daysUntilReg = days from today until the auto reg date (positive = still in period, negative = overdue)
+  const daysUntilReg = (r) => {
+    const rd = autoRegDate(r.dateProclamation);
+    if (!rd) return null;
+    return Math.ceil((new Date(rd + "T00:00:00") - new Date()) / (1000*60*60*24));
+  };
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;          // already formally registered
+    if (r.dateRegistration) return false;
     if (!r.dateProclamation) return false;
     if (effectiveRegDate(r)) return false;         // reg period passed — goes to readyToRegister instead
-    const days = daysUntil(r.dateProclamation);
+    const days = daysUntilReg(r);
     return days !== null && days <= filterWindow;
-  }).sort((a,b) => (daysUntil(a.dateProclamation)||0) - (daysUntil(b.dateProclamation)||0));
+  }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
 
   // Objection records
   const objectionRecords = records.filter(r => r.objection === "yes");
+
+  // Duplicate cert number records (flagged in audit log)
+  const certNumberMap = new Map();
+  const duplicateGroups = [];
+  records.forEach(r => {
+    if (!r.mataiCertNumber) return;
+    const key = r.mataiCertNumber.trim();
+    if (!certNumberMap.has(key)) certNumberMap.set(key, []);
+    certNumberMap.get(key).push(r);
+  });
+  certNumberMap.forEach((group, certNum) => {
+    if (group.length > 1) duplicateGroups.push({ certNum, records: group });
+  });
 
   // Monthly — New Matai titles: entered but NO proclamation date yet (brand new entries)
   const newMataiRecords = records.filter(r => !r.dateProclamation && !r.dateRegistration && r.objection !== "yes");
@@ -219,7 +238,7 @@ export default function Notifications({ userRole }) {
   const printProclamationReport = () => {
     const genBy2 = genBy;
     const rows = alertRecords.map((r,i) => {
-      const days = daysUntil(r.dateProclamation);
+      const days = daysUntilReg(r);
       const col = days < 0 ? "#8b1a1a" : days <= 30 ? "#c0392b" : "#1e6b3c";
       const regDate = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
       return `<tr>
@@ -478,7 +497,9 @@ export default function Notifications({ userRole }) {
               <TabBtn tab="proclamation" label="Proclamation Alerts" count={alertRecords.length} />
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
               <TabBtn tab="monthly"      label="Monthly Reports"     count={readyToRegister.length + newMataiRecords.length} />
-              <TabBtn tab="reports"      label="Reports"     count={records.length} color="#155c31" />
+              {duplicateGroups.length > 0 && (
+                <TabBtn tab="duplicates" label="⚠ Duplicates" count={duplicateGroups.length} color="#c0392b" />
+              )}
             </div>
 
             {/* ── Proclamation tab ── */}
@@ -567,7 +588,7 @@ export default function Notifications({ userRole }) {
                       Entered but not yet proclaimed — awaiting 4-month proclamation period
                     </p>
                   </div>
-                  <PdfBtn onClick={printNewMataiReport} label="PDF Report" count={newMataiRecords.length} />
+
                 </div>
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : newMataiRecords.length === 0
@@ -605,7 +626,7 @@ export default function Notifications({ userRole }) {
                       4-month proclamation complete, no objection — click Confirm to register
                     </p>
                   </div>
-                  <PdfBtn onClick={printReadyReport} label="PDF Report" count={readyToRegister.length} />
+
                 </div>
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : readyToRegister.length === 0
@@ -645,44 +666,42 @@ export default function Notifications({ userRole }) {
                 }
               </div>
 
-              {/* Already Registered */}
+            </>)}
+
+            {/* ── Duplicates tab ── */}
+            {activeTab === "duplicates" && (
               <div style={sStyle}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
-                  <div>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>
-                      ◈ Already Registered — {registeredRecords.length} Record{registeredRecords.length!==1?"s":""}
+                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#c0392b", textTransform:"uppercase", marginBottom:"0.5rem" }}>
+                  ◈ ⚠ Duplicate Certificate Numbers — {duplicateGroups.length} Group{duplicateGroups.length!==1?"s":""}
+                </p>
+                <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.5)", marginBottom:"1.2rem" }}>
+                  These records share the same certificate number. Please review and correct — only one should be kept or they should have unique cert numbers.
+                </p>
+                {duplicateGroups.map(({ certNum, records: grp }) => (
+                  <div key={certNum} style={{ background:"#fff5f5", border:"1px solid #fca5a5", borderLeft:"4px solid #c0392b", borderRadius:"4px", padding:"1rem 1.1rem", marginBottom:"1rem" }}>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#c0392b", fontWeight:700, marginBottom:"0.6rem" }}>
+                      ⚠ Cert No. {certNum} — {grp.length} records share this number
                     </p>
-                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
-                      Confirmed registrations — registration date saved to record
-                    </p>
-                  </div>
-                </div>
-                {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
-                : registeredRecords.length === 0
-                  ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No registered records yet.</div>
-                  : registeredRecords.map(r => (
-                    <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
-                      <div style={{ background:"#f0faf4", border:"1px solid #a7d7b850", borderLeft:"4px solid #155c31", borderRadius:"3px", padding:"0.75rem 1.1rem", marginBottom:"0.5rem" }}
-                        onMouseEnter={e => e.currentTarget.style.background="#e8f5ee"}
-                        onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    {grp.map(r => (
+                      <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block", marginBottom:"0.4rem" }}>
+                        <div style={{ background:"#fff", border:"1px solid rgba(192,57,43,0.2)", borderRadius:"3px", padding:"0.6rem 0.85rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#fef2f2"}
+                          onMouseLeave={e => e.currentTarget.style.background="#fff"}>
                           <div>
-                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.88rem", fontWeight:"700", color:"#155c31" }}>{r.mataiTitle||"—"}</span>
+                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.88rem", fontWeight:700, color:"#c0392b" }}>{r.mataiTitle||"—"}</span>
                             <span style={{ fontSize:"0.8rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
                           </div>
-                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", color:"#155c31", background:"#dcfce7", border:"1px solid #86efac", padding:"2px 8px", borderRadius:"2px" }}>✓ REGISTERED</span>
+                          <div style={{ display:"flex", gap:"1rem", fontSize:"0.75rem", color:"rgba(26,26,26,0.5)" }}>
+                            <span>📍 {r.village}, {r.district}</span>
+                            <span style={{ color:"#c0392b", fontSize:"0.65rem", fontFamily:"'Cinzel',serif", border:"1px solid #fca5a5", padding:"1px 6px", borderRadius:"2px" }}>✎ EDIT</span>
+                          </div>
                         </div>
-                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.75rem", color:"rgba(26,26,26,0.5)", marginTop:"4px" }}>
-                          <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
-                          <span style={{ color:"#155c31", fontWeight:600 }}>✅ Registered: {fmtDate(r.dateRegistration)}</span>
-                        </div>
-                      </div>
-                    </Link>
-                  ))
-                }
+                      </Link>
+                    ))}
+                  </div>
+                ))}
               </div>
-            </>)}
+            )}
           </div>
 
           {/* ── Right: Summary panel ── */}
