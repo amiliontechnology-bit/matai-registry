@@ -360,20 +360,27 @@ export default function Register({ userRole }) {
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
 
   // Auto-set dateRegistration when objection=no and dateProclamation is set
-  // Returns YYYY-MM-DD of the 29th of the 4th month after proclamation,
-  // BUT only if that date is today or in the past. Otherwise returns "".
-  const autoRegDate = (proclamation) => {
-    if (!proclamation) return "";
+  // Registration date = day AFTER proclamation day, in the 4th month after proclamation.
+  // e.g. proclaimed 15 Mar → registered 16 Jul
+  // e.g. proclaimed 31 Mar → registered 1 Aug (day+1 overflows to next month)
+  // Only auto-fills if that date is today or in the past.
+  const calcRegDate = (proclamation) => {
+    if (!proclamation) return null;
     const d = new Date(proclamation + "T00:00:00");
+    const regDay = d.getDate() + 1; // day after proclamation
     d.setDate(1);
     d.setMonth(d.getMonth() + 4);
-    // Always the 29th, clamped to last day of month (e.g. Feb)
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(29, lastDay));
-    const regDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    // Only auto-fill if the registration date has already passed or is today
+    // Set to day+1; JS handles overflow automatically (e.g. 32 Aug → 1 Sep)
+    d.setDate(regDay);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     const today = new Date(); today.setHours(0,0,0,0);
-    return d <= today ? regDateStr : "";
+    const isPast = d <= today;
+    return { dateStr, isPast };
+  };
+
+  const autoRegDate = (proclamation) => {
+    const result = calcRegDate(proclamation);
+    return result && result.isPast ? result.dateStr : "";
   };
 
   const fmtDateDMY = (dateStr) => {
@@ -384,16 +391,9 @@ export default function Register({ userRole }) {
   };
 
   const regDateHint = (proclamation) => {
-    if (!proclamation) return null;
-    const d = new Date(proclamation + "T00:00:00");
-    d.setDate(1);
-    d.setMonth(d.getMonth() + 4);
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(29, lastDay));
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    const today = new Date(); today.setHours(0,0,0,0);
-    const isPast = d <= today;
-    return { dateStr, display: fmtDateDMY(dateStr), isPast };
+    const result = calcRegDate(proclamation);
+    if (!result) return null;
+    return { dateStr: result.dateStr, display: fmtDateDMY(result.dateStr), isPast: result.isPast };
   };
 
   const handleIdImageUpload = (e) => {
@@ -852,13 +852,13 @@ export default function Register({ userRole }) {
               return hint.isPast ? (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
-                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong> (29th of 4th month after proclamation)
+                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong> (day after proclamation day, in 4th month)
                   </p>
                 </div>
               ) : (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#7a5c00" }}>
-                    ⏳ Proclamation period not yet complete — registration date will be <strong>{hint.display}</strong>. The date will be set automatically once this date is reached.
+                    ⏳ Proclamation period not yet complete — registration date will be <strong>{hint.display}</strong> (day after proclamation day, in 4th month).
                   </p>
                 </div>
               );
