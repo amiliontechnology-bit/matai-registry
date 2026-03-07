@@ -6,6 +6,7 @@ import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate, Link } from "react-router-dom";
 import { cachedFetch, cacheClear } from "../utils/cache";
+import { sendEmail, isEmailJSConfigured } from "../utils/email";
 
 const fmtDate = (str) => {
   if (!str) return "—";
@@ -64,8 +65,8 @@ export default function Notifications({ userRole }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recipientEmail, setRecipientEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sending, setSending]       = useState(false);
+  const [sendResult, setSendResult] = useState(null); // {ok, msg}
   const [filterWindow, setFilterWindow] = useState(120);
   const [activeTab, setActiveTab] = useState("proclamation"); // proclamation | objection | monthly
   const perms = getPermissions(userRole);
@@ -120,17 +121,38 @@ export default function Notifications({ userRole }) {
     return daysUntil(r.dateProclamation) < -120;
   });
 
-  const handleSendEmail = (reportRecords, type) => {
+  const handleSendEmail = async (reportRecords, type) => {
     if (!recipientEmail.trim()) return;
+    setSending(true);
+    setSendResult(null);
     const subjectText = type === "objection"
-      ? `Matai Registry — ${reportRecords.length} Objection Records`
-      : `Matai Registry — ${reportRecords.length} Records Requiring Attention`;
-    const subject = encodeURIComponent(subjectText);
-    const body = encodeURIComponent(buildEmailBody(reportRecords, type));
-    window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
-    logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type });
-    setSent(true);
-    setTimeout(() => setSent(false), 4000);
+      ? `Matai Registry — ${reportRecords.length} Objection Record${reportRecords.length !== 1 ? "s" : ""}`
+      : `Matai Registry — ${reportRecords.length} Proclamation Alert${reportRecords.length !== 1 ? "s" : ""}`;
+    const body = buildEmailBody(reportRecords, type);
+    try {
+      if (isEmailJSConfigured()) {
+        await sendEmail({
+          toEmail:  recipientEmail,
+          subject:  subjectText,
+          message:  body,
+          fromName: "Matai Registry — " + (user?.displayName || user?.email || "Admin"),
+        });
+        logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type });
+        setSendResult({ ok: true, msg: `✓ Email sent to ${recipientEmail}` });
+      } else {
+        // Fallback: open mailto with report
+        const subject = encodeURIComponent(subjectText);
+        const encoded = encodeURIComponent(body);
+        window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${encoded}`;
+        logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type, via: "mailto" });
+        setSendResult({ ok: true, msg: "✓ Email client opened with report." });
+      }
+    } catch (err) {
+      setSendResult({ ok: false, msg: "✗ Failed to send: " + (err?.text || err?.message || "Unknown error") });
+    } finally {
+      setSending(false);
+      setTimeout(() => setSendResult(null), 6000);
+    }
   };
 
   const urgencyColor = (days, r) => {
@@ -407,17 +429,33 @@ export default function Notifications({ userRole }) {
               <input type="email" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)}
                 placeholder="recipient@example.com" />
             </div>
-            <button className="btn-primary" style={{ width:"100%", fontSize:"0.75rem", marginBottom:"0.5rem" }}
-              disabled={!recipientEmail.trim() || sorted.length === 0}
+            {!isEmailJSConfigured() && (
+              <div style={{ background:"#fffbf0", border:"1px solid #d68910", borderRadius:"3px", padding:"0.65rem 0.75rem", marginBottom:"0.75rem", fontSize:"0.75rem", color:"#5a3e00" }}>
+                ⚠ EmailJS not configured — emails will open your default mail client.{" "}
+                <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color:"#1e6b3c" }}>Set up EmailJS</a>
+              </div>
+            )}
+
+            <button
+              className="btn-primary"
+              style={{ width:"100%", fontSize:"0.75rem", marginBottom:"0.6rem", opacity: sending ? 0.7 : 1 }}
+              disabled={!recipientEmail.trim() || sorted.length === 0 || sending}
               onClick={() => handleSendEmail(sorted, "proclamation")}>
-              📧 Email Proclamation Report
+              {sending ? "Sending…" : `📧 Email Proclamation Report (${sorted.length})`}
             </button>
-            <button style={{ width:"100%", fontSize:"0.75rem", padding:"0.55rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#8b1a1a10", border:"1px solid #8b1a1a30", color:"#8b1a1a", borderRadius:"3px", cursor:"pointer", marginBottom:"0.5rem" }}
-              disabled={!recipientEmail.trim() || objectionRecords.length === 0}
+
+            <button
+              style={{ width:"100%", fontSize:"0.75rem", padding:"0.55rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background: sending ? "#8b1a1a08" : "#8b1a1a10", border:"1px solid #8b1a1a30", color:"#8b1a1a", borderRadius:"3px", cursor: sending || objectionRecords.length === 0 || !recipientEmail.trim() ? "not-allowed" : "pointer", opacity: sending ? 0.7 : 1 }}
+              disabled={!recipientEmail.trim() || objectionRecords.length === 0 || sending}
               onClick={() => handleSendEmail(objectionRecords, "objection")}>
-              ⚠ Email Objections Report
+              {sending ? "Sending…" : `⚠ Email Objections Report (${objectionRecords.length})`}
             </button>
-            {sent && <div className="alert alert-success" style={{ fontSize:"0.82rem" }}>✓ Email client opened.</div>}
+
+            {sendResult && (
+              <div style={{ marginTop:"0.6rem", padding:"0.6rem 0.75rem", borderRadius:"3px", fontSize:"0.8rem", background: sendResult.ok ? "#f0faf4" : "#fdf0f0", border: `1px solid ${sendResult.ok ? "#a7d7b8" : "#e8b4b4"}`, color: sendResult.ok ? "#1a5c35" : "#8b1a1a" }}>
+                {sendResult.msg}
+              </div>
+            )}
           </div>
         </div>
       </div>
