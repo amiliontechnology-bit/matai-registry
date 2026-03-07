@@ -386,13 +386,14 @@ export default function Certificate({ userRole }) {
   const GREEN_PALE= "rgba(26,92,53,0.15)";
 
   const uline = (minW = "120px", extra = {}) => ({
-    borderBottom: `1px solid ${GREEN}`,
+    borderBottom: "1px solid #000",
     minWidth: minW,
     display: "inline-block",
     textAlign: "center",
     fontWeight: "bold",
     paddingBottom: "1px",
     verticalAlign: "baseline",
+    fontFamily: "Arial, sans-serif",
     ...extra,
   });
 
@@ -600,93 +601,64 @@ export default function Certificate({ userRole }) {
           </div>
 
           {/* ── Certificate document (prints only this) ── */}
-          <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f7f4ef" }}>
+          <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#e8e8e8" }}>
             <div id="certificate" style={{
-              width:"794px", minHeight:"560px", background:"#fdf8f0", color:"#1a1208",
-              position:"relative", fontFamily:"'EB Garamond', Georgia, serif",
-              boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
+              width:"794px", minHeight:"520px", background:"#fff", color:"#000",
+              position:"relative", fontFamily:"Arial, sans-serif",
+              boxShadow:"0 4px 20px rgba(0,0,0,0.2)", overflow:"hidden"
             }}>
 
-              {/* Double border */}
-              <div style={{ position:"absolute", inset:"12px", border:`2px solid ${GREEN}`, pointerEvents:"none", zIndex:1 }} />
-              <div style={{ position:"absolute", inset:"18px", border:`1px solid ${GREEN_MID}`, pointerEvents:"none", zIndex:1 }} />
-
-              {/* Corner ornaments */}
-              {[["top","left"],["top","right"],["bottom","left"],["bottom","right"]].map(([v,h]) => (
-                <svg key={`${v}${h}`} width="60" height="60" viewBox="0 0 60 60" fill="none"
-                  style={{ position:"absolute", [v]:8, [h]:8,
-                    transform:`rotate(${v==="bottom"?180:0}deg) scaleX(${h==="right"?-1:1})`, zIndex:2, pointerEvents:"none" }}>
-                  <path d="M5 5 L25 5 L5 25 Z" fill="none" stroke={GREEN} strokeWidth="1.5"/>
-                  <path d="M5 5 L15 5 L5 15 Z" fill={GREEN_PALE}/>
-                  <circle cx="30" cy="5" r="2" fill={GREEN} opacity="0.5"/>
-                  <circle cx="5"  cy="30" r="2" fill={GREEN} opacity="0.5"/>
-                </svg>
-              ))}
-
-              {/* Side stripe patterns */}
-              <div style={{ position:"absolute", left:28, top:70, bottom:70, width:20,
-                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
-              <div style={{ position:"absolute", right:28, top:70, bottom:70, width:20,
-                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
+              {/* Outer double border matching real certificate */}
+              <div style={{ position:"absolute", inset:"10px", border:"2px solid #000", pointerEvents:"none", zIndex:1 }} />
+              <div style={{ position:"absolute", inset:"16px", border:"1px solid #000", pointerEvents:"none", zIndex:1 }} />
 
               {/* ── Content ── */}
-              <div style={{ padding:"36px 70px 36px", position:"relative", zIndex:3 }}>
+              <div style={{ padding:"30px 60px 30px", position:"relative", zIndex:3 }}>
 
-                {/* Cert number — top right */}
+                {/* Cert number — top right, plain box like real cert */}
                 <div style={{
-                  position:"absolute", top:24, right:70,
-                  border:`1px solid ${GREEN}`, padding:"3px 10px",
-                  fontFamily:"'Cinzel',serif", fontSize:"10px", color: GREEN, letterSpacing:"0.1em"
+                  position:"absolute", top:20, right:60,
+                  border:"1px solid #000", padding:"3px 10px",
+                  fontFamily:"Arial, sans-serif", fontSize:"11px", color:"#000"
                 }}>
-                  {(record.certItumalo && record.certLaupepa && record.certRegBook) ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}` : record.mataiCertNumber || record.refNumber || "___/___/___"}
+                  {(record.certItumalo && record.certLaupepa && record.certRegBook)
+                    ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}`
+                    : record.mataiCertNumber || record.refNumber || "___/___/___"}
                 </div>
 
-                {/* Emblem + headings */}
-                <div style={{ textAlign:"center", marginBottom:"10px" }}>
-                  <div style={{ width:"80px", height:"80px", margin:"0 auto 6px" }}>
-                    <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
-                      style={{ width:"80px", height:"80px", objectFit:"contain" }} />
-                  </div>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"7.5px", letterSpacing:"0.35em", color: GREEN, textTransform:"uppercase", marginBottom:"3px" }}>
-                    Independent State of Samoa
-                  </p>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.13em", color:"#5a3e00", textTransform:"uppercase", marginBottom:"5px" }}>
-                    Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga
-                  </p>
-                  <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"19px", color:"#3d2800", marginBottom:"3px" }}>
-                    Tusi Faamaonia o le Umia o le Suafa Matai
-                  </h1>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.2em", color: GREEN, textTransform:"uppercase" }}>
-                    Certificate of Registration — Matai Title
-                  </p>
+                {/* Emblem only — centred */}
+                <div style={{ textAlign:"center", marginBottom:"8px" }}>
+                  <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+                    style={{ width:"70px", height:"70px", objectFit:"contain" }} />
                 </div>
 
-                {/* Divider */}
-                <div style={{ display:"flex", alignItems:"center", gap:"10px", margin:"10px 0 14px" }}>
-                  <div style={{ flex:1, height:"1px", background:`linear-gradient(to right,transparent,${GREEN})` }}/>
-                  <span style={{ color: GREEN, fontSize:"12px" }}>✦</span>
-                  <div style={{ flex:1, height:"1px", background:`linear-gradient(to left,transparent,${GREEN})` }}/>
-                </div>
+                {/* Ministry name — bold, centred, uppercase */}
+                <p style={{ textAlign:"center", fontFamily:"Arial, sans-serif", fontSize:"10px", fontWeight:"bold", letterSpacing:"0.05em", color:"#000", textTransform:"uppercase", marginBottom:"4px" }}>
+                  MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA
+                </p>
+
+                {/* Main title — larger bold */}
+                <h1 style={{ textAlign:"center", fontFamily:"Arial, sans-serif", fontSize:"16px", fontWeight:"bold", color:"#000", textTransform:"uppercase", marginBottom:"18px" }}>
+                  TUSI FAAMAONIA O LE UMIA O LE SUAFA MATAI
+                </h1>
 
                 {/* LINE 1 — Afioga [Title + Name] */}
-                <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color: GREEN, letterSpacing:"0.1em", whiteSpace:"nowrap" }}>Afioga</span>
-                  <span style={{ ...uline("340px"), fontSize:"16px", textAlign:"left", paddingLeft:"6px" }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:"8px", marginBottom:"10px" }}>
+                  <span style={{ fontFamily:"Arial, sans-serif", fontSize:"13px", color:"#000", whiteSpace:"nowrap" }}>Afioga</span>
+                  <span style={{ ...uline("360px"), fontSize:"15px", fontFamily:"Arial, sans-serif", textAlign:"left", paddingLeft:"4px" }}>
                     {afiogaName}
                   </span>
                 </div>
 
-                {/* LINE 2 — Village */}
-                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"14px" }}>
-                  <span style={{ ...uline("220px"), fontSize:"15px", textAlign:"left", paddingLeft:"6px" }}>
+                {/* LINE 2 — Village on its own line */}
+                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"18px" }}>
+                  <span style={{ ...uline("200px"), fontSize:"14px", fontFamily:"Arial, sans-serif", textAlign:"left", paddingLeft:"4px" }}>
                     {record.village || ""}
                   </span>
                 </div>
 
-                <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, marginBottom:"12px", opacity:0.4 }} />
-
                 {/* BODY TEXT */}
-                <div style={{ fontSize:"13px", lineHeight:"2.15", color:"#1a1208" }}>
+                <div style={{ fontSize:"13px", lineHeight:"2.2", color:"#000", fontFamily:"Arial, sans-serif" }}>
                   <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
                     <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
                     <span style={uline("110px")}>{record.mataiTitle || ""}</span>
@@ -714,16 +686,11 @@ export default function Certificate({ userRole }) {
                   </div>
                 </div>
 
-                <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, margin:"14px 0", opacity:0.4 }} />
-
-                {/* Footer — Registrar */}
-                <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"flex-end" }}>
-                  <div style={{ textAlign:"center", minWidth:"220px" }}>
-                    <div style={{ borderBottom:`1px solid ${GREEN}`, marginBottom:"5px", paddingBottom:"30px" }}/>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.12em", color: GREEN, textTransform:"uppercase" }}>
-                      Resitara
-                    </p>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800", marginTop:"3px" }}>
+                {/* Footer — signature line right-aligned, Mo le: RESITARA */}
+                <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"20px" }}>
+                  <div style={{ textAlign:"center", minWidth:"200px" }}>
+                    <div style={{ borderBottom:"1px solid #000", marginBottom:"4px", paddingBottom:"28px" }}/>
+                    <p style={{ fontFamily:"Arial, sans-serif", fontSize:"11px", color:"#000" }}>
                       Mo le: <strong>RESITARA</strong>
                     </p>
                   </div>
