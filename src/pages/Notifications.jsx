@@ -83,11 +83,20 @@ export default function Notifications({ userRole }) {
     })();
   }, []);
 
-  // Filter records where dateProclamation is within the window (past or future within range)
+  // A record is OVERDUE if proclamation was more than 4 months ago AND it has not been printed
+  const isOverdue = (r) => {
+    if (!r.dateProclamation) return false;
+    if (r.status === "completed") return false;
+    return daysUntil(r.dateProclamation) < -120;
+  };
+
+  // Filter: always show overdue records + any within the alert window
   const alertRecords = records.filter(r => {
     if (!r.dateProclamation) return false;
     const days = daysUntil(r.dateProclamation);
-    return days !== null && days <= filterWindow;
+    if (days === null) return false;
+    if (isOverdue(r)) return true;
+    return days <= filterWindow;
   });
 
   // Sort: overdue first, then soonest
@@ -110,18 +119,20 @@ export default function Notifications({ userRole }) {
     setTimeout(() => setSent(false), 4000);
   };
 
-  const urgencyColor = (days) => {
+  const urgencyColor = (days, r) => {
     if (days === null) return "rgba(26,26,26,0.4)";
-    if (days < 0)   return "#8b1a1a";   // overdue
-    if (days <= 30) return "#c0392b";   // critical
-    if (days <= 60) return "#d68910";   // warning
-    return "#1e6b3c";                   // ok
+    if (isOverdue(r)) return "#8b1a1a";   // overdue: >4 months past + not printed
+    if (days < 0)     return "#c0392b";   // past but < 4 months, not printed
+    if (days <= 30)   return "#c0392b";   // critical
+    if (days <= 60)   return "#d68910";   // warning
+    return "#1e6b3c";                     // ok
   };
 
-  const urgencyLabel = (days) => {
+  const urgencyLabel = (days, r) => {
     if (days === null) return "—";
-    if (days < 0)   return `${Math.abs(days)}d OVERDUE`;
-    if (days === 0) return "TODAY";
+    if (isOverdue(r)) return `${Math.abs(days)}d OVERDUE`;
+    if (days < 0)     return `${Math.abs(days)}d past`;
+    if (days === 0)   return "TODAY";
     return `${days} days`;
   };
 
@@ -212,7 +223,7 @@ export default function Notifications({ userRole }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
                   {sorted.map(r => {
                     const days = daysUntil(r.dateProclamation);
-                    const col = urgencyColor(days);
+                    const col = urgencyColor(days, r);
                     return (
                       <Link key={r.id} to={`/certificate/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
                         <div style={{ background:"#fafafa", border:`1px solid ${col}30`, borderLeft:`4px solid ${col}`, borderRadius:"3px", padding:"0.9rem 1.1rem", cursor:"pointer", transition:"background 0.15s" }}
@@ -225,7 +236,7 @@ export default function Notifications({ userRole }) {
                             </div>
                             <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
                               <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", fontWeight:"700", color:col, letterSpacing:"0.06em", background:`${col}15`, padding:"2px 8px", borderRadius:"2px", whiteSpace:"nowrap" }}>
-                                {urgencyLabel(days)}
+                                {urgencyLabel(days, r)}
                               </span>
                               <span style={{ fontSize:"0.7rem", color:"#1e6b3c", fontFamily:"'Cinzel',serif" }}>→ View</span>
                             </div>
@@ -254,7 +265,7 @@ export default function Notifications({ userRole }) {
             {/* Stats */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem", marginBottom:"1.25rem" }}>
               {[
-                ["Overdue", sorted.filter(r => (daysUntil(r.dateProclamation)||0) < 0).length, "#8b1a1a"],
+                ["Overdue", sorted.filter(r => isOverdue(r)).length, "#8b1a1a"],
                 ["≤ 30 days", sorted.filter(r => { const d = daysUntil(r.dateProclamation); return d !== null && d >= 0 && d <= 30; }).length, "#c0392b"],
                 ["≤ 60 days", sorted.filter(r => { const d = daysUntil(r.dateProclamation); return d !== null && d > 30 && d <= 60; }).length, "#d68910"],
                 ["≤ 120 days", sorted.filter(r => { const d = daysUntil(r.dateProclamation); return d !== null && d > 60; }).length, "#1e6b3c"],
