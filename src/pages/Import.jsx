@@ -556,10 +556,9 @@ export default function Import({ userRole }) {
     setErrors([...skippedRows, ...dupWarnings, ...errs]);
     setImporting(false);
     setStep("done");
-    // Auto-redirect to dashboard after 2s if no issues
-    if (errs.length === 0 && skippedRows.length === 0 && dupWarnings.length === 0) {
-      setTimeout(() => navigate("/dashboard"), 2000);
-    }
+    // Always redirect to dashboard after import completes (2s to show result, 4s if there are warnings)
+    const delay = (errs.length > 0 || skippedRows.length > 0 || dupWarnings.length > 0) ? 4000 : 2000;
+    setTimeout(() => navigate("/dashboard"), delay);
   };
 
   const reset = () => {

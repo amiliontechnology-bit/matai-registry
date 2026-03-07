@@ -411,46 +411,81 @@ export default function Reports({ userRole }) {
                     style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:registeredFiltered.length===0?"#f3f4f6":"#155c3115", border:`1px solid ${registeredFiltered.length===0?"#e5e7eb":"#155c31"}`, color:registeredFiltered.length===0?"#9ca3af":"#155c31", borderRadius:"3px", cursor:registeredFiltered.length===0?"not-allowed":"pointer" }}>
                     📄 {selMonthLabel} ({registeredFiltered.length})
                   </button>
-                  <button onClick={printRegisteredAll}
-                    style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#155c3115", border:"1px solid #155c31", color:"#155c31", borderRadius:"3px", cursor:"pointer" }}>
-                    📄 All ({registeredAll.length})
-                  </button>
+
                 </div>
               </div>
               {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
-              : (() => {
-                const display = registeredFiltered.length > 0 ? registeredFiltered : registeredAll;
-                const label   = registeredFiltered.length > 0 ? selMonthLabel : "All";
-                return display.length === 0
-                  ? <p style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No registered records for {selMonthLabel}.</p>
-                  : <>
-                    <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.45)", marginBottom:"0.75rem", fontStyle:"italic" }}>
-                      Showing {display.length} record{display.length!==1?"s":""} — {label}
-                    </p>
-                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
-                      <thead>
-                        <tr style={{ background:"#155c31" }}>
-                          {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
-                            <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {display.map((r,i) => (
-                          <tr key={r.id} style={{ background:i%2===0?"#fff":"#f5faf7" }}>
-                            <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#155c31" }}>{r.mataiTitle}</td>
-                            <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName}</td>
-                            <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
-                            <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
-                            <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
-                            <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
-                            <td style={{ padding:"0.45rem 0.75rem", color:"#155c31", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
-                          </tr>
+              : registeredFiltered.length === 0
+                ? <div style={{ textAlign:"center", padding:"3rem", color:"rgba(26,26,26,0.35)" }}>
+                    <p style={{ fontSize:"1.5rem", marginBottom:"0.5rem" }}>📋</p>
+                    <p style={{ fontStyle:"italic" }}>No registered records for {selMonthLabel}.</p>
+                    <p style={{ fontSize:"0.73rem", marginTop:"6px", color:"rgba(26,26,26,0.25)" }}>Try selecting a different month or use the All Records view below.</p>
+                  </div>
+                : <>
+                  <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.45)", marginBottom:"0.75rem", fontStyle:"italic" }}>
+                    Showing {registeredFiltered.length} record{registeredFiltered.length!==1?"s":""} — {selMonthLabel}
+                  </p>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                    <thead>
+                      <tr style={{ background:"#155c31" }}>
+                        {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
+                          <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
-                      </tbody>
-                    </table>
-                  </>;
-              })()}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registeredFiltered.map((r,i) => (
+                        <tr key={r.id} style={{ background:i%2===0?"#fff":"#f5faf7" }}>
+                          <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#155c31" }}>{r.mataiTitle}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", color:"#155c31", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              }
+
+              {/* ── All Records section below ── */}
+              {!loading && registeredAll.length > 0 && (
+                <div style={{ marginTop:"1.5rem", paddingTop:"1.5rem", borderTop:"2px solid rgba(21,92,49,0.1)" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>
+                      ◈ All Registered Records — {registeredAll.length}
+                    </p>
+                    <button onClick={printRegisteredAll}
+                      style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#155c3115", border:"1px solid #155c31", color:"#155c31", borderRadius:"3px", cursor:"pointer" }}>
+                      📄 Generate All Records Report
+                    </button>
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                    <thead>
+                      <tr style={{ background:"#2d6a4f" }}>
+                        {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
+                          <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registeredAll.map((r,i) => (
+                        <tr key={r.id} style={{ background:i%2===0?"#fff":"#f5faf7" }}>
+                          <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#2d6a4f" }}>{r.mataiTitle}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", color:"#2d6a4f", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ Registration Summary</p>

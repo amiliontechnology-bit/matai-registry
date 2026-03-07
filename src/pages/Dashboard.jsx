@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
@@ -33,6 +33,7 @@ function effectiveRegDate(r) {
 }
 
 export default function Dashboard({ userRole }) {
+  const navigate = useNavigate();
   const [records, setRecords]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -122,7 +123,7 @@ export default function Dashboard({ userRole }) {
       setSeedMsg(`✗ ${result.message}`);
     }
     setSeeding(false);
-    if (result.success) setTimeout(() => { cacheClear("registrations"); window.location.href = window.location.href; }, 1500);
+    if (result.success) setTimeout(() => { cacheClear("registrations"); navigate("/dashboard"); window.location.reload(); }, 1500);
   };
 
   return (
