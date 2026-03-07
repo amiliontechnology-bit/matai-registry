@@ -3,6 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
+import { cacheClear } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 import { Navigate, Link } from "react-router-dom";
 import { cachedFetch } from "../utils/cache";
@@ -93,13 +94,11 @@ export default function Notifications({ userRole }) {
   useEffect(() => {
     (async () => {
       try {
-        const list = await cachedFetch("registrations", async () => {
-          const snap = await getDocs(collection(db, "registrations"));
-          const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-          return data;
-        });
-        setRecords(list);
+        cacheClear("registrations"); // always fresh on page load
+        const snap = await getDocs(collection(db, "registrations"));
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        setRecords(data);
       } catch(err) { console.error(err); }
       finally { setLoading(false); }
     })();

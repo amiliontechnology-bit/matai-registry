@@ -51,7 +51,7 @@ export default function Dashboard({ userRole }) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchRecords(); }, []);
+  useEffect(() => { fetchRecords(true); }, []);
 
   const handleDelete = async (id, title) => {
     if (!window.confirm("Remove this registration permanently?")) return;

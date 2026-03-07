@@ -363,10 +363,20 @@ export default function Register({ userRole }) {
   const autoRegDate = (proclamation) => {
     if (!proclamation) return "";
     const d = new Date(proclamation + "T00:00:00");
+    const day = d.getDate(); // preserve proclamation day
+    d.setDate(1); // move to 1st to avoid month-overflow
     d.setMonth(d.getMonth() + 4);
-    // 28th of that month
-    d.setDate(28);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-28`;
+    // clamp day to last day of target month
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return "";
+    const [y, m, day] = dateStr.split("-");
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
   };
 
   const handleIdImageUpload = (e) => {
@@ -709,7 +719,14 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Aso o le Faasalalauga (Date of Proclamation)</label>
-                <input type="date" value={form.dateProclamation} onChange={set("dateProclamation")} />
+                <input type="date" value={form.dateProclamation} onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({
+                    ...f,
+                    dateProclamation: val,
+                    dateRegistration: f.objection === "no" ? autoRegDate(val) : f.dateRegistration
+                  }));
+                }} />
               </div>
               <div className="form-group">
                 <label>Aso na Resitala ai (Date of Registration)</label>
@@ -792,7 +809,7 @@ export default function Register({ userRole }) {
                 <select value={form.objection} onChange={e => {
                   const val = e.target.value;
                   const autoReg = val === "no" ? autoRegDate(form.dateProclamation) : "";
-                  setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: autoReg || f.dateRegistration }));
+                  setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: autoReg }));
                 }}>
                   <option value="no">No — No objection</option>
                   <option value="yes">Yes — Objection filed</option>
@@ -815,7 +832,7 @@ export default function Register({ userRole }) {
             {form.objection === "no" && form.dateProclamation && (
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
-                  ✓ No objection — Registration date auto-set to <strong>{autoRegDate(form.dateProclamation)}</strong> (28th of 4th month after proclamation)
+                  ✓ No objection — Registration date auto-set to <strong>{formatDisplayDate(autoRegDate(form.dateProclamation))}</strong> (same day of 4th month after proclamation)
                 </p>
               </div>
             )}

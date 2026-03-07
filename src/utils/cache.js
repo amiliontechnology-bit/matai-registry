@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────
 
 const MEM   = {};
-const TTL   = { registrations: 30 * 60 * 1000, auditLog: 10 * 60 * 1000, default: 15 * 60 * 1000 };
+const TTL   = { registrations: 2 * 60 * 1000, auditLog: 10 * 60 * 1000, default: 15 * 60 * 1000 };
 
 function getTTL(key) {
   return TTL[key] || TTL.default;
