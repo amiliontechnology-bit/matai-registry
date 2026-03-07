@@ -13,7 +13,7 @@ const ROLE_COLORS = { admin:"#991b1b", data_entry:"#155c31", view_print:"#1e40af
 const ROLE_DESC = {
   admin:      ["Full access to all features", "Add / Edit / Delete records", "Manage users", "View audit log", "Import & Export"],
   data_entry: ["Add new records", "Edit existing records", "Import records", "Cannot delete", "Cannot print certificates"],
-  view_print: ["View all records", "Print certificates", "Export reports", "Cannot add or edit", "Cannot delete"],
+  view_print: ["View all records", "Add & edit records", "Print certificates", "Export reports", "Cannot delete"],
   view:       ["View records only", "Cannot print", "Cannot edit", "Cannot delete", "Read-only access"],
 };
 
@@ -28,7 +28,7 @@ export default function Users({ userRole }) {
   const [loading, setLoading]     = useState(true);
   const [mode, setMode]           = useState("list"); // list | add | edit
   const [editUser, setEditUser]   = useState(null);
-  const [form, setForm]           = useState({ email:"", password:"", role:"view" });
+  const [form, setForm]           = useState({ email:"", password:"", role:"view", displayName:"", phone:"", department:"" });
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(null);
   const [error, setError]         = useState("");
@@ -49,7 +49,7 @@ export default function Users({ userRole }) {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const resetForm = () => { setForm({ email:"", password:"", role:"view" }); setError(""); setSuccess(""); setEditUser(null); setMode("list"); };
+  const resetForm = () => { setForm({ email:"", password:"", role:"view", displayName:"", phone:"", department:"" }); setError(""); setSuccess(""); setEditUser(null); setMode("list"); };
 
   // ── Create user ──
   const handleCreate = async (e) => {
@@ -62,10 +62,13 @@ export default function Users({ userRole }) {
       const trimmedEmail = form.email.trim().toLowerCase();
       const cred = await createUserWithEmailAndPassword(secondaryAuth, trimmedEmail, form.password);
       await setDoc(doc(db, "users", cred.user.uid), {
-        email: trimmedEmail, role: form.role, createdAt: serverTimestamp()
+        email: trimmedEmail, role: form.role,
+        displayName: form.displayName || "",
+        phone: form.phone || "",
+        department: form.department || "",
+        createdAt: serverTimestamp()
       });
       await logAudit("CREATE_USER", { email: trimmedEmail, role: form.role });
-      // Sign out the secondary auth instance so it doesn't interfere
       await secondaryAuth.signOut();
       setSuccess(`✓ User ${trimmedEmail} created with role: ${ROLE_LABELS[form.role]}`);
       fetchUsers();
@@ -80,32 +83,35 @@ export default function Users({ userRole }) {
   // ── Open edit mode ──
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ email: u.email, password: "", role: u.role || "view" });
+    setForm({ email: u.email, password: "", role: u.role || "view", displayName: u.displayName || "", phone: u.phone || "", department: u.department || "" });
     setError(""); setSuccess("");
     setMode("edit");
   };
 
-  // ── Save edit (role + optional password) ──
+  // ── Save edit (role + profile fields) ──
   const handleEdit = async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
     setSaving(true);
     try {
+      const updates = {
+        displayName: form.displayName || "",
+        phone: form.phone || "",
+        department: form.department || "",
+      };
       const changes = [];
-      // Update role in Firestore
-      if (form.role !== editUser.role) {
-        await setDoc(doc(db, "users", editUser.id), { role: form.role }, { merge: true });
-        await logAudit("UPDATE_ROLE", { email: editUser.email, oldRole: editUser.role, newRole: form.role });
-        changes.push(`Role: ${ROLE_LABELS[editUser.role]} → ${ROLE_LABELS[form.role]}`);
+      if (form.role !== editUser.role && editUser.id !== currentUser?.uid) {
+        updates.role = form.role;
+        changes.push(`Role → ${ROLE_LABELS[form.role]}`);
       }
-      // Note: updating another user's password via client SDK requires admin SDK
-      // So we update Firestore only and show a note if password was entered
-      if (form.password && form.password.length >= 6) {
-        await logAudit("PASSWORD_RESET_REQUESTED", { email: editUser.email, note: "Admin requested password reset" });
-        changes.push("Password reset flagged (requires admin console for other users)");
-      }
-      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, role: form.role } : u));
-      setSuccess(`✓ User updated. Changes: ${changes.join(", ") || "none"}`);
+      if (form.displayName !== (editUser.displayName || "")) changes.push("Name updated");
+      if (form.phone !== (editUser.phone || "")) changes.push("Phone updated");
+      if (form.department !== (editUser.department || "")) changes.push("Department updated");
+
+      await setDoc(doc(db, "users", editUser.id), updates, { merge: true });
+      await logAudit("UPDATE_USER", { email: editUser.email, changes: changes.join(", ") });
+      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...updates } : u));
+      setSuccess(`✓ Profile updated. ${changes.join(", ") || "No changes."}`);
       setTimeout(resetForm, 1500);
     } catch (err) {
       setError(err.message);
@@ -178,6 +184,23 @@ export default function Users({ userRole }) {
                 <input type="password" value={form.password} onChange={e => setForm(p=>({...p,password:e.target.value}))}
                   placeholder="Minimum 6 characters" required />
               </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem" }}>
+                <div className="form-group" style={{ margin:0 }}>
+                  <label>Full Name</label>
+                  <input type="text" value={form.displayName} onChange={e => setForm(p=>({...p,displayName:e.target.value}))}
+                    placeholder="e.g. Sione Faleolo" />
+                </div>
+                <div className="form-group" style={{ margin:0 }}>
+                  <label>Phone</label>
+                  <input type="text" value={form.phone} onChange={e => setForm(p=>({...p,phone:e.target.value}))}
+                    placeholder="e.g. +685 12345" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Department / Position</label>
+                <input type="text" value={form.department} onChange={e => setForm(p=>({...p,department:e.target.value}))}
+                  placeholder="e.g. Registry Division" />
+              </div>
               <div className="form-group">
                 <label>Role</label>
                 <select value={form.role} onChange={e => setForm(p=>({...p,role:e.target.value}))}>
@@ -206,13 +229,30 @@ export default function Users({ userRole }) {
         {/* ── EDIT FORM ── */}
         {mode === "edit" && editUser && (
           <div className="card fade-in" style={{ marginBottom:"2rem", maxWidth:"600px" }}>
-            <h3 className="section-head">◈ Edit User: {editUser.email}</h3>
+            <h3 className="section-head">◈ Edit User Profile: {editUser.email}</h3>
             <form onSubmit={handleEdit} style={{ display:"flex", flexDirection:"column", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>Email Address</label>
                 <input type="email" value={form.email} disabled
                   style={{ opacity:0.6, cursor:"not-allowed" }} />
                 <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Email cannot be changed here.</p>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem" }}>
+                <div className="form-group" style={{ margin:0 }}>
+                  <label>Full Name</label>
+                  <input type="text" value={form.displayName} onChange={e => setForm(p=>({...p,displayName:e.target.value}))}
+                    placeholder="e.g. Sione Faleolo" />
+                </div>
+                <div className="form-group" style={{ margin:0 }}>
+                  <label>Phone</label>
+                  <input type="text" value={form.phone} onChange={e => setForm(p=>({...p,phone:e.target.value}))}
+                    placeholder="e.g. +685 12345" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Department / Position</label>
+                <input type="text" value={form.department} onChange={e => setForm(p=>({...p,department:e.target.value}))}
+                  placeholder="e.g. Registry Division" />
               </div>
               <div className="form-group">
                 <label>Role</label>
@@ -234,8 +274,8 @@ export default function Users({ userRole }) {
                 ))}
               </div>
               <div style={{ display:"flex", gap:"0.75rem" }}>
-                <button type="submit" className="btn-primary" disabled={saving || editUser.id === currentUser?.uid} style={{ fontSize:"0.78rem" }}>
-                  {saving ? "Saving…" : "Save Changes"}
+                <button type="submit" className="btn-primary" disabled={saving} style={{ fontSize:"0.78rem" }}>
+                  {saving ? "Saving…" : "Save Profile"}
                 </button>
                 <button type="button" className="btn-secondary" onClick={resetForm} style={{ fontSize:"0.78rem" }}>Cancel</button>
               </div>
@@ -271,7 +311,8 @@ export default function Users({ userRole }) {
                 <table style={{ width:"100%", borderCollapse:"collapse" }}>
                   <thead>
                     <tr style={{ background:"#155c31" }}>
-                      <th style={th}>Email</th>
+                      <th style={th}>Name / Email</th>
+                      <th style={th}>Department</th>
                       <th style={th}>Role</th>
                       <th style={th}>Created</th>
                       <th style={th}>Actions</th>
@@ -279,17 +320,21 @@ export default function Users({ userRole }) {
                   </thead>
                   <tbody>
                     {users.length === 0 ? (
-                      <tr><td colSpan={4} style={{ ...td, textAlign:"center", color:"#9ca3af", fontStyle:"italic" }}>No users found.</td></tr>
+                      <tr><td colSpan={5} style={{ ...td, textAlign:"center", color:"#9ca3af", fontStyle:"italic" }}>No users found.</td></tr>
                     ) : users.map(u => (
                       <tr key={u.id} style={{ background: u.id === currentUser?.uid ? "#f0fdf4" : "#fff" }}>
                         <td style={td}>
                           <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
-                            <span style={{ fontSize:"0.9rem", color:"#111827" }}>{u.email}</span>
+                            <div>
+                              {u.displayName && <p style={{ fontSize:"0.88rem", color:"#111827", fontWeight:600 }}>{u.displayName}</p>}
+                              <p style={{ fontSize: u.displayName ? "0.78rem" : "0.9rem", color: u.displayName ? "#6b7280" : "#111827" }}>{u.email}</p>
+                            </div>
                             {u.id === currentUser?.uid && (
                               <span style={{ background:"#dcfce7", color:"#155c31", fontSize:"0.6rem", fontFamily:"'Cinzel',serif", padding:"1px 6px", borderRadius:"8px", letterSpacing:"0.06em" }}>YOU</span>
                             )}
                           </div>
                         </td>
+                        <td style={{ ...td, color:"#6b7280", fontSize:"0.83rem" }}>{u.department || "—"}</td>
                         <td style={td}>
                           <select
                             value={u.role || "view"}

@@ -12,7 +12,7 @@ export const ROLES = {
   },
   view_print: {
     label: "View & Print",
-    canAdd: false, canEdit: false, canDelete: false,
+    canAdd: true, canEdit: true, canDelete: false,
     canPrint: true, canViewUsers: false, canViewAudit: false
   },
   view: {

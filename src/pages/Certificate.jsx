@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, getDocs, collection } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
-import { cacheGet, cacheSet } from "../utils/cache";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 
 // Official Samoa district number → name
 const DISTRICT_BY_NUM = {
@@ -328,8 +328,17 @@ export default function Certificate({ userRole }) {
   };
 
   const perms = getPermissions(userRole);
-  const handlePrint = () => {
+  const handlePrint = async () => {
     logAudit("PRINT", { mataiTitle: record?.mataiTitle, recordId: id });
+    // Mark registration as completed (printed) in Firestore
+    if (!record?.printedAt) {
+      try {
+        const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+        await setDoc(doc(db, "registrations", id), { printedAt: today, status: "completed" }, { merge: true });
+        cacheClear("registrations");
+        setRecord(prev => ({ ...prev, printedAt: today, status: "completed" }));
+      } catch (err) { console.error("Could not mark printed:", err); }
+    }
     window.print();
   };
 
@@ -377,6 +386,11 @@ export default function Certificate({ userRole }) {
           <Link to={`/register/${id}`} style={{ color:"rgba(255,255,255,0.6)", textDecoration:"none", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em" }}>
             ✎ Edit Record
           </Link>
+          {record?.printedAt && (
+            <span style={{ background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.4)", color:"#4ade80", fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", padding:"3px 10px", borderRadius:"2px" }}>
+              ✓ Completed {formatDate(record.printedAt)}
+            </span>
+          )}
         </div>
 
         {/* ── Prev / Next ── */}

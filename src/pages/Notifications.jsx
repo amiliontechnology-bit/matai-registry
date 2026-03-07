@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
+import { cacheGet, cacheSet } from "../utils/cache";
 
 const fmtDate = (str) => {
   if (!str) return "—";
@@ -70,9 +71,12 @@ export default function Notifications({ userRole }) {
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
-        const snap = await getDocs(q);
+        const cached = cacheGet("registrations");
+        if (cached) { setRecords(cached); setLoading(false); return; }
+        const snap = await getDocs(collection(db, "registrations"));
         const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        all.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        cacheSet("registrations", all);
         setRecords(all);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
@@ -180,22 +184,30 @@ export default function Notifications({ userRole }) {
                     const days = daysUntil(r.dateProclamation);
                     const col = urgencyColor(days);
                     return (
-                      <div key={r.id} style={{ background:"#fafafa", border:`1px solid ${col}30`, borderLeft:`4px solid ${col}`, borderRadius:"3px", padding:"0.9rem 1.1rem" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"0.4rem" }}>
-                          <div>
-                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.95rem", fontWeight:"700", color:"#1e6b3c" }}>{r.mataiTitle || "—"}</span>
-                            <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"0.5rem" }}>{r.holderName}</span>
+                      <Link key={r.id} to={`/certificate/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
+                        <div style={{ background:"#fafafa", border:`1px solid ${col}30`, borderLeft:`4px solid ${col}`, borderRadius:"3px", padding:"0.9rem 1.1rem", cursor:"pointer", transition:"background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#f0faf4"}
+                          onMouseLeave={e => e.currentTarget.style.background="#fafafa"}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"0.4rem" }}>
+                            <div>
+                              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.95rem", fontWeight:"700", color:"#1e6b3c" }}>{r.mataiTitle || "—"}</span>
+                              <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"0.5rem" }}>{r.holderName}</span>
+                            </div>
+                            <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", fontWeight:"700", color:col, letterSpacing:"0.06em", background:`${col}15`, padding:"2px 8px", borderRadius:"2px", whiteSpace:"nowrap" }}>
+                                {urgencyLabel(days)}
+                              </span>
+                              <span style={{ fontSize:"0.7rem", color:"#1e6b3c", fontFamily:"'Cinzel',serif" }}>→ View</span>
+                            </div>
                           </div>
-                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", fontWeight:"700", color:col, letterSpacing:"0.06em", background:`${col}15`, padding:"2px 8px", borderRadius:"2px", whiteSpace:"nowrap" }}>
-                            {urgencyLabel(days)}
-                          </span>
+                          <div style={{ display:"flex", gap:"1.5rem", flexWrap:"wrap" }}>
+                            <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.55)" }}>📍 {r.village}, {r.district}</span>
+                            <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.55)" }}>🗓 Proclamation: <strong style={{ color:col }}>{fmtDate(r.dateProclamation)}</strong></span>
+                            {r.mataiCertNumber && <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>Cert: {r.mataiCertNumber}</span>}
+                            {r.printedAt && <span style={{ fontSize:"0.78rem", color:"#1e6b3c" }}>✓ Printed {fmtDate(r.printedAt)}</span>}
+                          </div>
                         </div>
-                        <div style={{ display:"flex", gap:"1.5rem", flexWrap:"wrap" }}>
-                          <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.55)" }}>📍 {r.village}, {r.district}</span>
-                          <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.55)" }}>🗓 Proclamation: <strong style={{ color:col }}>{fmtDate(r.dateProclamation)}</strong></span>
-                          {r.refNumber && <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>Ref: {r.refNumber}</span>}
-                        </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

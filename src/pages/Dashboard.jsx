@@ -26,6 +26,10 @@ export default function Dashboard({ userRole }) {
   const [search, setSearch]         = useState("");
   const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterType, setFilterType] = useState("All");
+  const [filterVillage, setFilterVillage] = useState("All");
+  const [filterGender, setFilterGender] = useState("All");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [deleting, setDeleting]     = useState(null);
   const [selectedPrint, setSelectedPrint] = useState(new Set());
   const [bulkPrintMode, setBulkPrintMode] = useState(false);
@@ -137,17 +141,28 @@ export default function Dashboard({ userRole }) {
 
   const districts = ["All", ...new Set(records.map(r => r.district).filter(Boolean))].sort();
   const types = ["All", "Ali'i", "Tulafale"];
+  const villages = ["All", ...new Set(records.map(r => r.village).filter(Boolean))].sort();
+  const genders = ["All", "Male", "Female"];
 
   const filtered = records.filter(r => {
     const s = search.toLowerCase();
     const matchSearch = !search ||
       r.mataiTitle?.toLowerCase().includes(s) ||
       r.holderName?.toLowerCase().includes(s) ||
-      r.village?.toLowerCase().includes(s);
+      r.village?.toLowerCase().includes(s) ||
+      r.district?.toLowerCase().includes(s) ||
+      r.mataiCertNumber?.toLowerCase().includes(s);
     const matchDistrict = filterDistrict === "All" || r.district === filterDistrict;
     const matchType = filterType === "All" || r.mataiType === filterType;
-    return matchSearch && matchDistrict && matchType;
+    const matchVillage = filterVillage === "All" || r.village === filterVillage;
+    const matchGender = filterGender === "All" || r.gender === filterGender;
+    const matchDateFrom = !filterDateFrom || (r.dateRegistration && r.dateRegistration >= filterDateFrom);
+    const matchDateTo = !filterDateTo || (r.dateRegistration && r.dateRegistration <= filterDateTo);
+    return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchDateFrom && matchDateTo;
   });
+
+  const hasActiveFilters = filterDistrict !== "All" || filterType !== "All" || filterVillage !== "All" || filterGender !== "All" || filterDateFrom || filterDateTo || search;
+  const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterDateFrom(""); setFilterDateTo(""); };
 
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli      = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
@@ -196,12 +211,11 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
             { label:"Total Registered", value: records.length,  accent:"#155c31" },
             { label:"Ali'i",            value: totalAli,         accent:"#1e7a42" },
             { label:"Tulafale",         value: totalTulafale,    accent:"#0d2818" },
-            { label:"Other / Unknown",  value: totalOther,       accent:"#6b7280" },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.18em", color:"#6b7280", textTransform:"uppercase", marginBottom:"0.5rem" }}>{s.label}</p>
@@ -211,23 +225,52 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Filter bar ── */}
-        <div className="filter-bar" style={{ display:"grid", gridTemplateColumns:"1fr 220px 160px", gap:"1rem", alignItems:"end" }}>
-          <div className="form-group">
-            <label>Search</label>
-            <input type="text" placeholder="Search by title, name or village…"
-              value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ background:"#fff", border:"1px solid #d1d5db", borderRadius:"6px", padding:"1rem 1.25rem", marginBottom:"1rem", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr", gap:"0.75rem", marginBottom:"0.75rem" }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Search</label>
+              <input type="text" placeholder="Title, name, village, cert no…"
+                value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>District</label>
+              <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
+                {districts.map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Village</label>
+              <select value={filterVillage} onChange={e => setFilterVillage(e.target.value)}>
+                {villages.map(v => <option key={v}>{v}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Title Type</label>
+              <select value={filterType} onChange={e => setFilterType(e.target.value)}>
+                {types.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="form-group">
-            <label>District (Itūmālō)</label>
-            <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)}>
-              {districts.map(d => <option key={d}>{d}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Type</label>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)}>
-              {types.map(t => <option key={t}>{t}</option>)}
-            </select>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto", gap:"0.75rem", alignItems:"flex-end" }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Gender</label>
+              <select value={filterGender} onChange={e => setFilterGender(e.target.value)}>
+                {genders.map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Date Registered From</label>
+              <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Date Registered To</label>
+              <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} />
+            </div>
+            {hasActiveFilters && (
+              <button onClick={clearAllFilters} style={{ background:"transparent", border:"1px solid rgba(139,26,26,0.3)", color:"#8b1a1a", padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer", whiteSpace:"nowrap", height:"38px" }}>
+                ✕ Clear
+              </button>
+            )}
           </div>
         </div>
 
