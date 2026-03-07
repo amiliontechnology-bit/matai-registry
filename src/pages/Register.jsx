@@ -360,21 +360,22 @@ export default function Register({ userRole }) {
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
 
   // Auto-set dateRegistration when objection=no and dateProclamation is set
-  // Registration date = day AFTER proclamation day, in the 4th month after proclamation.
-  // e.g. proclaimed 15 Mar → registered 16 Jul
-  // e.g. proclaimed 31 Mar → registered 1 Aug (day+1 overflows to next month)
-  // Only auto-fills if that date is today or in the past.
+  // Registration date rule:
+  // Proclamations go out on the 28th of each month.
+  // After 4 months, if no objection, registration is on the 29th of that month.
+  // Exception: if the 4th month is February, use 28th (or 29th in a leap year).
+  // i.e. always the 29th, clamped to the last day of the target month.
   const calcRegDate = (proclamation) => {
     if (!proclamation) return null;
-    const d = new Date(proclamation + "T00:00:00");
-    const regDay = d.getDate() + 1; // day after proclamation
-    d.setDate(1);
-    d.setMonth(d.getMonth() + 4);
-    // Set to day+1; JS handles overflow automatically (e.g. 32 Aug → 1 Sep)
-    d.setDate(regDay);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const p = new Date(proclamation + "T00:00:00");
+    // Move to 1st of the month, add 4 months, then set day to 29 (clamped)
+    const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    const regDay = Math.min(29, lastDay);
+    const reg = new Date(target.getFullYear(), target.getMonth(), regDay);
+    const dateStr = `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
     const today = new Date(); today.setHours(0,0,0,0);
-    const isPast = d <= today;
+    const isPast = reg <= today;
     return { dateStr, isPast };
   };
 
@@ -385,9 +386,9 @@ export default function Register({ userRole }) {
 
   const fmtDateDMY = (dateStr) => {
     if (!dateStr) return "";
-    const [y, m, day] = dateStr.split("-");
-    if (!y || !m || !day) return dateStr;
-    return `${day.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
   };
 
   const regDateHint = (proclamation) => {

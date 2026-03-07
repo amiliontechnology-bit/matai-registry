@@ -1,170 +1,181 @@
-import { collection, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
-// Helper: date string N months before today
-function monthsAgo(n, day = 28) {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  d.setDate(day);
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function monthsFromNow(n, day = 28) {
-  const d = new Date();
-  d.setMonth(d.getMonth() + n);
-  d.setDate(day);
+function daysFromNow(n) {
+  const d = new Date(); d.setDate(d.getDate() + n);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function autoRegDate(procStr) {
+function onThe28th(monthsOffset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + monthsOffset);
+  d.setDate(28);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-28`;
+}
+function regDateFor(procStr) {
   if (!procStr) return "";
-  const d = new Date(procStr);
-  d.setMonth(d.getMonth() + 4);
-  const yr = d.getFullYear(), mo = d.getMonth();
-  const isLeap = (yr%4===0 && yr%100!==0) || yr%400===0;
-  d.setDate((mo===1 && isLeap) ? 28 : 29);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const p = new Date(procStr + "T00:00:00");
+  const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  const day = Math.min(29, lastDay);
+  const reg = new Date(target.getFullYear(), target.getMonth(), day);
+  return `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
 }
 
+// Oct → Feb (28th, non-leap), Feb → Jun (29th), Jun → Oct (29th), etc.
 const SAMPLES = [
-  // 1. Already registered — completed, should NOT appear in proclamation alerts
+  // ── REGISTERED (completed) ─────────────────────────────────────────
   {
     mataiTitle: "FALEOLO", holderName: "Sione Faleolo Tuilagi", gender: "Male", mataiType: "Ali'i",
     village: "Fagalii", district: "VAIMAUGA SASA'E",
-    dateConferred: "2023-10-15",
-    dateProclamation: "2023-11-28",
-    dateRegistration: autoRegDate("2023-11-28"),
-    dateIssued: "2024-04-02",
-    dateBirth: "1975-04-20", nuuFanau: "Fagalii",
+    dateConferred: "2024-09-28", dateProclamation: "2024-10-28",
+    dateRegistration: "2025-02-28", // Oct→Feb, clamped to 28
+    dateIssued: "2025-03-05", dateBirth: "1975-04-20", nuuFanau: "Fagalii",
     certItumalo:"01", certLaupepa:"53", certRegBook:"188",
     faapogai:"SULI", familyTitles:"FALEOLO", nuuMataiAi:"Fagalii",
-    objection:"no", objectionDate:"",
-    idType:"passport", idNumber:"P1234567",
-    notes:"Test: completed — should NOT show in alerts",
-    status:"completed"
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P1234567",
+    notes:"Oct proclamation → Feb registration (28th, no leap year)", status:"completed"
   },
-  // 2. Proclaimed 5 months ago — OVERDUE, no reg date → should appear in proclamation alerts + ready to register
-  {
-    mataiTitle: "MALUSEU", holderName: "Richard Neemia", gender: "Male", mataiType: "Tulafale",
-    village: "Vaigaga", district: "FALEATA SISIFO",
-    dateConferred: monthsAgo(6),
-    dateProclamation: monthsAgo(5),
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1986-09-16", nuuFanau: "Vaigaga",
-    certItumalo:"04", certLaupepa:"03", certRegBook:"267",
-    objection:"no", objectionDate:"",
-    idType:"drivers_licence", idNumber:"DL987654",
-    notes:"Test: 5 months past proclamation — overdue, ready to register",
-    status:"pending"
-  },
-  // 3. Proclaimed exactly 4 months ago (on the 28th) → registration date should be 29th of this month
-  {
-    mataiTitle: "TOFAEONO", holderName: "Lafitai Iupati Fuatai", gender: "Male", mataiType: "Ali'i",
-    village: "Vaiala", district: "VAIMAUGA SISIFO",
-    dateConferred: monthsAgo(5),
-    dateProclamation: monthsAgo(4),
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1960-06-12", nuuFanau: "Vaiala",
-    certItumalo:"02", certLaupepa:"53", certRegBook:"192",
-    objection:"no", objectionDate:"",
-    idType:"passport", idNumber:"P7654321",
-    notes:`Test: proclaimed 4 months ago on 28th — reg date should be 29th of this month (${autoRegDate(monthsAgo(4))})`,
-    status:"pending"
-  },
-  // 4. OBJECTION raised — should appear in Objections tab only
-  {
-    mataiTitle: "LEAUSA", holderName: "Tala Faleolo Ioane", gender: "Female", mataiType: "Ali'i",
-    village: "Apia", district: "VAIMAUGA SISIFO",
-    dateConferred: monthsAgo(3),
-    dateProclamation: monthsAgo(2),
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1990-03-05", nuuFanau: "Apia",
-    certItumalo:"02", certLaupepa:"12", certRegBook:"301",
-    objection:"yes", objectionDate: monthsAgo(1),
-    idType:"passport", idNumber:"P2233445",
-    notes:"Test: objection raised — should NOT appear in proclamation alerts",
-    status:"pending"
-  },
-  // 5. Proclaimed 2 months ago — in alert window (60 days remaining approx)
-  {
-    mataiTitle: "SAIFALEUPOLU", holderName: "Manu Saifaleupolu", gender: "Male", mataiType: "Ali'i",
-    village: "Laulii", district: "VAIMAUGA SASA'E",
-    dateConferred: monthsAgo(3),
-    dateProclamation: monthsAgo(2),
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1982-07-19", nuuFanau: "Laulii",
-    certItumalo:"01", certLaupepa:"47", certRegBook:"215",
-    objection:"no", objectionDate:"",
-    idType:"drivers_licence", idNumber:"DL445566",
-    notes:"Test: 2 months past proclamation — in alert window",
-    status:"pending"
-  },
-  // 6. Brand new — no proclamation date yet → New Matai Titles report
-  {
-    mataiTitle: "FAAUI", holderName: "Sina Faaui Pago", gender: "Female", mataiType: "Tulafale",
-    village: "Malie", district: "SAGAGA LE USOGA",
-    dateConferred: monthsAgo(0, 15),
-    dateProclamation: "",
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1995-11-22", nuuFanau: "Malie",
-    certItumalo:"05", certLaupepa:"06", certRegBook:"089",
-    objection:"no", objectionDate:"",
-    idType:"passport", idNumber:"P9988776",
-    notes:"Test: new entry, no proclamation yet — should appear in New Matai Titles",
-    status:"pending"
-  },
-  // 7. Proclaimed in 1 month — upcoming, in alert window
   {
     mataiTitle: "FAUMUINA", holderName: "Paulo Faumuina Setu", gender: "Male", mataiType: "Ali'i",
     village: "Magiagi", district: "VAIMAUGA SISIFO",
-    dateConferred: monthsAgo(2),
-    dateProclamation: monthsFromNow(1),
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1978-05-30", nuuFanau: "Magiagi",
+    dateConferred: "2024-05-28", dateProclamation: "2024-06-28",
+    dateRegistration: "2024-10-29", // Jun→Oct (29th)
+    dateIssued: "2024-11-01", dateBirth: "1978-05-30", nuuFanau: "Magiagi",
     certItumalo:"02", certLaupepa:"08", certRegBook:"154",
-    objection:"no", objectionDate:"",
-    idType:"passport", idNumber:"P5544332",
-    notes:"Test: proclamation in 1 month — upcoming alert",
-    status:"pending"
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P5544332",
+    notes:"Jun proclamation → Oct registration (29th)", status:"completed"
   },
-  // 8. Leap year test — proclamation in October 2027 → reg date falls in Feb 2028 (leap year) → should be 28th Feb 2028
   {
-    mataiTitle: "LEIATAUA", holderName: "Alofa Leiataua Tui", gender: "Male", mataiType: "Ali'i",
+    mataiTitle: "LEIATAUA", holderName: "Alofa Leiataua Tui", gender: "Male", mataiType: "Tulafale",
     village: "Vailele", district: "VAIMAUGA SASA'E",
-    dateConferred: "2027-09-28",
-    dateProclamation: "2027-10-28",
-    dateRegistration: "",
-    dateIssued: "",
-    dateBirth: "1988-12-01", nuuFanau: "Vailele",
+    dateConferred: "2024-01-28", dateProclamation: "2024-02-28",
+    dateRegistration: "2024-06-29", // Feb→Jun (29th)
+    dateIssued: "2024-07-03", dateBirth: "1988-12-01", nuuFanau: "Vailele",
     certItumalo:"01", certLaupepa:"62", certRegBook:"334",
-    objection:"no", objectionDate:"",
-    idType:"drivers_licence", idNumber:"DL998877",
-    notes:"Test LEAP YEAR: proclaimed Oct 2027 → 4 months = Feb 2028 (leap year) → reg date should be 28 Feb 2028 (not 29th)",
-    status:"pending"
+    objection:"no", objectionDate:"", idType:"drivers_licence", idNumber:"DL998877",
+    notes:"Feb proclamation → Jun registration (29th)", status:"completed"
+  },
+
+  // ── OVERDUE — past 4 months, no registration yet ───────────────────
+  {
+    mataiTitle: "MALUSEU", holderName: "Richard Neemia", gender: "Male", mataiType: "Tulafale",
+    village: "Vaigaga", district: "FALEATA SISIFO",
+    dateConferred: onThe28th(-6), dateProclamation: onThe28th(-5),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1986-09-16", nuuFanau: "Vaigaga",
+    certItumalo:"04", certLaupepa:"03", certRegBook:"267",
+    objection:"no", objectionDate:"", idType:"drivers_licence", idNumber:"DL987654",
+    notes:"Proclaimed 5 months ago — overdue, ready to register", status:"pending"
+  },
+  {
+    mataiTitle: "TOFAEONO", holderName: "Lafitai Iupati Fuatai", gender: "Male", mataiType: "Ali'i",
+    village: "Vaiala", district: "VAIMAUGA SISIFO",
+    dateConferred: onThe28th(-5), dateProclamation: onThe28th(-4),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1960-06-12", nuuFanau: "Vaiala",
+    certItumalo:"02", certLaupepa:"53", certRegBook:"192",
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P7654321",
+    notes:"Proclaimed exactly 4 months ago — registration due now", status:"pending"
+  },
+
+  // ── IN PROCLAMATION PERIOD (not yet 4 months) ──────────────────────
+  {
+    mataiTitle: "SAIFALEUPOLU", holderName: "Manu Saifaleupolu", gender: "Male", mataiType: "Ali'i",
+    village: "Laulii", district: "VAIMAUGA SASA'E",
+    dateConferred: onThe28th(-3), dateProclamation: onThe28th(-2),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1982-07-19", nuuFanau: "Laulii",
+    certItumalo:"01", certLaupepa:"47", certRegBook:"215",
+    objection:"no", objectionDate:"", idType:"drivers_licence", idNumber:"DL445566",
+    notes:"Proclaimed 2 months ago — 2 months remaining in proclamation period", status:"pending"
+  },
+  {
+    mataiTitle: "IOSEFO", holderName: "Iosefo Faleata Lameko", gender: "Male", mataiType: "Tulafale",
+    village: "Falefa", district: "ATUA",
+    dateConferred: onThe28th(-2), dateProclamation: onThe28th(-1),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1970-03-14", nuuFanau: "Falefa",
+    certItumalo:"06", certLaupepa:"11", certRegBook:"410",
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P3344556",
+    notes:"Proclaimed 1 month ago — 3 months remaining", status:"pending"
+  },
+  {
+    mataiTitle: "FUIMAONO", holderName: "Fuimaono Tasi Alofaaga", gender: "Female", mataiType: "Ali'i",
+    village: "Siusega", district: "FALEATA SISIFO",
+    dateConferred: daysAgo(10), dateProclamation: daysFromNow(5),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1991-08-25", nuuFanau: "Siusega",
+    certItumalo:"03", certLaupepa:"22", certRegBook:"501",
+    objection:"no", objectionDate:"", idType:"national_id", idNumber:"NID112233",
+    notes:"Proclamation upcoming in 5 days", status:"pending"
+  },
+
+  // ── OBJECTION FILED ────────────────────────────────────────────────
+  {
+    mataiTitle: "LEAUSA", holderName: "Tala Faleolo Ioane", gender: "Female", mataiType: "Ali'i",
+    village: "Apia", district: "VAIMAUGA SISIFO",
+    dateConferred: onThe28th(-3), dateProclamation: onThe28th(-2),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1990-03-05", nuuFanau: "Apia",
+    certItumalo:"02", certLaupepa:"12", certRegBook:"301",
+    objection:"yes", objectionDate: daysAgo(20), idType:"passport", idNumber:"P2233445",
+    notes:"Objection filed — cannot register until resolved", status:"pending"
+  },
+  {
+    mataiTitle: "TOFA", holderName: "Tofa Saleimoa Peseta", gender: "Male", mataiType: "Tulafale",
+    village: "Saleimoa", district: "VAIMAUGA SASA'E",
+    dateConferred: onThe28th(-4), dateProclamation: onThe28th(-3),
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1965-11-18", nuuFanau: "Saleimoa",
+    certItumalo:"01", certLaupepa:"29", certRegBook:"278",
+    objection:"yes", objectionDate: daysAgo(45), idType:"drivers_licence", idNumber:"DL776655",
+    notes:"Objection filed 45 days ago — court pending", status:"pending"
+  },
+
+  // ── NEW — no proclamation date yet ────────────────────────────────
+  {
+    mataiTitle: "FAAUI", holderName: "Sina Faaui Pago", gender: "Female", mataiType: "Ali'i",
+    village: "Malie", district: "SAGAGA LE USOGA",
+    dateConferred: daysAgo(5), dateProclamation: "",
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1995-11-22", nuuFanau: "Malie",
+    certItumalo:"05", certLaupepa:"06", certRegBook:"089",
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P9988776",
+    notes:"New — conferral done, not yet proclaimed", status:"pending"
+  },
+  {
+    mataiTitle: "MAIAVA", holderName: "Maiava Salafai Taufa", gender: "Male", mataiType: "Ali'i",
+    village: "Mulifanua", district: "AANA ALOFI",
+    dateConferred: daysAgo(2), dateProclamation: "",
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1983-06-07", nuuFanau: "Mulifanua",
+    certItumalo:"07", certLaupepa:"14", certRegBook:"602",
+    objection:"no", objectionDate:"", idType:"national_id", idNumber:"NID998877",
+    notes:"Very new entry — just conferred", status:"pending"
   },
 ];
 
 export async function seedTestData(onProgress) {
   try {
+    // Clear existing records first
     const snap = await getDocs(collection(db, "registrations"));
-    if (snap.size >= 5) {
-      return { success: false, message: "Data already exists — clear existing records first." };
-    }
+    for (const d of snap.docs) await deleteDoc(d.ref);
+
     for (let i = 0; i < SAMPLES.length; i++) {
-      const rec = SAMPLES[i];
-      if (onProgress) onProgress(i+1, SAMPLES.length, rec.mataiTitle);
+      if (onProgress) onProgress(i+1, SAMPLES.length, SAMPLES[i].mataiTitle);
       await addDoc(collection(db, "registrations"), {
-        ...rec,
+        ...SAMPLES[i],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: "seed@test.com",
       });
     }
-    return { success: true, message: `${SAMPLES.length} test records added.` };
+    return { success: true, message: `${SAMPLES.length} test records loaded.` };
   } catch (err) {
     return { success: false, message: `Error: ${err.message}` };
   }
