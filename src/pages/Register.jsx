@@ -360,23 +360,40 @@ export default function Register({ userRole }) {
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
 
   // Auto-set dateRegistration when objection=no and dateProclamation is set
+  // Returns YYYY-MM-DD of the 29th of the 4th month after proclamation,
+  // BUT only if that date is today or in the past. Otherwise returns "".
   const autoRegDate = (proclamation) => {
     if (!proclamation) return "";
     const d = new Date(proclamation + "T00:00:00");
-    const day = d.getDate(); // preserve proclamation day
-    d.setDate(1); // move to 1st to avoid month-overflow
+    d.setDate(1);
     d.setMonth(d.getMonth() + 4);
-    // clamp day to last day of target month
+    // Always the 29th, clamped to last day of month (e.g. Feb)
     const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    d.setDate(Math.min(day, lastDay));
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    d.setDate(Math.min(29, lastDay));
+    const regDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    // Only auto-fill if the registration date has already passed or is today
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d <= today ? regDateStr : "";
   };
 
-  const formatDisplayDate = (dateStr) => {
+  const fmtDateDMY = (dateStr) => {
     if (!dateStr) return "";
     const [y, m, day] = dateStr.split("-");
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+    if (!y || !m || !day) return dateStr;
+    return `${day.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;
+  };
+
+  const regDateHint = (proclamation) => {
+    if (!proclamation) return null;
+    const d = new Date(proclamation + "T00:00:00");
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 4);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(29, lastDay));
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const isPast = d <= today;
+    return { dateStr, display: fmtDateDMY(dateStr), isPast };
   };
 
   const handleIdImageUpload = (e) => {
@@ -809,7 +826,7 @@ export default function Register({ userRole }) {
                 <select value={form.objection} onChange={e => {
                   const val = e.target.value;
                   const autoReg = val === "no" ? autoRegDate(form.dateProclamation) : "";
-                  setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: autoReg }));
+                  setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: f.dateRegistration !== "" ? f.dateRegistration : autoReg }));
                 }}>
                   <option value="no">No — No objection</option>
                   <option value="yes">Yes — Objection filed</option>
@@ -829,13 +846,23 @@ export default function Register({ userRole }) {
                 </p>
               </div>
             )}
-            {form.objection === "no" && form.dateProclamation && (
-              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
-                <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
-                  ✓ No objection — Registration date auto-set to <strong>{formatDisplayDate(autoRegDate(form.dateProclamation))}</strong> (same day of 4th month after proclamation)
-                </p>
-              </div>
-            )}
+            {form.objection === "no" && form.dateProclamation && (() => {
+              const hint = regDateHint(form.dateProclamation);
+              if (!hint) return null;
+              return hint.isPast ? (
+                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
+                  <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
+                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong> (29th of 4th month after proclamation)
+                  </p>
+                </div>
+              ) : (
+                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
+                  <p style={{ fontSize:"0.85rem", color:"#7a5c00" }}>
+                    ⏳ Proclamation period not yet complete — registration date will be <strong>{hint.display}</strong>. The date will be set automatically once this date is reached.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
