@@ -4,7 +4,7 @@ import { auth, db } from "../firebase";
 import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
-import { cacheGet, cacheSet } from "../utils/cache";
+import { cachedFetch, cacheClear } from "../utils/cache";
 
 const ALL_FIELDS = [
   { key:"mataiCertNumber",  label:"Matai Certificate Number" },
@@ -92,12 +92,12 @@ export default function Export({ userRole }) {
   useEffect(() => {
     (async () => {
       try {
-        const cached = cacheGet("registrations");
-        if (cached) { setRecords(cached); setLoading(false); return; }
-        const snap = await getDocs(collection(db, "registrations"));
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-        cacheSet("registrations", list);
+        const list = await cachedFetch("registrations", async () => {
+          const snap = await getDocs(collection(db, "registrations"));
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+          return data;
+        });
         setRecords(list);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }

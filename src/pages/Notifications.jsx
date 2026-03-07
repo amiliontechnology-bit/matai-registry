@@ -5,7 +5,7 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate, Link } from "react-router-dom";
-import { cacheGet, cacheSet } from "../utils/cache";
+import { cachedFetch, cacheClear } from "../utils/cache";
 
 const fmtDate = (str) => {
   if (!str) return "—";

@@ -5,7 +5,7 @@ import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
-import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import { cachedFetch, cacheClear } from "../utils/cache";
 import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {

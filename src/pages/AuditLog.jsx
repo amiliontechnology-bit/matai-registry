@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, orderBy, query, limit } from "firebase/firestore";
+import { cacheGet, cacheSet } from "../utils/cache";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";

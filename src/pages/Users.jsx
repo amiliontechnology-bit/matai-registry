@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { auth, db, secondaryAuth } from "../firebase";
 import { getPermissions } from "../utils/roles";
@@ -61,7 +62,7 @@ export default function Users({ userRole }) {
     try {
       const trimmedEmail = form.email.trim().toLowerCase();
       const cred = await createUserWithEmailAndPassword(secondaryAuth, trimmedEmail, form.password);
-      await setDoc(doc(db, "users", cred.user.uid), {
+      cacheClear("users"); await setDoc(doc(db, "users", cred.user.uid), {
         email: trimmedEmail, role: form.role,
         displayName: form.displayName || "",
         phone: form.phone || "",
@@ -108,7 +109,7 @@ export default function Users({ userRole }) {
       if (form.phone !== (editUser.phone || "")) changes.push("Phone updated");
       if (form.department !== (editUser.department || "")) changes.push("Department updated");
 
-      await setDoc(doc(db, "users", editUser.id), updates, { merge: true });
+      cacheClear("users"); await setDoc(doc(db, "users", editUser.id), updates, { merge: true });
       await logAudit("UPDATE_USER", { email: editUser.email, changes: changes.join(", ") });
       setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...updates } : u));
       setSuccess(`✓ Profile updated. ${changes.join(", ") || "No changes."}`);
@@ -122,7 +123,7 @@ export default function Users({ userRole }) {
   const handleDelete = async (uid, email) => {
     setDeleting(uid);
     try {
-      await deleteDoc(doc(db, "users", uid));
+      cacheClear("users"); await deleteDoc(doc(db, "users", uid));
       await logAudit("DELETE_USER", { email, deletedBy: currentUser?.email });
       setUsers(prev => prev.filter(u => u.id !== uid));
       setConfirmDelete(null);
@@ -135,7 +136,7 @@ export default function Users({ userRole }) {
   const handleRoleChange = async (uid, email, newRole) => {
     const oldRole = users.find(u => u.id === uid)?.role;
     try {
-      await setDoc(doc(db, "users", uid), { role: newRole }, { merge: true });
+      cacheClear("users"); await setDoc(doc(db, "users", uid), { role: newRole }, { merge: true });
       await logAudit("UPDATE_ROLE", { email, oldRole, newRole });
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, role: newRole } : u));
     } catch (err) { console.error(err); }
