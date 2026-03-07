@@ -6,6 +6,7 @@ import { auth, db } from "../firebase";
 import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import Sidebar from "../components/Sidebar";
 
 
 // ── Official Samoa district numbering ──
