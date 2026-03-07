@@ -115,10 +115,9 @@ export default function Reports({ userRole }) {
 
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
-  if (userRole === null) return null;
-  if (!perms.canPrint)   return <Navigate to="/dashboard" />;
 
   useEffect(() => {
+    if (userRole === null || !perms.canPrint) return;
     (async () => {
       try {
         cacheClear("registrations");
@@ -129,7 +128,10 @@ export default function Reports({ userRole }) {
       } catch(err) { console.error(err); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [userRole]);
+
+  if (userRole === null) return null;
+  if (!perms.canPrint)   return <Navigate to="/dashboard" />;
 
   const genBy      = user?.displayName || user?.email || "Admin";
   const now        = new Date();
