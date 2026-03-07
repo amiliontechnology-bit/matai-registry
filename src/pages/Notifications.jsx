@@ -195,9 +195,9 @@ export default function Notifications({ userRole }) {
   const readyToRegister = records.filter(r => {
     if (r.objection === "yes") return false;
     if (r.status === "completed") return false;
+    if (r.dateRegistration) return false;   // already registered
     if (!r.dateProclamation) return false;
-    const erd = effectiveRegDate(r);
-    return erd !== null && !r.dateRegistration; // period passed, not yet formally registered
+    return !!effectiveRegDate(r);           // reg date has passed — period complete
   });
 
   // Monthly registered — completed this calendar month (stored or auto-calculated)
@@ -254,11 +254,13 @@ export default function Notifications({ userRole }) {
         <td>${fmtDate(regDate)}</td>
       </tr>`;
     }).join("");
-    const html = reportHeader("Proclamation Alerts Report","Records within alert window — not yet registered",alertRecords.length,genBy2)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Status</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Matai Registry — Resitalaina o Matai — Confidential</div>
+    const filterDesc = filterWindow >= 365 ? "All active proclamations — not yet registered"
+      : `Records with registration date within ${filterWindow} days — not yet registered`;
+    const html = reportHeader(`Proclamation Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`, filterDesc, alertRecords.length, genBy2)
+      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Proclamation Alerts", html);
+    openPDF("Proclamation Alerts Report", html);
     logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
   };
 
@@ -276,13 +278,13 @@ export default function Notifications({ userRole }) {
       <td style="color:#8b1a1a">Court proceedings required</td>
     </tr>`).join("");
     const html = reportHeader(
-        `Objection Received and Noted — ${monthLabel}`,
-        "Titles with objection recorded — cannot be registered until resolved through court",
+        "Objections Report — All Records",
+        "All titles with objection recorded — cannot be registered until resolved through court",
         objectionRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Objection Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Matai Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Objection Report", html);
+    openPDF("Objections Report", html);
     logAudit("REPORT_PDF", { type:"objection", count: objectionRecords.length });
   };
 
@@ -300,13 +302,13 @@ export default function Notifications({ userRole }) {
       <td>${fmtDate(r.createdAt?.toDate ? r.createdAt.toDate().toISOString().split("T")[0] : null)}</td>
     </tr>`).join("");
     const html = reportHeader(
-        `New Matai Titles — ${monthLabel}`,
-        "Newly entered titles awaiting proclamation period",
+        "New Matai Titles — All Records",
+        "All titles entered and awaiting proclamation period",
         newMataiRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Type</th><th>Date Conferred</th><th>Date Entered</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Matai Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("New Matai Titles Report", html);
+    openPDF("New Matai Titles — All Records", html);
     logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
   };
 
@@ -326,14 +328,14 @@ export default function Notifications({ userRole }) {
       </tr>`;
     }).join("");
     const html = reportHeader(
-        `Monthly Registration Report — ${monthLabel}`,
-        "Proclamation period complete, no objection — ready to register",
+        "Ready to Register — All Records",
+        "All titles where proclamation period is complete — awaiting registration confirmation",
         readyToRegister.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Registration Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Matai Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Monthly Registration Report", html);
-    logAudit("REPORT_PDF", { type:"monthly_ready", count: readyToRegister.length });
+    openPDF("Ready to Register — All Records", html);
+    logAudit("REPORT_PDF", { type:"ready_all", count: readyToRegister.length });
   };
 
   const printMonthlyFullReport = () => {
@@ -419,6 +421,43 @@ export default function Notifications({ userRole }) {
   };
 
   // ── Styles ─────────────────────────────────────────────
+  const printDuplicatesReport = () => {
+    if (duplicateGroups.length === 0) return;
+    const rows = duplicateGroups.flatMap(({ certNum, records: grp }) =>
+      grp.map((r, i) => {
+        const composed = r.mataiCertNumber || [r.certItumalo, r.certLaupepa, r.certRegBook].filter(Boolean).join("/");
+        const isFirst = i === 0;
+        return `<tr style="background:${i%2===0?"#fff5f5":"#fff"}">
+          <td style="color:#c0392b;font-weight:600">${isFirst ? `<strong>${composed}</strong>` : ""}</td>
+          <td><strong>${r.mataiTitle||"—"}</strong></td>
+          <td>${r.holderName||"—"}</td>
+          <td>${r.village||"—"}</td>
+          <td>${r.district||"—"}</td>
+          <td>${r.mataiType||"—"}</td>
+          <td style="color:#c0392b">${isFirst ? `⚠ ${grp.length} records share this number` : "↑ same cert number"}</td>
+        </tr>`;
+      })
+    ).join("");
+    const html = reportHeader(
+        "Duplicate Certificate Numbers Report",
+        `${duplicateGroups.length} cert number${duplicateGroups.length!==1?"s":""} shared across multiple records — please review and correct`,
+        duplicateGroups.reduce((n, g) => n + g.records.length, 0), genBy)
+      + `<table><thead><tr>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">#  Cert No.</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Matai Title</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Holder</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Village</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">District</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Type</th>
+          <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Note</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <script>window.onload=()=>window.print();<\/script></body></html>`;
+    openPDF("Duplicate Certificate Numbers Report", html);
+    logAudit("REPORT_PDF", { type:"duplicates", count: duplicateGroups.reduce((n,g)=>n+g.records.length,0) });
+  };
+
+
   const sStyle = { background:"#fff", border:"1px solid rgba(30,107,60,0.2)", borderRadius:"4px", padding:"1.5rem", marginBottom:"1.5rem", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" };
 
   const TabBtn = ({ tab, label, count, color="#1e6b3c" }) => (
@@ -673,9 +712,15 @@ export default function Notifications({ userRole }) {
             {/* ── Duplicates tab ── */}
             {activeTab === "duplicates" && (
               <div style={sStyle}>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#c0392b", textTransform:"uppercase", marginBottom:"0.5rem" }}>
-                  ◈ ⚠ Duplicate Certificate Numbers — {duplicateGroups.length} Group{duplicateGroups.length!==1?"s":""}
-                </p>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#c0392b", textTransform:"uppercase" }}>
+                    ◈ ⚠ Duplicate Certificate Numbers — {duplicateGroups.length} Group{duplicateGroups.length!==1?"s":""}
+                  </p>
+                  <button onClick={printDuplicatesReport}
+                    style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#c0392b15", border:"1px solid #c0392b", color:"#c0392b", borderRadius:"3px", cursor:"pointer" }}>
+                    📄 PDF Report ({duplicateGroups.reduce((n,g)=>n+g.records.length,0)})
+                  </button>
+                </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.5)", marginBottom:"1.2rem" }}>
                   These records share the same certificate number. Please review and correct — only one should be kept or they should have unique cert numbers.
                 </p>
@@ -730,6 +775,9 @@ export default function Notifications({ userRole }) {
               <PdfBtn onClick={printObjectionReport}    label="Objections Report"    count={objectionRecords.length} color="#8b1a1a" />
               <PdfBtn onClick={printNewMataiReport}     label="New Matai Titles"     count={newMataiRecords.length} color="#7c3aed" />
               <PdfBtn onClick={printReadyReport}        label="Ready to Register"    count={readyToRegister.length} />
+              {duplicateGroups.length > 0 && (
+                <PdfBtn onClick={printDuplicatesReport} label="Duplicate Cert Nos." count={duplicateGroups.reduce((n,g)=>n+g.records.length,0)} color="#c0392b" />
+              )}
             </div>
 
             <div style={{ marginTop:"1rem", padding:"0.75rem", background:"#f9fafb", borderRadius:"3px", fontSize:"0.75rem", color:"rgba(26,26,26,0.5)", lineHeight:1.5 }}>
