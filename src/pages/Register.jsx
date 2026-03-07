@@ -476,9 +476,9 @@ export default function Register({ userRole }) {
           data.certLaupepa = data.certLaupepa ? String(data.certLaupepa) : "";
           data.certRegBook  = data.certRegBook  ? String(data.certRegBook)  : "";
 
-          // ── 4. District: derive from certItumalo number ──
-          if (data.certItumalo) {
-            data.district = DISTRICT_NUM[Number(data.certItumalo)] || data.district || "";
+          // ── 4. District: only derive from certItumalo if district not already stored ──
+          if (!data.district && data.certItumalo) {
+            data.district = DISTRICT_NUM[Number(data.certItumalo)] || "";
           }
           // Fallback: derive from village
           if (!data.district && data.village) {

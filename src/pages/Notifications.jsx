@@ -29,12 +29,27 @@ const daysUntil = (str) => {
 // Exception: if that month is February in a leap year → 28th
 function autoRegDate(proclamationStr) {
   if (!proclamationStr) return null;
-  const d = new Date(proclamationStr);
-  d.setMonth(d.getMonth() + 4);
-  const yr = d.getFullYear(), mo = d.getMonth();
-  const isLeap = (yr%4===0 && yr%100!==0) || yr%400===0;
-  d.setDate((mo === 1 && isLeap) ? 28 : 29);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const p = new Date(proclamationStr + "T00:00:00");
+  const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  const day = Math.min(29, lastDay);
+  const reg = new Date(target.getFullYear(), target.getMonth(), day);
+  return `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
+}
+
+function regDateIfPassed(proclamationStr) {
+  const d = autoRegDate(proclamationStr);
+  if (!d) return null;
+  const reg = new Date(d + "T00:00:00");
+  const today = new Date(); today.setHours(0,0,0,0);
+  return reg <= today ? d : null;
+}
+
+// Effective registration date: use stored value or auto-calculate if period passed
+function effectiveRegDate(r) {
+  if (r.dateRegistration) return r.dateRegistration;
+  if (r.objection === "yes") return null;
+  return regDateIfPassed(r.dateProclamation);
 }
 
 function isMonthlyRunDay() {
@@ -126,12 +141,13 @@ export default function Notifications({ userRole }) {
   // Monthly — New Matai titles: entered but NO proclamation date yet (brand new entries)
   const newMataiRecords = records.filter(r => !r.dateProclamation && !r.dateRegistration && r.objection !== "yes");
 
-  // Monthly — Ready to register: 4 months past proclamation, no objection, no registration date
+  // Monthly — Ready to register: 4 months past proclamation, no objection, not yet registered
   const readyToRegister = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;
+    if (r.status === "completed") return false;
     if (!r.dateProclamation) return false;
-    return daysUntil(r.dateProclamation) < -120;
+    const erd = effectiveRegDate(r);
+    return erd !== null && !r.dateRegistration; // period passed, not yet formally registered
   });
 
   // Monthly registered — completed this calendar month
@@ -168,7 +184,7 @@ export default function Notifications({ userRole }) {
     const rows = alertRecords.map((r,i) => {
       const days = daysUntil(r.dateProclamation);
       const col = days < 0 ? "#8b1a1a" : days <= 30 ? "#c0392b" : "#1e6b3c";
-      const regDate = autoRegDate(r.dateProclamation);
+      const regDate = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
       return `<tr>
         <td>${i+1}</td>
         <td><strong>${r.mataiTitle||"—"}</strong></td>
@@ -240,7 +256,7 @@ export default function Notifications({ userRole }) {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = readyToRegister.map((r,i) => {
-      const regDate = autoRegDate(r.dateProclamation);
+      const regDate = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
       return `<tr>
         <td>${i+1}</td>
         <td><strong>${r.mataiTitle||"—"}</strong></td>
@@ -397,7 +413,7 @@ export default function Notifications({ userRole }) {
           <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
             <span>📍 {r.village}, {r.district}</span>
             <span>🗓 Proclaimed: <strong style={{ color:col }}>{fmtDate(r.dateProclamation)}</strong></span>
-            <span>📋 Auto reg: {fmtDate(autoRegDate(r.dateProclamation))}</span>
+            <span>📋 Reg. date: <strong style={{color:"#1a5c35"}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
           </div>
         </div>
       </Link>
@@ -608,7 +624,7 @@ export default function Notifications({ userRole }) {
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"4px" }}>
                           <span>📍 {r.village}, {r.district}</span>
                           <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
-                          <span style={{ color:"#1a5c35" }}>📋 Reg. date: {fmtDate(autoRegDate(r.dateProclamation))}</span>
+                          <span style={{ color:"#1a5c35" }}>📋 Reg. date: <strong>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
                         </div>
                       </div>
                     </Link>

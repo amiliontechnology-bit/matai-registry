@@ -110,7 +110,7 @@ const SAMPLES = [
     dateConferred: daysAgo(10), dateProclamation: daysFromNow(5),
     dateRegistration: "", dateIssued: "",
     dateBirth: "1991-08-25", nuuFanau: "Siusega",
-    certItumalo:"03", certLaupepa:"22", certRegBook:"501",
+    certItumalo:"04", certLaupepa:"22", certRegBook:"501",
     objection:"no", objectionDate:"", idType:"national_id", idNumber:"NID112233",
     notes:"Proclamation upcoming in 5 days", status:"pending"
   },
@@ -156,7 +156,7 @@ const SAMPLES = [
     dateConferred: "2025-09-28", dateProclamation: "2025-10-28",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1972-07-09", nuuFanau: "Faleasiu",
-    certItumalo:"05", certLaupepa:"19", certRegBook:"388",
+    certItumalo:"07", certLaupepa:"19", certRegBook:"388",
     objection:"no", objectionDate:"", idType:"drivers_licence", idNumber:"DL556677",
     notes:"Oct 2025 proclamation → 28 Feb 2026 reg date (should auto-fill as date has passed)", status:"pending"
   },
@@ -167,7 +167,7 @@ const SAMPLES = [
     dateConferred: "2025-12-28", dateProclamation: "2026-01-28",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1985-04-17", nuuFanau: "Nofoalii",
-    certItumalo:"07", certLaupepa:"08", certRegBook:"521",
+    certItumalo:"08", certLaupepa:"08", certRegBook:"521",
     objection:"no", objectionDate:"", idType:"passport", idNumber:"P4433221",
     notes:"28 Jan 2026 proclamation → 29 May 2026 reg date (still in proclamation period)", status:"pending"
   },
@@ -179,7 +179,7 @@ const SAMPLES = [
     dateConferred: daysAgo(5), dateProclamation: "",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1995-11-22", nuuFanau: "Malie",
-    certItumalo:"05", certLaupepa:"06", certRegBook:"089",
+    certItumalo:"06", certLaupepa:"06", certRegBook:"089",
     objection:"no", objectionDate:"", idType:"passport", idNumber:"P9988776",
     notes:"New — conferral done, not yet proclaimed", status:"pending"
   },
@@ -189,7 +189,7 @@ const SAMPLES = [
     dateConferred: daysAgo(2), dateProclamation: "",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1983-06-07", nuuFanau: "Mulifanua",
-    certItumalo:"07", certLaupepa:"14", certRegBook:"602",
+    certItumalo:"10", certLaupepa:"14", certRegBook:"602",
     objection:"no", objectionDate:"", idType:"national_id", idNumber:"NID998877",
     notes:"Very new entry — just conferred", status:"pending"
   },

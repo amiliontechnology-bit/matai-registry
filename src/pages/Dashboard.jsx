@@ -21,6 +21,17 @@ const fmtDate = (str) => {
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
 };
 
+function effectiveRegDate(r) {
+  if (r.dateRegistration) return r.dateRegistration;
+  if (r.objection === "yes" || !r.dateProclamation) return null;
+  const p = new Date(r.dateProclamation + "T00:00:00");
+  const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  const reg = new Date(target.getFullYear(), target.getMonth(), Math.min(29, lastDay));
+  const today = new Date(); today.setHours(0,0,0,0);
+  return reg <= today ? `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}` : null;
+}
+
 export default function Dashboard({ userRole }) {
   const [records, setRecords]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -267,7 +278,12 @@ export default function Dashboard({ userRole }) {
                       <td style={{ color:"#374151" }}>{r.village || "—"}</td>
                       <td style={{ color:"#374151", fontSize:"0.85rem" }}>{r.district || "—"}</td>
                       <td style={{ color:"#6b7280", fontSize:"0.83rem", whiteSpace:"nowrap" }}>
-                        {fmtDate(r.dateRegistration)}
+                        {(() => {
+                          const d = effectiveRegDate(r);
+                          return d
+                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#d68910", fontStyle: r.dateRegistration ? "normal" : "italic" }}>{fmtDate(d)}{!r.dateRegistration && " *"}</span>
+                            : <span style={{ color:"#9ca3af" }}>—</span>;
+                        })()}
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:"0.3rem" }}>
