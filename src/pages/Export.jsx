@@ -1,29 +1,36 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
+import { cacheGet, cacheSet } from "../utils/cache";
 
 const ALL_FIELDS = [
-  { key:"mataiCertNumber",  label:"Matai Certificate Number" },
+  { key:"mataiCertNumber",  label:\"Matai Certificate Number\" },
   { key:"mataiTitle",       label:"Matai Title" },
   { key:"holderName",       label:"Holder Name" },
   { key:"gender",           label:"Gender" },
   { key:"mataiType",        label:"Title Type" },
-  { key:"familyName",       label:"Family Name" },
   { key:"village",          label:"Village" },
   { key:"district",         label:"District" },
+  { key:"nuuMataiAi",       label:"Village of Other Title" },
+  { key:"familyTitles",     label:"Other Matai Title" },
   { key:"dateConferred",    label:"Date Conferred" },
   { key:"dateProclamation", label:"Date Proclamation" },
   { key:"dateRegistration", label:"Date Registration" },
   { key:"dateIssued",       label:"Date Issued" },
+  { key:"dateBirth",        label:"Date of Birth" },
+  { key:"nuuFanau",         label:"Village of Birth" },
   { key:"faapogai",         label:"Faapogai" },
   { key:"notes",            label:"Notes" },
 ];
 
 const fmtDate = (str) => {
   if (!str) return "";
+  const parts = String(str).split("T")[0].split("-");
+  if (parts.length === 3 && parts[0].length === 4)
+    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
   const d = new Date(str);
   if (isNaN(d)) return str;
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
@@ -37,9 +44,9 @@ const OPERATORS = {
 };
 
 const FILTER_TYPES = {
-  mataiTitle:"text", holderName:"text", gender:"select", mataiType:"select",
-  familyName:"text", village:"text", district:"select", refNumber:"text",
-  dateConferred:"date", dateProclamation:"date", dateRegistration:"date", dateIssued:"date",
+  mataiCertNumber:"text", mataiTitle:"text", holderName:"text", gender:"select", mataiType:"select",
+  village:"text", district:"select", familyTitles:"text", nuuMataiAi:"text", nuuFanau:"text",
+  dateConferred:"date", dateProclamation:"date", dateRegistration:"date", dateIssued:"date", dateBirth:"date",
   faapogai:"text", notes:"text"
 };
 
@@ -70,7 +77,7 @@ function applyFilter(records, filters) {
 export default function Export({ userRole }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFields, setSelectedFields] = useState(["refNumber","mataiTitle","holderName","mataiType","village","district","dateRegistration"]);
+  const [selectedFields, setSelectedFields] = useState(["mataiCertNumber","mataiTitle","holderName","mataiType","village","district","dateRegistration"]);
   const [filters, setFilters] = useState([{ field:"", op:"contains", value:"", value2:"" }]);
   const [format, setFormat] = useState("csv");
   const user = auth.currentUser;
@@ -78,9 +85,13 @@ export default function Export({ userRole }) {
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "registrations"), orderBy("createdAt", "desc"));
-        const snap = await getDocs(q);
-        setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const cached = cacheGet("registrations");
+        if (cached) { setRecords(cached); setLoading(false); return; }
+        const snap = await getDocs(collection(db, "registrations"));
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        cacheSet("registrations", list);
+        setRecords(list);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     })();
@@ -115,31 +126,49 @@ export default function Export({ userRole }) {
 
   const exportPDF = () => {
     const win = window.open("", "_blank");
+    const logoUrl = window.location.origin + "/matai-registry/mjca_logo.jpeg";
     const headers = selectedFields.map(k => ALL_FIELDS.find(f => f.key === k)?.label || k);
     const rows = filtered.map(r => selectedFields.map(k => FILTER_TYPES[k] === "date" ? fmtDate(r[k]) : (r[k] || "—")));
+    const today = (() => { const d = new Date(); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; })();
     win.document.write(`<!DOCTYPE html><html><head>
       <title>Matai Registry Export</title>
       <style>
-        body{font-family:Georgia,serif;color:#1a1208;padding:2rem;}
-        h1{font-size:1.2rem;text-align:center;margin-bottom:0.25rem;letter-spacing:0.05em;}
-        .sub{text-align:center;font-style:italic;color:#666;font-size:0.82rem;margin-bottom:0.2rem;}
-        .meta{text-align:center;font-size:0.75rem;color:#888;margin-bottom:1.5rem;}
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;1,400&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'EB Garamond',Georgia,serif;color:#1a1208;padding:1.5rem;background:#fff;}
+        .header{display:flex;align-items:center;justify-content:center;gap:1.5rem;border-bottom:3px double #1a5c35;padding-bottom:1rem;margin-bottom:1rem;}
+        .logo{width:80px;height:80px;object-fit:contain;}
+        .title-block{text-align:center;}
+        .ministry{font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.1em;color:#1a5c35;text-transform:uppercase;margin-bottom:0.2rem;}
+        .subtitle{font-size:0.75rem;color:#666;font-style:italic;margin-bottom:0.3rem;}
+        .doc-title{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#1a5c35;letter-spacing:0.12em;}
+        .meta{display:flex;justify-content:space-between;font-size:0.72rem;color:#888;margin-bottom:1.25rem;padding:0 0.25rem;}
         table{width:100%;border-collapse:collapse;font-size:0.78rem;}
-        th{background:#1e6b3c;color:white;padding:0.45rem 0.65rem;text-align:left;font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;}
-        td{padding:0.4rem 0.65rem;border-bottom:1px solid #ddd;}
+        th{background:#1a5c35;color:white;padding:0.5rem 0.65rem;text-align:left;font-family:'Cinzel',serif;font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;}
+        td{padding:0.45rem 0.65rem;border-bottom:1px solid #ddd;vertical-align:top;}
         tr:nth-child(even) td{background:#f0faf4;}
-        .footer{margin-top:1.5rem;text-align:center;font-size:0.68rem;color:#aaa;border-top:1px solid #ddd;padding-top:0.75rem;}
-        @media print{body{padding:0.5rem;}}
+        .footer{margin-top:1.5rem;text-align:center;font-size:0.68rem;color:#aaa;border-top:1px solid #ddd;padding-top:0.75rem;font-family:'Cinzel',serif;letter-spacing:0.1em;}
+        @media print{body{padding:0.5rem;}@page{margin:1.5cm;}}
       </style>
     </head><body>
-      <h1>MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA</h1>
-      <p class="sub">Resitalaina o Matai — Official Registry Export</p>
-      <p class="meta">Generated: ${fmtDate(new Date().toISOString().split("T")[0])} &nbsp;|&nbsp; Records: ${filtered.length}</p>
+      <div class="header">
+        <img src="${logoUrl}" class="logo" alt="MJCA Logo" />
+        <div class="title-block">
+          <div class="ministry">MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA</div>
+          <div class="subtitle">Ministry of Justice and Courts Administration</div>
+          <div class="doc-title">RESITALAINA O MATAI — Official Registry Export</div>
+        </div>
+      </div>
+      <div class="meta">
+        <span>Generated: ${today}</span>
+        <span>Total Records: ${filtered.length}</span>
+        <span>Columns: ${selectedFields.length}</span>
+      </div>
       <table>
         <thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
         <tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>
-      <div class="footer">Matai Registry &mdash; Resitalaina o Matai &mdash; Confidential</div>
+      <div class="footer">Matai Registry &mdash; Resitalaina o Matai &mdash; Confidential Document</div>
       <script>window.onload=()=>{window.print();}<\/script>
     </body></html>`);
     win.document.close();

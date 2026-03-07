@@ -28,21 +28,14 @@ export default function Sidebar({ userRole, userEmail }) {
 
       {/* ── Logo ── */}
       <div className="sidebar-logo">
-        <div style={{ display:"flex", alignItems:"center", gap:"0.65rem", marginBottom:"0.5rem" }}>
-          <div style={{ width:"42px", height:"42px", minWidth:"42px", borderRadius:"50%",
-            border:"2px solid rgba(74,222,128,0.4)", overflow:"hidden", background:"rgba(255,255,255,0.05)" }}>
-            <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
-              style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-          </div>
-          <div>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.72rem", color:"#4ade80", lineHeight:1.4 }}>Matai</p>
-            <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.72rem", color:"#4ade80", lineHeight:1.4 }}>Registry</p>
-          </div>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
+          <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
+            style={{ width:"110px", height:"auto", objectFit:"contain", borderRadius:"4px" }} />
+          <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.55rem", color:"rgba(255,255,255,0.3)",
+            letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"center" }}>
+            Resitalaina o Matai
+          </p>
         </div>
-        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.55rem", color:"rgba(255,255,255,0.3)",
-          letterSpacing:"0.08em", textTransform:"uppercase" }}>
-          Resitalaina o Matai
-        </p>
       </div>
 
       {/* ── User ── */}

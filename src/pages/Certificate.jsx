@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
+import { cacheGet, cacheSet } from "../utils/cache";
 
 // Official Samoa district number → name
 const DISTRICT_BY_NUM = {
@@ -273,13 +274,26 @@ function resolveDistrict(district, village) {
 
 export default function Certificate({ userRole }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [record, setRecord] = useState(null);
+  const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
 
   useEffect(() => {
     (async () => {
       try {
+        // Load all records for prev/next navigation (use cache)
+        const cached = cacheGet("registrations");
+        if (cached) {
+          setAllRecords(cached);
+        } else {
+          const snap = await getDocs(collection(db, "registrations"));
+          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+          cacheSet("registrations", list);
+          setAllRecords(list);
+        }
         const snap = await getDoc(doc(db, "registrations", id));
         if (snap.exists()) setRecord({ id: snap.id, ...snap.data() });
         else setError("Record not found.");
@@ -287,6 +301,11 @@ export default function Certificate({ userRole }) {
       finally { setLoading(false); }
     })();
   }, [id]);
+
+  // Prev/next navigation
+  const currentIndex = allRecords.findIndex(r => r.id === id);
+  const prevRecord = currentIndex > 0 ? allRecords[currentIndex - 1] : null;
+  const nextRecord = currentIndex < allRecords.length - 1 ? allRecords[currentIndex + 1] : null;
 
   const MONTHS_SA = ["Ianuari","Fepuari","Mati","Aperila","Me","Iuni","Iulai","Aokuso","Setema","Oketopa","Novema","Tesema"];
   // Parse YYYY-MM-DD safely without timezone shifting
@@ -359,6 +378,24 @@ export default function Certificate({ userRole }) {
             ✎ Edit Record
           </Link>
         </div>
+
+        {/* ── Prev / Next ── */}
+        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+          <button onClick={() => prevRecord && navigate(`/certificate/${prevRecord.id}`)}
+            disabled={!prevRecord}
+            style={{ background: prevRecord ? "rgba(255,255,255,0.1)" : "transparent", color: prevRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em", borderRadius:"2px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
+            ◀ Prev
+          </button>
+          <span style={{ color:"rgba(255,255,255,0.4)", fontFamily:"'Cinzel',serif", fontSize:"0.68rem" }}>
+            {currentIndex >= 0 ? `${currentIndex + 1} / ${allRecords.length}` : ""}
+          </span>
+          <button onClick={() => nextRecord && navigate(`/certificate/${nextRecord.id}`)}
+            disabled={!nextRecord}
+            style={{ background: nextRecord ? "rgba(255,255,255,0.1)" : "transparent", color: nextRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em", borderRadius:"2px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
+            Next ▶
+          </button>
+        </div>
+
         {perms.canPrint && (
           <button onClick={handlePrint} style={{
             background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none",
