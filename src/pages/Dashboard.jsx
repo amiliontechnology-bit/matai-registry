@@ -33,10 +33,8 @@ export default function Dashboard({ userRole }) {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [deleting, setDeleting]     = useState(null);
-  const [selectedPrint, setSelectedPrint] = useState(new Set());
   const [seeding, setSeeding] = useState(false);
   const [seedMsg, setSeedMsg] = useState("");
-  const [bulkPrintMode, setBulkPrintMode] = useState(false);
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
@@ -65,83 +63,6 @@ export default function Dashboard({ userRole }) {
     setDeleting(null);
   };
 
-  const togglePrintSelect = (id) => {
-    setSelectedPrint(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-
-  const handleBulkPrint = () => {
-    const selected = records.filter(r => selectedPrint.has(r.id));
-    const win = window.open("", "_blank");
-    const logoUrl = window.location.origin + "/matai-registry/mjca_logo.jpeg";
-    const MONTHS_SA = ["Ianuari","Fepuari","Mati","Aperila","Me","Iuni","Iulai","Aokuso","Setema","Oketopa","Novema","Tesema"];
-    const parseDateParts = (str) => {
-      if (!str) return null;
-      const parts = String(str).split("T")[0].split("-");
-      if (parts.length === 3 && parts[0].length === 4) return { y: parseInt(parts[0]), m: parseInt(parts[1])-1, d: parseInt(parts[2]) };
-      const dt = new Date(str); return isNaN(dt) ? null : { y: dt.getFullYear(), m: dt.getMonth(), d: dt.getDate() };
-    };
-    const fmtSamoan = (str) => { const p = parseDateParts(str); return p ? `${String(p.d).padStart(2,"0")} ${MONTHS_SA[p.m]} ${p.y}` : "—"; };
-    const fmtShort  = (str) => { const p = parseDateParts(str); return p ? `${String(p.d).padStart(2,"0")}/${String(p.m+1).padStart(2,"0")}/${p.y}` : "—"; };
-    const certHTML = selected.map((r, idx) => `
-      <div class="cert-page">
-        <div class="cert-border"><div class="cert-inner">
-          <div class="cert-header">
-            <img src="${logoUrl}" class="cert-logo" alt="MJCA" />
-            <div class="cert-title-block">
-              <div class="cert-ministry">MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA</div>
-              <div class="cert-subtitle">Ministry of Justice and Courts Administration</div>
-              <div class="cert-doc-title">TUSI RESITALA SUAFA MATAI</div>
-            </div>
-          </div>
-          <div class="cert-cert-number">Numera: <strong>${r.mataiCertNumber || "—"}</strong></div>
-          <div class="cert-body">
-            <p class="cert-intro">O lenei e fa'amaonia ai o le Suafa Matai</p>
-            <div class="cert-name">${r.mataiTitle || ""}</div>
-            <p class="cert-intro">ua resitala i lalo o le igoa o</p>
-            <div class="cert-holder">${r.holderName || ""}</div>
-            <div class="cert-fields">
-              <div class="cert-row"><span class="cert-label">Ituaiga Suafa:</span><span>${r.mataiType || "—"}</span></div>
-              <div class="cert-row"><span class="cert-label">Nu'u:</span><span>${r.village || "—"}</span></div>
-              <div class="cert-row"><span class="cert-label">Itūmālō:</span><span>${r.district || "—"}</span></div>
-              <div class="cert-row"><span class="cert-label">Aso o le Saofai:</span><span>${fmtSamoan(r.dateConferred)}</span></div>
-              <div class="cert-row"><span class="cert-label">Aso o le Fa'asalalauga:</span><span>${fmtSamoan(r.dateProclamation)}</span></div>
-              <div class="cert-row"><span class="cert-label">Aso na Resitala ai:</span><span>${fmtSamoan(r.dateRegistration)}</span></div>
-              <div class="cert-row"><span class="cert-label">Aso Fanau:</span><span>${fmtShort(r.dateBirth)}</span></div>
-              ${r.faapogai ? `<div class="cert-row"><span class="cert-label">Faapogai:</span><span>${r.faapogai}</span></div>` : ""}
-              ${r.notes ? `<div class="cert-row"><span class="cert-label">Faamatalaga:</span><span>${r.notes}</span></div>` : ""}
-            </div>
-          </div>
-          <div class="cert-footer"><div class="cert-issued">Aso Tuuina Mai: ${fmtShort(r.dateIssued)}</div></div>
-        </div></div>
-      </div>${idx < selected.length - 1 ? '<div class="page-break"></div>' : ""}
-    `).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Bulk Print</title><style>
-      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
-      *{box-sizing:border-box;margin:0;padding:0}body{background:#f7f4ef;font-family:'EB Garamond',Georgia,serif}
-      .cert-page{width:794px;margin:2rem auto}.cert-border{border:8px double #1a5c35;padding:6px}
-      .cert-inner{border:2px solid #c9a84c;padding:2rem;background:#fdf8f0;min-height:520px}
-      .cert-header{display:flex;align-items:center;gap:1.5rem;border-bottom:2px solid #1a5c35;padding-bottom:1rem;margin-bottom:1rem}
-      .cert-logo{width:80px;height:80px;object-fit:contain}.cert-title-block{flex:1;text-align:center}
-      .cert-ministry{font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.1em;color:#1a5c35;text-transform:uppercase;margin-bottom:0.2rem}
-      .cert-subtitle{font-size:0.7rem;color:#666;font-style:italic;margin-bottom:0.4rem}
-      .cert-doc-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:#1a5c35;letter-spacing:0.15em}
-      .cert-cert-number{text-align:right;font-family:'Cinzel',serif;font-size:0.72rem;color:#555;margin-bottom:1rem}
-      .cert-body{text-align:center}.cert-intro{font-style:italic;color:#555;font-size:0.9rem;margin:0.5rem 0}
-      .cert-name{font-family:'Cinzel',serif;font-size:1.8rem;font-weight:700;color:#1a5c35;letter-spacing:0.1em;margin:0.5rem 0;border-bottom:1px solid #1a5c35;display:inline-block;padding-bottom:0.25rem}
-      .cert-holder{font-size:1.2rem;color:#1a1208;margin:0.5rem 0 1rem}
-      .cert-fields{text-align:left;border-top:1px solid rgba(26,92,53,0.2);padding-top:1rem;margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0.4rem}
-      .cert-row{display:flex;gap:0.5rem;font-size:0.85rem}
-      .cert-label{font-family:'Cinzel',serif;font-size:0.65rem;color:#1a5c35;letter-spacing:0.05em;min-width:140px;padding-top:2px}
-      .cert-footer{border-top:1px solid rgba(26,92,53,0.3);padding-top:0.75rem;margin-top:1rem;display:flex;justify-content:flex-end}
-      .cert-issued{font-family:'Cinzel',serif;font-size:0.7rem;color:#555}
-      .page-break{page-break-after:always}
-      @media print{body{background:white}.cert-page{margin:0;width:100%}}
-    </style></head><body>${certHTML}<script>window.onload=()=>window.print();<\/script></body></html>`);
-    win.document.close();
-    logAudit("BULK_PRINT", { count: selected.length });
-    setBulkPrintMode(false);
-    setSelectedPrint(new Set());
-  };
 
   const districts = ["All", ...new Set(records.map(r => r.district).filter(Boolean))].sort();
   const types = ["All", "Ali'i", "Tulafale"];
@@ -201,23 +122,7 @@ export default function Dashboard({ userRole }) {
             <h1 className="page-title">Title Registry</h1>
           </div>
           <div style={{ display:"flex", gap:"0.75rem", alignItems:"center" }}>
-            {perms.canPrint && (
-              bulkPrintMode ? (
-                <>
-                  <button onClick={() => { setBulkPrintMode(false); setSelectedPrint(new Set()); }} className="btn-secondary" style={{ fontSize:"0.78rem" }}>
-                    Cancel
-                  </button>
-                  <button onClick={handleBulkPrint} disabled={selectedPrint.size === 0}
-                    style={{ background: selectedPrint.size > 0 ? "#1a5c35" : "#9ca3af", color:"#fff", border:"none", padding:"0.55rem 1.2rem", fontFamily:"'Cinzel',serif", fontSize:"0.78rem", letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px", cursor: selectedPrint.size > 0 ? "pointer" : "not-allowed" }}>
-                    🖨 Print {selectedPrint.size > 0 ? `(${selectedPrint.size})` : ""}
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setBulkPrintMode(true)} className="btn-secondary" style={{ fontSize:"0.78rem" }}>
-                  🖨 Bulk Print
-                </button>
-              )
-            )}
+
             {perms.canAdd && (
               <Link to="/register">
                 <button className="btn-primary">＋ Register Title</button>
@@ -325,7 +230,6 @@ export default function Dashboard({ userRole }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {bulkPrintMode && <th style={{ width:"44px", textAlign:"center" }}>✓</th>}
                     {["Cert No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
                       <th key={h}>{h}</th>
                     ))}
@@ -333,15 +237,7 @@ export default function Dashboard({ userRole }) {
                 </thead>
                 <tbody>
                   {filtered.map(r => (
-                    <tr key={r.id} onClick={bulkPrintMode ? () => togglePrintSelect(r.id) : undefined}
-                      style={{ cursor: bulkPrintMode ? "pointer" : "default", background: selectedPrint.has(r.id) ? "#e8f5ed" : undefined }}>
-                      {bulkPrintMode && (
-                        <td style={{ textAlign:"center" }}>
-                          <div style={{ width:"18px", height:"18px", borderRadius:"3px", border:`2px solid ${selectedPrint.has(r.id) ? "#155c31" : "#d1d5db"}`, background: selectedPrint.has(r.id) ? "#155c31" : "#fff", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
-                            {selectedPrint.has(r.id) && <span style={{ color:"#fff", fontSize:"11px", lineHeight:1 }}>✓</span>}
-                          </div>
-                        </td>
-                      )}
+                    <tr key={r.id}>
                       <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280", whiteSpace:"nowrap" }}>
                         {/* Show combined cert number: Itumalo/Laupepa/RegBook */}
                         {r.certItumalo && r.certLaupepa && r.certRegBook

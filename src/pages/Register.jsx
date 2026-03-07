@@ -531,7 +531,8 @@ export default function Register({ userRole }) {
         const changes = diffRecords(oldRec, form);
         // Compose cert number from parts if all 3 set
       const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-      const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber };
+      const autoStatus = form.dateRegistration ? "completed" : "pending";
+      const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
         await logAudit("UPDATE", {
           mataiTitle: form.mataiTitle,
@@ -543,7 +544,8 @@ export default function Register({ userRole }) {
         setSuccess("Registration updated successfully.");
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-        const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber };
+        const autoStatus = form.dateRegistration ? "completed" : "pending";
+        const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
         cacheClear("registrations");
