@@ -96,7 +96,7 @@ const SAMPLES = [
   },
   {
     mataiTitle: "IOSEFO", holderName: "Iosefo Faleata Lameko", gender: "Male", mataiType: "Tulafale",
-    village: "Falefa", district: "ATUA",
+    village: "Falefa", district: "ANOAMAA SASA'E",
     dateConferred: onThe28th(-2), dateProclamation: onThe28th(-1),
     dateRegistration: "", dateIssued: "",
     dateBirth: "1970-03-14", nuuFanau: "Falefa",
@@ -141,7 +141,7 @@ const SAMPLES = [
   // Proclaimed 28 Sep 2025 → reg date = 28 Feb 2026 (Feb clamped to 28) — SHOULD BE REGISTERED
   {
     mataiTitle: "TUIMALEALIIFANO", holderName: "Tuimalealiifano Vaaletoa", gender: "Male", mataiType: "Ali\'i",
-    village: "Lufilufi", district: "ATUA",
+    village: "Lufilufi", district: "ANOAMAA SASA'E",
     dateConferred: "2025-08-28", dateProclamation: "2025-09-28",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1968-02-14", nuuFanau: "Lufilufi",
@@ -152,7 +152,7 @@ const SAMPLES = [
   // Proclaimed 28 Oct 2025 → reg date = 28 Feb 2026 (Feb clamped) — SHOULD BE REGISTERED
   {
     mataiTitle: "TAGALOA", holderName: "Tagaloa Faleupolu Asi", gender: "Male", mataiType: "Tulafale",
-    village: "Faleasiu", district: "SAGAGA LE USOGA",
+    village: "Faleasiu", district: "AANA ALOFI Nu.1",
     dateConferred: "2025-09-28", dateProclamation: "2025-10-28",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1972-07-09", nuuFanau: "Faleasiu",
@@ -163,7 +163,7 @@ const SAMPLES = [
   // Proclaimed 28 Jan 2026 → reg date = 29 May 2026 — still in proclamation period
   {
     mataiTitle: "FONOTI", holderName: "Fonoti Lesa Tuiloma", gender: "Female", mataiType: "Ali\'i",
-    village: "Nofoalii", district: "AANA ALOFI",
+    village: "Nofoalii", district: "AANA ALOFI Nu.2",
     dateConferred: "2025-12-28", dateProclamation: "2026-01-28",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1985-04-17", nuuFanau: "Nofoalii",
@@ -185,7 +185,7 @@ const SAMPLES = [
   },
   {
     mataiTitle: "MAIAVA", holderName: "Maiava Salafai Taufa", gender: "Male", mataiType: "Ali'i",
-    village: "Mulifanua", district: "AANA ALOFI",
+    village: "Mulifanua", district: "AIGA I LE TAI",
     dateConferred: daysAgo(2), dateProclamation: "",
     dateRegistration: "", dateIssued: "",
     dateBirth: "1983-06-07", nuuFanau: "Mulifanua",

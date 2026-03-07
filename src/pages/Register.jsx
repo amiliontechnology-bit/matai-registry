@@ -502,6 +502,19 @@ export default function Register({ userRole }) {
           if (tRaw === "alii") data.mataiType = "Ali'i";
           else if (tRaw === "tulafale") data.mataiType = "Tulafale";
 
+          // Auto-fill registration date if period has passed and no reg date set
+          if (!data.dateRegistration && data.objection === "no" && data.dateProclamation) {
+            const p = data.dateProclamation;
+            const proc = new Date(p + "T00:00:00");
+            const target = new Date(proc.getFullYear(), proc.getMonth() + 4, 1);
+            const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+            const regDay = Math.min(29, lastDay);
+            const reg = new Date(target.getFullYear(), target.getMonth(), regDay);
+            const todayD = new Date(); todayD.setHours(0,0,0,0);
+            if (reg <= todayD) {
+              data.dateRegistration = `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
+            }
+          }
           setForm({ ...EMPTY, ...data });
         }
       } catch { setError("Failed to load record."); }
