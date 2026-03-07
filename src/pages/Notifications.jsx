@@ -517,7 +517,7 @@ export default function Notifications({ userRole }) {
                   ))}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
-                  Records with proclamation date within {filterWindow} days and <strong>no registration date yet</strong>. Once registered, records are removed from this list.
+                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today (4 months after proclamation). Overdue records appear in Ready to Register.
                 </p>
               </div>
               <div style={sStyle}>
