@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc, getDocs, collection, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import Sidebar from "../components/Sidebar";
 
 // Official Samoa district number → name
 const DISTRICT_BY_NUM = {
@@ -272,43 +273,79 @@ function resolveDistrict(district, village) {
   return "";
 }
 
+
 export default function Certificate({ userRole }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [record, setRecord] = useState(null);
   const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     (async () => {
       try {
-        // Load all records for prev/next navigation (use cache)
         const cached = cacheGet("registrations");
+        let list;
         if (cached) {
-          setAllRecords(cached);
+          list = cached;
         } else {
           const snap = await getDocs(collection(db, "registrations"));
-          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
           cacheSet("registrations", list);
-          setAllRecords(list);
         }
-        const snap = await getDoc(doc(db, "registrations", id));
-        if (snap.exists()) setRecord({ id: snap.id, ...snap.data() });
-        else setError("Record not found.");
-      } catch { setError("Failed to load certificate."); }
+        setAllRecords(list);
+        if (id) {
+          const snap = await getDoc(doc(db, "registrations", id));
+          if (snap.exists()) setRecord({ id: snap.id, ...snap.data() });
+          else setError("Record not found.");
+        }
+      } catch { setError("Failed to load record."); }
       finally { setLoading(false); }
     })();
   }, [id]);
 
-  // Prev/next navigation
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) setShowResults(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const currentIndex = allRecords.findIndex(r => r.id === id);
   const prevRecord = currentIndex > 0 ? allRecords[currentIndex - 1] : null;
   const nextRecord = currentIndex < allRecords.length - 1 ? allRecords[currentIndex + 1] : null;
 
+  const handleSearch = (q) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); setShowResults(false); return; }
+    const lower = q.toLowerCase();
+    const results = allRecords.filter(r =>
+      r.mataiTitle?.toLowerCase().includes(lower) ||
+      r.holderName?.toLowerCase().includes(lower) ||
+      r.village?.toLowerCase().includes(lower) ||
+      r.mataiCertNumber?.toLowerCase().includes(lower) ||
+      r.certItumalo?.toString().includes(lower)
+    ).slice(0, 8);
+    setSearchResults(results);
+    setShowResults(true);
+  };
+
+  const selectRecord = (r) => {
+    setSearchQuery("");
+    setShowResults(false);
+    navigate(`/certificate/${r.id}`);
+  };
+
+  // Date helpers — parse YYYY-MM-DD safely without timezone shift
   const MONTHS_SA = ["Ianuari","Fepuari","Mati","Aperila","Me","Iuni","Iulai","Aokuso","Setema","Oketopa","Novema","Tesema"];
-  // Parse YYYY-MM-DD safely without timezone shifting
   const parseDateParts = (str) => {
     if (!str) return null;
     const parts = String(str).split("T")[0].split("-");
@@ -328,10 +365,11 @@ export default function Certificate({ userRole }) {
   };
 
   const perms = getPermissions(userRole);
+
   const handlePrint = async () => {
-    logAudit("PRINT", { mataiTitle: record?.mataiTitle, recordId: id });
-    // Mark registration as completed (printed) in Firestore
-    if (!record?.printedAt) {
+    if (!record) return;
+    logAudit("PRINT", { mataiTitle: record.mataiTitle, recordId: id });
+    if (!record.printedAt) {
       try {
         const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
         await setDoc(doc(db, "registrations", id), { printedAt: today, status: "completed" }, { merge: true });
@@ -342,24 +380,10 @@ export default function Certificate({ userRole }) {
     window.print();
   };
 
-  if (loading) return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading certificate…</div>
-  );
-  if (error) return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", flexDirection:"column", gap:"1rem" }}>
-      <p style={{ color:"#8b1a1a" }}>{error}</p>
-      <Link to="/dashboard"><button className="btn-secondary">← Return to Registry</button></Link>
-    </div>
-  );
-
-  const afiogaName = [record.mataiTitle, record.holderName].filter(Boolean).join("  ");
-
-  // Resolve district — use stored value first, fall back to village lookup
-  const district = resolveDistrict(record.district, record.village);
-
-  const GREEN      = "#1a5c35";
-  const GREEN_PALE = "rgba(26,92,53,0.15)";
-  const GREEN_MID  = "rgba(26,92,53,0.4)";
+  // Helpers for JSX
+  const GREEN     = "#1a5c35";
+  const GREEN_MID = "rgba(26,92,53,0.4)";
+  const GREEN_PALE= "rgba(26,92,53,0.15)";
 
   const uline = (minW = "120px", extra = {}) => ({
     borderBottom: `1px solid ${GREEN}`,
@@ -372,210 +396,360 @@ export default function Certificate({ userRole }) {
     ...extra,
   });
 
-  return (
-    <>
-      {/* ── Toolbar ── */}
-      <div className="no-print" style={{
-        background:"#0f2e1a", borderBottom:"1px solid rgba(255,255,255,0.1)",
-        padding:"0.85rem 2rem", display:"flex", justifyContent:"space-between", alignItems:"center"
+  const sectionHead = (title) => <h3 className="section-head">◈ {title}</h3>;
+
+  const readField = (label, value) => (
+    <div className="form-group">
+      <label>{label}</label>
+      <div style={{
+        padding: "0.55rem 0.75rem", background: "#f9fafb", border: "1px solid #e5e7eb",
+        borderRadius: "4px", fontSize: "0.95rem", minHeight: "2.2rem",
+        color: value && value !== "—" ? "#1a1a1a" : "#9ca3af",
+        fontStyle: value && value !== "—" ? "normal" : "italic",
       }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"1rem" }}>
-          <Link to="/dashboard" style={{ color:"rgba(255,255,255,0.6)", textDecoration:"none", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em" }}>
-            ← Registry
-          </Link>
-          <Link to={`/register/${id}`} style={{ color:"rgba(255,255,255,0.6)", textDecoration:"none", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em" }}>
-            ✎ Edit Record
-          </Link>
-          {record?.printedAt && (
-            <span style={{ background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.4)", color:"#4ade80", fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", padding:"3px 10px", borderRadius:"2px" }}>
-              ✓ Completed {formatDate(record.printedAt)}
-            </span>
-          )}
-        </div>
-
-        {/* ── Prev / Next ── */}
-        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
-          <button onClick={() => prevRecord && navigate(`/certificate/${prevRecord.id}`)}
-            disabled={!prevRecord}
-            style={{ background: prevRecord ? "rgba(255,255,255,0.1)" : "transparent", color: prevRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em", borderRadius:"2px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
-            ◀ Prev
-          </button>
-          <span style={{ color:"rgba(255,255,255,0.4)", fontFamily:"'Cinzel',serif", fontSize:"0.68rem" }}>
-            {currentIndex >= 0 ? `${currentIndex + 1} / ${allRecords.length}` : ""}
-          </span>
-          <button onClick={() => nextRecord && navigate(`/certificate/${nextRecord.id}`)}
-            disabled={!nextRecord}
-            style={{ background: nextRecord ? "rgba(255,255,255,0.1)" : "transparent", color: nextRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em", borderRadius:"2px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
-            Next ▶
-          </button>
-        </div>
-
-        {perms.canPrint && (
-          <button onClick={handlePrint} style={{
-            background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none",
-            padding:"0.6rem 1.5rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem",
-            fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer"
-          }}>
-            🖨 Print / Save PDF
-          </button>
-        )}
+        {value || "—"}
       </div>
+    </div>
+  );
 
-      {/* ── Certificate viewer ── */}
-      <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f7f4ef" }}>
-        <div id="certificate" style={{
-          width:"794px", minHeight:"560px", background:"#fdf8f0", color:"#1a1208",
-          position:"relative", fontFamily:"'EB Garamond', Georgia, serif",
-          boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
+  if (loading) return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading…</div>
+  );
+
+  const afiogaName = record ? [record.mataiTitle, record.holderName].filter(Boolean).join("  ") : "";
+  const district   = record ? resolveDistrict(record.district, record.village) : "";
+
+  return (
+    <div className="app-layout">
+      <div className="pattern-bg" />
+      <Sidebar userRole={userRole} userEmail={auth.currentUser?.email} />
+      <div className="sidebar-content">
+
+        {/* ── Dark toolbar: back / edit / prev-next ── */}
+        <div className="no-print" style={{
+          background:"#0f2e1a", borderBottom:"1px solid rgba(255,255,255,0.1)",
+          padding:"0.85rem 2rem", display:"flex", justifyContent:"space-between", alignItems:"center",
+          margin:"-2rem -2rem 2rem",
         }}>
-
-          {/* Double border */}
-          <div style={{ position:"absolute", inset:"12px", border:`2px solid ${GREEN}`, pointerEvents:"none", zIndex:1 }} />
-          <div style={{ position:"absolute", inset:"18px", border:`1px solid ${GREEN_MID}`, pointerEvents:"none", zIndex:1 }} />
-
-          {/* Corner ornaments */}
-          {[["top","left"],["top","right"],["bottom","left"],["bottom","right"]].map(([v,h]) => (
-            <svg key={`${v}${h}`} width="60" height="60" viewBox="0 0 60 60" fill="none"
-              style={{ position:"absolute", [v]:8, [h]:8,
-                transform:`rotate(${v==="bottom"?180:0}deg) scaleX(${h==="right"?-1:1})`, zIndex:2, pointerEvents:"none" }}>
-              <path d="M5 5 L25 5 L5 25 Z" fill="none" stroke={GREEN} strokeWidth="1.5"/>
-              <path d="M5 5 L15 5 L5 15 Z" fill={GREEN_PALE}/>
-              <circle cx="30" cy="5" r="2" fill={GREEN} opacity="0.5"/>
-              <circle cx="5"  cy="30" r="2" fill={GREEN} opacity="0.5"/>
-            </svg>
-          ))}
-
-          {/* Side stripe patterns */}
-          <div style={{ position:"absolute", left:28, top:70, bottom:70, width:20,
-            backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
-          <div style={{ position:"absolute", right:28, top:70, bottom:70, width:20,
-            backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
-
-          {/* ── Content ── */}
-          <div style={{ padding:"36px 70px 36px", position:"relative", zIndex:3 }}>
-
-            {/* Cert number — top right */}
-            <div style={{
-              position:"absolute", top:24, right:70,
-              border:`1px solid ${GREEN}`, padding:"3px 10px",
-              fontFamily:"'Cinzel',serif", fontSize:"10px", color: GREEN, letterSpacing:"0.1em"
-            }}>
-              {(record.certItumalo && record.certLaupepa && record.certRegBook) ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}` : record.mataiCertNumber || record.refNumber || "___/___/___"}
-            </div>
-
-            {/* Emblem + headings */}
-            <div style={{ textAlign:"center", marginBottom:"10px" }}>
-              <div style={{ width:"80px", height:"80px", margin:"0 auto 6px" }}>
-                <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
-                  style={{ width:"80px", height:"80px", objectFit:"contain" }} />
-              </div>
-              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"7.5px", letterSpacing:"0.35em", color: GREEN, textTransform:"uppercase", marginBottom:"3px" }}>
-                Independent State of Samoa
-              </p>
-              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.13em", color:"#5a3e00", textTransform:"uppercase", marginBottom:"5px" }}>
-                Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga
-              </p>
-              <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"19px", color:"#3d2800", marginBottom:"3px" }}>
-                Tusi Faamaonia o le Umia o le Suafa Matai
-              </h1>
-              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.2em", color: GREEN, textTransform:"uppercase" }}>
-                Certificate of Registration — Matai Title
-              </p>
-            </div>
-
-            {/* Divider */}
-            <div style={{ display:"flex", alignItems:"center", gap:"10px", margin:"10px 0 14px" }}>
-              <div style={{ flex:1, height:"1px", background:`linear-gradient(to right,transparent,${GREEN})` }}/>
-              <span style={{ color: GREEN, fontSize:"12px" }}>✦</span>
-              <div style={{ flex:1, height:"1px", background:`linear-gradient(to left,transparent,${GREEN})` }}/>
-            </div>
-
-            {/* LINE 1 — Afioga [Title + Name] */}
-            <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
-              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color: GREEN, letterSpacing:"0.1em", whiteSpace:"nowrap" }}>Afioga</span>
-              <span style={{ ...uline("340px"), fontSize:"16px", textAlign:"left", paddingLeft:"6px" }}>
-                {afiogaName}
+          <div style={{ display:"flex", alignItems:"center", gap:"1rem" }}>
+            <Link to="/dashboard" style={{ color:"rgba(255,255,255,0.6)", textDecoration:"none", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em" }}>
+              ← Registry
+            </Link>
+            {record && (
+              <Link to={`/register/${record.id}`} style={{ color:"rgba(255,255,255,0.6)", textDecoration:"none", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em" }}>
+                ✎ Edit Record
+              </Link>
+            )}
+            {record?.printedAt && (
+              <span style={{ background:"rgba(74,222,128,0.15)", border:"1px solid rgba(74,222,128,0.4)", color:"#4ade80", fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", padding:"3px 10px", borderRadius:"2px" }}>
+                ✓ Completed {formatDate(record.printedAt)}
               </span>
+            )}
+          </div>
+
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+            <button onClick={() => prevRecord && navigate(`/certificate/${prevRecord.id}`)}
+              disabled={!prevRecord}
+              style={{ background: prevRecord ? "rgba(255,255,255,0.1)" : "transparent", color: prevRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", borderRadius:"2px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
+              ◀ Prev
+            </button>
+            <span style={{ color:"rgba(255,255,255,0.4)", fontFamily:"'Cinzel',serif", fontSize:"0.68rem" }}>
+              {currentIndex >= 0 ? `${currentIndex + 1} / ${allRecords.length}` : ""}
+            </span>
+            <button onClick={() => nextRecord && navigate(`/certificate/${nextRecord.id}`)}
+              disabled={!nextRecord}
+              style={{ background: nextRecord ? "rgba(255,255,255,0.1)" : "transparent", color: nextRecord ? "#fff" : "rgba(255,255,255,0.25)", border:"1px solid rgba(255,255,255,0.2)", padding:"0.45rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", borderRadius:"2px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
+              Next ▶
+            </button>
+          </div>
+
+          <div style={{ width:"140px" }} />
+        </div>
+
+        {/* ── Page heading + search ── */}
+        <div className="no-print" style={{ marginBottom:"2rem" }}>
+          <p className="page-eyebrow">View Record</p>
+          <h2 className="page-title" style={{ marginBottom:"1.25rem" }}>
+            {record ? record.mataiTitle : "Search Registry"}
+          </h2>
+
+          <div style={{ position:"relative", maxWidth:"540px" }} ref={searchRef}>
+            <span style={{ position:"absolute", left:"0.85rem", top:"50%", transform:"translateY(-50%)", fontSize:"1rem", pointerEvents:"none", color:"rgba(26,92,53,0.5)" }}>🔍</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => handleSearch(e.target.value)}
+              onFocus={() => searchQuery && setShowResults(true)}
+              placeholder="Search by title, name, village or cert number…"
+              style={{ width:"100%", padding:"0.75rem 1rem 0.75rem 2.5rem", border:"2px solid rgba(26,92,53,0.3)", borderRadius:"6px", fontSize:"1rem", fontFamily:"'EB Garamond',serif", color:"#1a1a1a", background:"#fff", outline:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}
+            />
+            {showResults && searchResults.length > 0 && (
+              <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, right:0, background:"#fff", border:"1px solid rgba(26,92,53,0.2)", borderRadius:"6px", boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:50, overflow:"hidden" }}>
+                {searchResults.map(r => (
+                  <div key={r.id} onClick={() => selectRecord(r)}
+                    style={{ padding:"0.75rem 1rem", cursor:"pointer", borderBottom:"1px solid #f3f4f6", display:"flex", justifyContent:"space-between", alignItems:"center" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f0faf4"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                    <div>
+                      <span style={{ fontFamily:"'Cinzel',serif", fontWeight:"700", color:"#1a5c35", fontSize:"0.95rem" }}>{r.mataiTitle}</span>
+                      <span style={{ color:"#6b7280", fontSize:"0.85rem", marginLeft:"0.5rem" }}>{r.holderName}</span>
+                    </div>
+                    <span style={{ fontSize:"0.78rem", color:"#9ca3af" }}>{r.village}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showResults && searchQuery && searchResults.length === 0 && (
+              <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, right:0, background:"#fff", border:"1px solid rgba(26,92,53,0.2)", borderRadius:"6px", boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:50, padding:"1rem", color:"#9ca3af", fontSize:"0.88rem", fontStyle:"italic", textAlign:"center" }}>
+                No records found
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ background:"rgba(139,26,26,0.08)", border:"1px solid rgba(139,26,26,0.2)", borderRadius:"4px", padding:"1rem", color:"#8b1a1a", marginBottom:"2rem" }}>
+            {error} &nbsp;—&nbsp; <Link to="/dashboard" style={{ color:"#8b1a1a" }}>← Return to Registry</Link>
+          </div>
+        )}
+
+        {record && (<>
+
+          {/* ── Record detail sections (read-only, matches Register layout) ── */}
+          <div className="no-print" style={{ display:"flex", flexDirection:"column", gap:"1.5rem", marginBottom:"2.5rem" }}>
+
+            <div className="card">
+              {sectionHead("Title & Holder")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                <div style={{ gridColumn:"1 / -1" }}>{readField("Matai Title (Suafa Matai)", record.mataiTitle)}</div>
+                {readField("Untitled Name (Igoa Taulealea)", record.holderName)}
+                {readField("Gender (Tane/Tamaitai)", record.gender)}
+                {readField("Title Type (Ituaiga Suafa)", record.mataiType)}
+              </div>
             </div>
 
-            {/* LINE 2 — Village on its own line */}
-            <div style={{ display:"flex", alignItems:"baseline", marginBottom:"14px" }}>
-              <span style={{ ...uline("220px"), fontSize:"15px", textAlign:"left", paddingLeft:"6px" }}>
-                {record.village || ""}
-              </span>
+            <div className="card">
+              {sectionHead("Village & District (of New Title)")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                {readField("District (Itūmālō)", record.district)}
+                {readField("Village (Nu'u e Patino iai le Suafa Matai)", record.village)}
+              </div>
             </div>
 
-            {/* Thin rule */}
-            <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, marginBottom:"12px", opacity:0.4 }} />
-
-            {/* BODY TEXT — line by line matching original */}
-            <div style={{ fontSize:"13px", lineHeight:"2.15", color:"#1a1208" }}>
-
-              {/* Ua tuuina... suafa [TITLE] */}
-              <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
-                <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
-                <span style={uline("110px")}>{record.mataiTitle || ""}</span>
+            <div className="card">
+              {sectionHead("Other Matai Title (for Records)")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                {readField("Other Matai Title (Isi Suafa Matai)", record.familyTitles)}
+                {readField("Village of Other Title (Nu'u o loo Matai ai)", record.nuuMataiAi)}
               </div>
-
-              {/* o le nu'u o [VILLAGE] i le Itumalo [DISTRICT] ma na resitara i le */}
-              <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
-                <span>o le nu'u o</span>
-                <span style={uline("100px")}>{record.village || ""}</span>
-                <span>i le Itumalo</span>
-                <span style={uline("175px")}>{district}</span>
-                <span>ma na resitara i le</span>
-              </div>
-
-              {/* aso [DD] o [MONTH] [YEAR] */}
-              <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
-                <span>aso</span>
-                <span style={uline("34px")}>{getDay(record.dateRegistration)}</span>
-                <span>o</span>
-                <span style={uline("88px")}>{getMonth(record.dateRegistration)}</span>
-                <span style={uline("54px")}>{getYear(record.dateRegistration)}</span>
-              </div>
-
-              {/* Tuuina atu i lenei aso [DD] o [MONTH] [YEAR] */}
-              <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
-                <span>Tuuina atu i lenei aso</span>
-                <span style={uline("34px")}>{getDay(record.dateIssued)}</span>
-                <span>o</span>
-                <span style={uline("88px")}>{getMonth(record.dateIssued)}</span>
-                <span style={uline("54px")}>{getYear(record.dateIssued)}</span>
-              </div>
-
             </div>
 
-            {/* Divider */}
-            <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, margin:"14px 0", opacity:0.4 }} />
+            <div className="card">
+              {sectionHead("Certificate Numbers")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.2rem" }}>
+                {readField("Numera o le Itumalo", record.certItumalo)}
+                {readField("Numera ole Laupepa", record.certLaupepa)}
+                {readField("Registry Book Number", record.certRegBook)}
+              </div>
+              {record.mataiCertNumber && (
+                <div style={{ marginTop:"0.75rem", padding:"0.6rem 1rem", background:"#e8f5ed", borderRadius:"4px", border:"1px solid #c3e6cb" }}>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#155c31", letterSpacing:"0.1em" }}>
+                    Certificate Number: <strong style={{ fontSize:"0.88rem" }}>{record.mataiCertNumber}</strong>
+                  </p>
+                </div>
+              )}
+            </div>
 
-            {/* FOOTER — registrar signature right aligned, matching original */}
-            <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"flex-end" }}>
-              <div style={{ textAlign:"center", minWidth:"220px" }}>
-                <div style={{ borderBottom:`1px solid ${GREEN}`, marginBottom:"5px", paddingBottom:"30px" }}/>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.12em", color: GREEN, textTransform:"uppercase" }}>
-                  Resitara
-                </p>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800", marginTop:"3px" }}>
-                  Mo le: <strong>RESITARA</strong>
-                </p>
+            <div className="card">
+              {sectionHead("Important Dates")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                {readField("Aso o le Saofai (Date of Conferral)", formatDate(record.dateConferred))}
+                {readField("Aso o le Faasalalauga (Date of Proclamation)", formatDate(record.dateProclamation))}
+                {readField("Aso na Resitala ai (Date of Registration)", formatDate(record.dateRegistration))}
+                {readField("Date Issued (Aso Tuuina Mai)", formatDate(record.dateIssued))}
+                {readField("Aso Fanau (Date of Birth)", formatDate(record.dateBirth))}
+                {readField("Nuu na Fanau ai (Village of Birth)", record.nuuFanau)}
+              </div>
+            </div>
+
+            <div className="card">
+              {sectionHead("Faapogai & Notes")}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                {readField("Faapogai", record.faapogai)}
+                {readField("Isi Faamatalaga (Notes)", record.notes)}
               </div>
             </div>
 
           </div>
-        </div>
-      </div>
+
+          {/* ── Certificate section heading + Print button ── */}
+          <div className="no-print" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.25rem" }}>
+            <div>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.2em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>Official Document</p>
+              <h3 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.3rem", color:"#1a1a1a" }}>Certificate of Registration</h3>
+            </div>
+            {perms.canPrint && (
+              <button onClick={handlePrint} style={{
+                background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none",
+                padding:"0.6rem 1.5rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem",
+                fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer"
+              }}>
+                🖨 Print / Save PDF
+              </button>
+            )}
+          </div>
+
+          {/* ── Certificate document (prints only this) ── */}
+          <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f7f4ef" }}>
+            <div id="certificate" style={{
+              width:"794px", minHeight:"560px", background:"#fdf8f0", color:"#1a1208",
+              position:"relative", fontFamily:"'EB Garamond', Georgia, serif",
+              boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
+            }}>
+
+              {/* Double border */}
+              <div style={{ position:"absolute", inset:"12px", border:`2px solid ${GREEN}`, pointerEvents:"none", zIndex:1 }} />
+              <div style={{ position:"absolute", inset:"18px", border:`1px solid ${GREEN_MID}`, pointerEvents:"none", zIndex:1 }} />
+
+              {/* Corner ornaments */}
+              {[["top","left"],["top","right"],["bottom","left"],["bottom","right"]].map(([v,h]) => (
+                <svg key={`${v}${h}`} width="60" height="60" viewBox="0 0 60 60" fill="none"
+                  style={{ position:"absolute", [v]:8, [h]:8,
+                    transform:`rotate(${v==="bottom"?180:0}deg) scaleX(${h==="right"?-1:1})`, zIndex:2, pointerEvents:"none" }}>
+                  <path d="M5 5 L25 5 L5 25 Z" fill="none" stroke={GREEN} strokeWidth="1.5"/>
+                  <path d="M5 5 L15 5 L5 15 Z" fill={GREEN_PALE}/>
+                  <circle cx="30" cy="5" r="2" fill={GREEN} opacity="0.5"/>
+                  <circle cx="5"  cy="30" r="2" fill={GREEN} opacity="0.5"/>
+                </svg>
+              ))}
+
+              {/* Side stripe patterns */}
+              <div style={{ position:"absolute", left:28, top:70, bottom:70, width:20,
+                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
+              <div style={{ position:"absolute", right:28, top:70, bottom:70, width:20,
+                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
+
+              {/* ── Content ── */}
+              <div style={{ padding:"36px 70px 36px", position:"relative", zIndex:3 }}>
+
+                {/* Cert number — top right */}
+                <div style={{
+                  position:"absolute", top:24, right:70,
+                  border:`1px solid ${GREEN}`, padding:"3px 10px",
+                  fontFamily:"'Cinzel',serif", fontSize:"10px", color: GREEN, letterSpacing:"0.1em"
+                }}>
+                  {(record.certItumalo && record.certLaupepa && record.certRegBook) ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}` : record.mataiCertNumber || record.refNumber || "___/___/___"}
+                </div>
+
+                {/* Emblem + headings */}
+                <div style={{ textAlign:"center", marginBottom:"10px" }}>
+                  <div style={{ width:"80px", height:"80px", margin:"0 auto 6px" }}>
+                    <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+                      style={{ width:"80px", height:"80px", objectFit:"contain" }} />
+                  </div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"7.5px", letterSpacing:"0.35em", color: GREEN, textTransform:"uppercase", marginBottom:"3px" }}>
+                    Independent State of Samoa
+                  </p>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.13em", color:"#5a3e00", textTransform:"uppercase", marginBottom:"5px" }}>
+                    Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga
+                  </p>
+                  <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"19px", color:"#3d2800", marginBottom:"3px" }}>
+                    Tusi Faamaonia o le Umia o le Suafa Matai
+                  </h1>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.2em", color: GREEN, textTransform:"uppercase" }}>
+                    Certificate of Registration — Matai Title
+                  </p>
+                </div>
+
+                {/* Divider */}
+                <div style={{ display:"flex", alignItems:"center", gap:"10px", margin:"10px 0 14px" }}>
+                  <div style={{ flex:1, height:"1px", background:`linear-gradient(to right,transparent,${GREEN})` }}/>
+                  <span style={{ color: GREEN, fontSize:"12px" }}>✦</span>
+                  <div style={{ flex:1, height:"1px", background:`linear-gradient(to left,transparent,${GREEN})` }}/>
+                </div>
+
+                {/* LINE 1 — Afioga [Title + Name] */}
+                <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color: GREEN, letterSpacing:"0.1em", whiteSpace:"nowrap" }}>Afioga</span>
+                  <span style={{ ...uline("340px"), fontSize:"16px", textAlign:"left", paddingLeft:"6px" }}>
+                    {afiogaName}
+                  </span>
+                </div>
+
+                {/* LINE 2 — Village */}
+                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"14px" }}>
+                  <span style={{ ...uline("220px"), fontSize:"15px", textAlign:"left", paddingLeft:"6px" }}>
+                    {record.village || ""}
+                  </span>
+                </div>
+
+                <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, marginBottom:"12px", opacity:0.4 }} />
+
+                {/* BODY TEXT */}
+                <div style={{ fontSize:"13px", lineHeight:"2.15", color:"#1a1208" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
+                    <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
+                    <span style={uline("110px")}>{record.mataiTitle || ""}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
+                    <span>o le nu'u o</span>
+                    <span style={uline("100px")}>{record.village || ""}</span>
+                    <span>i le Itumalo</span>
+                    <span style={uline("175px")}>{district}</span>
+                    <span>ma na resitara i le</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
+                    <span>aso</span>
+                    <span style={uline("34px")}>{getDay(record.dateRegistration)}</span>
+                    <span>o</span>
+                    <span style={uline("88px")}>{getMonth(record.dateRegistration)}</span>
+                    <span style={uline("54px")}>{getYear(record.dateRegistration)}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
+                    <span>Tuuina atu i lenei aso</span>
+                    <span style={uline("34px")}>{getDay(record.dateIssued)}</span>
+                    <span>o</span>
+                    <span style={uline("88px")}>{getMonth(record.dateIssued)}</span>
+                    <span style={uline("54px")}>{getYear(record.dateIssued)}</span>
+                  </div>
+                </div>
+
+                <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, margin:"14px 0", opacity:0.4 }} />
+
+                {/* Footer — Registrar */}
+                <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"flex-end" }}>
+                  <div style={{ textAlign:"center", minWidth:"220px" }}>
+                    <div style={{ borderBottom:`1px solid ${GREEN}`, marginBottom:"5px", paddingBottom:"30px" }}/>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.12em", color: GREEN, textTransform:"uppercase" }}>
+                      Resitara
+                    </p>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800", marginTop:"3px" }}>
+                      Mo le: <strong>RESITARA</strong>
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </>)}
+
+      </div>{/* end sidebar-content */}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
         @media print {
           .no-print { display: none !important; }
+          .sidebar  { display: none !important; }
+          .app-layout { display: block !important; }
+          .sidebar-content { margin-left: 0 !important; padding: 0 !important; }
           body { background: white !important; margin: 0 !important; }
           #certificate-wrapper { padding: 0 !important; background: white !important; }
           #certificate { box-shadow: none !important; }
           @page { size: A4 portrait; margin: 0.5cm; }
         }
       `}</style>
-    </>
+    </div>
   );
 }
