@@ -25,8 +25,7 @@ function autoRegDate(proc) {
   const p = new Date(proc + "T00:00:00");
   const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
   const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-  const day = Math.min(29, lastDay);
-  const reg = new Date(target.getFullYear(), target.getMonth(), day);
+  const reg = new Date(target.getFullYear(), target.getMonth(), Math.min(29, lastDay));
   return `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
 }
 
@@ -41,13 +40,22 @@ function effectiveRegDate(r) {
   return reg <= today ? d : null;
 }
 
+function inRange(dateStr, from, to) {
+  if (!dateStr) return false;
+  const d = dateStr.split("T")[0];
+  if (from && d < from) return false;
+  if (to   && d > to)   return false;
+  return true;
+}
+
 function openPDF(title, html) {
   const win = window.open("", "_blank");
   win.document.write(html);
   win.document.close();
 }
 
-function reportHeader(title, subtitle, count, generatedBy) {
+function reportHeader(title, subtitle, count, generatedBy, dateRange) {
+  const rangeStr = dateRange ? ` &nbsp;·&nbsp; Period: ${dateRange}` : "";
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
   <title>${title}</title>
   <style>
@@ -58,7 +66,7 @@ function reportHeader(title, subtitle, count, generatedBy) {
     .hdr img{width:65px;height:65px;object-fit:contain}
     .ministry{font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.12em;color:#1a5c35;text-transform:uppercase;margin-bottom:3px}
     .doc-title{font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:#1a5c35;letter-spacing:0.1em;text-transform:uppercase}
-    .meta{display:flex;justify-content:space-between;font-size:0.75rem;color:#555;padding:0.4rem 0;border-bottom:1px solid #eee;margin-bottom:1.2rem}
+    .meta{display:flex;justify-content:space-between;font-size:0.75rem;color:#555;padding:0.4rem 0;border-bottom:1px solid #eee;margin-bottom:1.2rem;flex-wrap:wrap;gap:4px}
     table{width:100%;border-collapse:collapse;font-size:0.8rem}
     th{background:#1a5c35;color:#fff;padding:0.45rem 0.65rem;text-align:left;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase}
     td{padding:0.4rem 0.65rem;border-bottom:1px solid #ddd;vertical-align:top}
@@ -75,7 +83,7 @@ function reportHeader(title, subtitle, count, generatedBy) {
     </div>
   </div>
   <div class="meta">
-    <span>Generated: ${fmtDate(new Date().toISOString().split("T")[0])}</span>
+    <span>Generated: ${fmtDate(new Date().toISOString().split("T")[0])}${rangeStr}</span>
     <span>By: ${generatedBy}</span>
     <span>Records: ${count}</span>
   </div>`;
@@ -83,13 +91,21 @@ function reportHeader(title, subtitle, count, generatedBy) {
 
 // ── Component ──────────────────────────────────────────────
 export default function Reports({ userRole }) {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [records, setRecords]   = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState("monthly");
+
+  // Filter state for "Other Reports" tab
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo,   setFilterTo]   = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+  // Monthly tab state
   const [monthFilter, setMonthFilter] = useState(() => {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
   });
+
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
@@ -109,170 +125,174 @@ export default function Reports({ userRole }) {
   }, []);
 
   const genBy = user?.displayName || user?.email || "Admin";
-  const now = new Date();
+  const now   = new Date();
   const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  const [filterYear, filterMonth] = monthFilter.split("-").map(Number);
 
-  // ── Data cuts ──────────────────────────────────────────
-  const registeredAll = records.filter(r => r.dateRegistration || r.status === "completed")
+  // ── Base data cuts (ALL records, no date filter) ──────────
+  const registeredAll    = records.filter(r => r.dateRegistration || r.status === "completed")
     .sort((a,b) => (b.dateRegistration||"").localeCompare(a.dateRegistration||""));
 
-  const [filterYear, filterMonth] = monthFilter.split("-").map(Number);
-  const registeredMonth = registeredAll.filter(r => {
-    const d = r.dateRegistration;
-    if (!d) return false;
-    const parts = d.split("-");
-    return parseInt(parts[0]) === filterYear && parseInt(parts[1]) === filterMonth;
+  const registeredMonth  = registeredAll.filter(r => {
+    const d = r.dateRegistration; if (!d) return false;
+    const p = d.split("-");
+    return parseInt(p[0]) === filterYear && parseInt(p[1]) === filterMonth;
   });
 
-  const readyToRegister = records.filter(r => {
+  const readyToRegister  = records.filter(r => {
     if (r.objection === "yes" || r.status === "completed" || r.dateRegistration) return false;
-    if (!r.dateProclamation) return false;
-    return effectiveRegDate(r) !== null;
+    return !!effectiveRegDate(r);
   });
 
-  const newMataiRecords = records.filter(r => !r.dateProclamation && !r.dateRegistration && r.objection !== "yes");
+  const newMataiRecords  = records.filter(r =>
+    !r.dateProclamation && !r.dateRegistration && r.objection !== "yes"
+  );
+
   const objectionRecords = records.filter(r => r.objection === "yes");
-  const alertRecords = records.filter(r => {
+
+  const alertRecords     = records.filter(r => {
     if (r.objection === "yes" || r.dateRegistration || !r.dateProclamation) return false;
     if (effectiveRegDate(r)) return false;
-    const days = Math.ceil((new Date(r.dateProclamation) - new Date()) / (1000*60*60*24));
+    const days = Math.ceil((new Date(r.dateProclamation) - now) / (1000*60*60*24));
     return days <= 120;
   });
 
-  // ── PDF Generators ─────────────────────────────────────
+  // ── "Other Reports" — filtered cuts ──────────────────────
+  // For each type, we filter by the relevant date field and filterType
+  const filteredReady = records.filter(r => {
+    if (r.objection === "yes" || r.status === "completed" || r.dateRegistration) return false;
+    if (!effectiveRegDate(r)) return false;
+    if (filterType !== "all" && filterType !== "ready") return false;
+    return inRange(r.dateProclamation, filterFrom, filterTo);
+  });
+
+  const filteredNew = records.filter(r => {
+    if (r.dateProclamation || r.dateRegistration || r.objection === "yes") return false;
+    if (filterType !== "all" && filterType !== "new") return false;
+    return inRange(r.dateConferred, filterFrom, filterTo);
+  });
+
+  const filteredProclamation = records.filter(r => {
+    if (r.objection === "yes" || r.dateRegistration || !r.dateProclamation) return false;
+    if (effectiveRegDate(r)) return false;
+    if (filterType !== "all" && filterType !== "proclamation") return false;
+    return inRange(r.dateProclamation, filterFrom, filterTo);
+  });
+
+  const filteredObjections = records.filter(r => {
+    if (r.objection !== "yes") return false;
+    if (filterType !== "all" && filterType !== "objections") return false;
+    const refDate = r.objectionDate || r.dateProclamation;
+    return inRange(refDate, filterFrom, filterTo);
+  });
+
+  // When no date filter set, show all records for that type
+  const noFilter = !filterFrom && !filterTo;
+
+  const filteredReadyFinal       = noFilter ? (filterType === "all" || filterType === "ready"        ? readyToRegister  : []) : filteredReady;
+  const filteredNewFinal         = noFilter ? (filterType === "all" || filterType === "new"          ? newMataiRecords  : []) : filteredNew;
+  const filteredProcFinal        = noFilter ? (filterType === "all" || filterType === "proclamation" ? alertRecords     : []) : filteredProclamation;
+  const filteredObjFinal         = noFilter ? (filterType === "all" || filterType === "objections"   ? objectionRecords : []) : filteredObjections;
+
+  const filteredTotal = filteredReadyFinal.length + filteredNewFinal.length + filteredProcFinal.length + filteredObjFinal.length;
+
+  const dateRangeLabel = (filterFrom || filterTo)
+    ? `${filterFrom ? fmtDate(filterFrom) : "Beginning"} — ${filterTo ? fmtDate(filterTo) : "Today"}`
+    : "All dates";
+
+  // ── PDF helpers ───────────────────────────────────────────
+  const mkRow = (cells, i) =>
+    `<tr style="background:${i%2?"#f9f9f9":"#fff"}">${cells.map(c=>`<td style="padding:4px 8px;border-bottom:1px solid #eee">${c}</td>`).join("")}</tr>`;
+
+  const mkTable = (headers, rows, color="#1a5c35") =>
+    `<table><thead><tr>${headers.map(h=>`<th style="background:${color};color:#fff;padding:5px 8px;text-align:left;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.06em;text-transform:uppercase">${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`;
+
+  const mkSection = (title, color, headers, rowsHtml) =>
+    rowsHtml.length === 0 ? "" :
+    `<h2 style="font-family:'Cinzel',serif;color:${color};font-size:0.9rem;margin:1.5rem 0 0.4rem;border-bottom:2px solid ${color};padding-bottom:4px;text-transform:uppercase;letter-spacing:0.1em">${title}</h2>
+    ${mkTable(headers, rowsHtml, color)}`;
+
+  const footer = `<div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+    <script>window.onload=()=>window.print();<\/script></body></html>`;
+
+  // Monthly PDF generators
   const printRegisteredMonth = () => {
     const label = `${MONTHS[filterMonth-1]} ${filterYear}`;
-    const rows = registeredMonth.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.mataiType||"—"}</td>
-      <td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
-      <td style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</td>
-    </tr>`).join("");
-    const html = reportHeader(
-      `Registered Matai — ${label}`,
-      `All matai titles registered in ${label}`,
-      registeredMonth.length, genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Type</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Registered</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Registered Matai", html);
+    const rows = registeredMonth.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i)).join("");
+    openPDF("Registered Matai", reportHeader(`Registered Matai — ${label}`,`All matai titles registered in ${label}`,registeredMonth.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Type","Village","District","Proclaimed","Registered"],rows) + footer);
     logAudit("REPORT_PDF", { type:"registered_month", month: label });
   };
 
   const printRegisteredAll = () => {
-    const rows = registeredAll.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.mataiType||"—"}</td>
-      <td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
-      <td style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</td>
-    </tr>`).join("");
-    const html = reportHeader(
-      "All Registered Matai Titles",
-      "Complete list of all registered matai titles",
-      registeredAll.length, genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Type</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Registered</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("All Registered Matai", html);
-    logAudit("REPORT_PDF", { type:"registered_all", count: registeredAll.length });
+    const rows = registeredAll.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i)).join("");
+    openPDF("All Registered Matai", reportHeader("All Registered Matai Titles","Complete list of all registered matai titles",registeredAll.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Type","Village","District","Proclaimed","Registered"],rows) + footer);
+    logAudit("REPORT_PDF", { type:"registered_all" });
   };
 
   const printMonthlyFull = () => {
-    const fmtSec = (title, color, headers, rows) => rows.length === 0 ? "" :
-      `<h2 style="font-family:'Cinzel',serif;color:${color};font-size:0.9rem;margin:1.5rem 0 0.4rem;border-bottom:2px solid ${color};padding-bottom:4px;text-transform:uppercase;letter-spacing:0.1em">${title} (${rows.length})</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:0.5rem">
-        <thead><tr>${headers.map(h=>`<th style="background:${color};color:#fff;padding:5px 8px;text-align:left;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.06em;text-transform:uppercase">${h}</th>`).join("")}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-
-    const mkRow = (r,i,cols) => `<tr style="background:${i%2?"#f9f9f9":"#fff"}">${cols.map(c=>`<td style="padding:4px 8px;border-bottom:1px solid #eee">${c}</td>`).join("")}</tr>`;
-
-    const newRows    = newMataiRecords.map((r,i)  => mkRow(r,i,[i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)]));
-    const readyRows  = readyToRegister.map((r,i)  => mkRow(r,i,[i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r))}</span>`]));
-    const regRows    = registeredAll.map((r,i)    => mkRow(r,i,[i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`]));
-    const objRows    = objectionRecords.map((r,i) => mkRow(r,i,[i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a">${fmtDate(r.objectionDate)}</span>`]));
-
-    const html = reportHeader(
-      `Monthly Report — ${monthLabel}`,
-      `Summary of all matai title activity for ${monthLabel}`,
-      records.length, genBy)
-      + `<div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        ${[["Total Records",records.length,"#1a5c35"],["Registered",registeredAll.length,"#155c31"],["New Titles",newMataiRecords.length,"#7c3aed"],["Ready",readyToRegister.length,"#1e6b3c"],["Objections",objectionRecords.length,"#8b1a1a"]].map(([l,n,c])=>
-        `<div style="border:1px solid ${c}30;border-radius:4px;padding:0.5rem 1rem;text-align:center;min-width:80px">
-          <div style="font-size:1.6rem;font-weight:bold;color:${c}">${n}</div>
-          <div style="font-size:0.6rem;text-transform:uppercase;color:${c};letter-spacing:0.05em;font-family:'Cinzel',serif">${l}</div>
-        </div>`).join("")}
-      </div>`
-      + fmtSec("New Matai Titles","#7c3aed",["#","Title","Holder","Village","District","Conferred"],newRows)
-      + fmtSec("Ready to Register","#1e6b3c",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)
-      + fmtSec("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],regRows)
-      + fmtSec("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)
-      + `<div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+    const newRows  = newMataiRecords.map((r,i)   => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)],i)).join("");
+    const readyRows= readyToRegister.map((r,i)   => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r))}</span>`],i)).join("");
+    const regRows  = registeredAll.map((r,i)     => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i)).join("");
+    const objRows  = objectionRecords.map((r,i)  => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a">${fmtDate(r.objectionDate)}</span>`],i)).join("");
+    const stats = [["Total",records.length,"#1a5c35"],["Registered",registeredAll.length,"#155c31"],["New Titles",newMataiRecords.length,"#7c3aed"],["Ready",readyToRegister.length,"#1e6b3c"],["Objections",objectionRecords.length,"#8b1a1a"]];
+    const html = reportHeader(`Monthly Report — ${monthLabel}`,`Summary of all matai title activity for ${monthLabel}`,records.length,genBy)
+      + `<div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">${stats.map(([l,n,c])=>`<div style="border:1px solid ${c}30;border-radius:4px;padding:0.5rem 1rem;text-align:center;min-width:80px"><div style="font-size:1.6rem;font-weight:bold;color:${c}">${n}</div><div style="font-size:0.6rem;text-transform:uppercase;color:${c};letter-spacing:0.05em;font-family:'Cinzel',serif">${l}</div></div>`).join("")}</div>`
+      + mkSection("New Matai Titles","#7c3aed",["#","Title","Holder","Village","District","Conferred"],newRows)
+      + mkSection("Ready to Register","#1e6b3c",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)
+      + mkSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],regRows)
+      + mkSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)
+      + footer;
     openPDF("Monthly Report", html);
     logAudit("REPORT_PDF", { type:"monthly_full", month: monthLabel });
   };
 
-  const printProclamation = () => {
-    const rows = alertRecords.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
-      <td style="color:#1a5c35">${fmtDate(autoRegDate(r.dateProclamation))}</td>
-    </tr>`).join("");
-    const html = reportHeader("Proclamation Alerts","Records within alert window — not yet registered",alertRecords.length,genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Proclamation Alerts", html);
-    logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
+  // "Full Reports" PDF generators (all records, no month filter)
+  const printFullReady = () => {
+    const rows = readyToRegister.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r))}</span>`],i)).join("");
+    openPDF("Ready to Register", reportHeader("Ready to Register","All titles where the 4-month proclamation period is complete — awaiting confirmation",readyToRegister.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Village","District","Proclaimed","Reg. Date"],rows) + footer);
+    logAudit("REPORT_PDF", { type:"full_ready" });
   };
 
-  const printReady = () => {
-    const rows = readyToRegister.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
-      <td style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r))}</td>
-    </tr>`).join("");
-    const html = reportHeader(`Ready to Register — ${monthLabel}`,"4-month proclamation complete, no objection",readyToRegister.length,genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Ready to Register", html);
-    logAudit("REPORT_PDF", { type:"ready", count: readyToRegister.length });
+  const printFullNew = () => {
+    const rows = newMataiRecords.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)],i)).join("");
+    openPDF("New Matai Titles", reportHeader("New Matai Titles","All titles entered but not yet proclaimed",newMataiRecords.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Type","Village","District","Date Conferred"],rows) + footer);
+    logAudit("REPORT_PDF", { type:"full_new" });
   };
 
-  const printNewMatai = () => {
-    const rows = newMataiRecords.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.mataiType||"—"}</td>
-      <td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateConferred)}</td>
-    </tr>`).join("");
-    const html = reportHeader("New Matai Titles","Entered but not yet proclaimed",newMataiRecords.length,genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Type</th><th>Village</th><th>District</th><th>Date Conferred</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("New Matai Titles", html);
-    logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
+  const printFullProclamation = () => {
+    const rows = alertRecords.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35">${fmtDate(autoRegDate(r.dateProclamation))}</span>`],i)).join("");
+    openPDF("Proclamation Report", reportHeader("Proclamation Report","All active proclamations — not yet registered",alertRecords.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Village","District","Proclaimed","Auto Reg. Date"],rows) + footer);
+    logAudit("REPORT_PDF", { type:"full_proclamation" });
   };
 
-  const printObjections = () => {
-    const rows = objectionRecords.map((r,i) => `<tr>
-      <td>${i+1}</td><td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td><td>${r.village||"—"}</td><td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
-      <td style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</td>
-    </tr>`).join("");
-    const html = reportHeader("Objections Report","Titles with active objections filed",objectionRecords.length,genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Objection Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
-    openPDF("Objections Report", html);
-    logAudit("REPORT_PDF", { type:"objections", count: objectionRecords.length });
+  const printFullObjections = () => {
+    const rows = objectionRecords.map((r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i)).join("");
+    openPDF("Objections Report", reportHeader("Objections Report","All titles with active objections filed — all dates",objectionRecords.length,genBy)
+      + mkTable(["#","Matai Title","Holder","Village","District","Proclaimed","Objection Date"],rows) + footer);
+    logAudit("REPORT_PDF", { type:"full_objections" });
+  };
+
+  // "Other Reports" — filtered PDF
+  const printFilteredReport = () => {
+    const readyRows  = filteredReadyFinal.map((r,i)  => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r))}</span>`],i)).join("");
+    const newRows    = filteredNewFinal.map((r,i)    => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)],i)).join("");
+    const procRows   = filteredProcFinal.map((r,i)   => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35">${fmtDate(autoRegDate(r.dateProclamation))}</span>`],i)).join("");
+    const objRows    = filteredObjFinal.map((r,i)    => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i)).join("");
+    const typeLabel  = { all:"All Types", ready:"Ready to Register", new:"New Matai Titles", proclamation:"Proclamation Report", objections:"Objections Report" }[filterType];
+    const html = reportHeader(
+      `Filtered Report — ${typeLabel}`, dateRangeLabel, filteredTotal, genBy, dateRangeLabel)
+      + mkSection("Ready to Register","#1e6b3c",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)
+      + mkSection("New Matai Titles","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)
+      + mkSection("Proclamation Report","#1a5c35",["#","Title","Holder","Village","District","Proclaimed","Auto Reg. Date"],procRows)
+      + mkSection("Objections Report","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)
+      + footer;
+    openPDF("Filtered Report", html);
+    logAudit("REPORT_PDF", { type:"filtered", filterType, from: filterFrom, to: filterTo });
   };
 
   // ── Styles ─────────────────────────────────────────────
@@ -292,22 +312,41 @@ export default function Reports({ userRole }) {
     </button>
   );
 
-  const ReportCard = ({ title, desc, onClick, count, color="#1a5c35", disabled }) => (
+  const FullReportCard = ({ title, desc, onClick, count, color="#1a5c35" }) => (
     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"1rem 1.1rem", background:"#fafafa", border:"1px solid rgba(30,107,60,0.12)", borderRadius:"4px", marginBottom:"0.6rem" }}>
       <div>
         <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.8rem", color, fontWeight:600 }}>{title}</p>
         <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.5)", marginTop:"2px" }}>{desc}</p>
       </div>
-      <button onClick={onClick} disabled={disabled || count === 0}
+      <button onClick={onClick} disabled={count === 0}
         style={{ fontSize:"0.68rem", padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase",
-          background: (disabled||count===0) ? "#f3f4f6" : `${color}15`,
-          border:`1px solid ${(disabled||count===0) ? "#e5e7eb" : color}`,
-          color:(disabled||count===0) ? "#9ca3af" : color,
-          borderRadius:"3px", cursor:(disabled||count===0) ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
-        📄 Print ({count ?? "—"})
+          background: count === 0 ? "#f3f4f6" : `${color}15`,
+          border:`1px solid ${count === 0 ? "#e5e7eb" : color}`,
+          color: count === 0 ? "#9ca3af" : color,
+          borderRadius:"3px", cursor: count === 0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+        📄 Print ({count})
       </button>
     </div>
   );
+
+  const inputStyle = { fontSize:"0.78rem", padding:"0.4rem 0.65rem", border:"1px solid rgba(30,107,60,0.3)", borderRadius:"3px", color:"#1a5c35", fontFamily:"'Cinzel',serif", background:"#fff" };
+  const labelStyle = { fontSize:"0.65rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(26,26,26,0.5)", display:"block", marginBottom:"4px" };
+
+  const typeOptions = [
+    { value:"all",         label:"All Types" },
+    { value:"ready",       label:"Ready to Register" },
+    { value:"new",         label:"New Matai Titles" },
+    { value:"proclamation",label:"Proclamation Report" },
+    { value:"objections",  label:"Objections Report" },
+  ];
+
+  // Filtered preview rows for on-screen table
+  const previewRows = [
+    ...filteredReadyFinal.map(r => ({ ...r, _type:"Ready to Register", _typeColor:"#1e6b3c", _date: r.dateProclamation })),
+    ...filteredNewFinal.map(r =>   ({ ...r, _type:"New Matai Title",    _typeColor:"#7c3aed", _date: r.dateConferred })),
+    ...filteredProcFinal.map(r =>  ({ ...r, _type:"Proclamation",       _typeColor:"#1a5c35", _date: r.dateProclamation })),
+    ...filteredObjFinal.map(r =>   ({ ...r, _type:"Objection",          _typeColor:"#8b1a1a", _date: r.objectionDate || r.dateProclamation })),
+  ].sort((a,b) => (b._date||"").localeCompare(a._date||""));
 
   return (
     <div className="app-layout">
@@ -322,36 +361,58 @@ export default function Reports({ userRole }) {
 
         {/* Tabs */}
         <div style={{ display:"flex", gap:"0.5rem", marginBottom:"1.5rem", flexWrap:"wrap" }}>
-          <TabBtn id="monthly"      label="Monthly Reports" />
-          <TabBtn id="registered"   label="Registered Matai" count={registeredAll.length} color="#155c31" />
-          <TabBtn id="other"        label="Other Reports" />
+          <TabBtn id="monthly"    label="Monthly Reports" />
+          <TabBtn id="full"       label="Full Reports" />
+          <TabBtn id="registered" label="Registered Matai" count={registeredAll.length} color="#155c31" />
+          <TabBtn id="other"      label="Filtered Reports" />
         </div>
 
         {/* ── Monthly Reports tab ── */}
         {activeTab === "monthly" && (
           <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:"1.5rem", alignItems:"start" }}>
-            <div>
-              <div style={sStyle}>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Monthly Summary Reports</p>
-                <ReportCard title="Full Monthly Report" desc={`All activity for ${monthLabel} — new titles, ready, registered, objections`} onClick={printMonthlyFull} count={records.length} />
-                <ReportCard title="Registered This Month" desc={`All matai titles registered in ${monthLabel}`} onClick={printRegisteredMonth} count={registeredMonth.length} />
-                <ReportCard title="Ready to Register" desc="4-month proclamation complete, no objection — pending confirmation" onClick={printReady} count={readyToRegister.length} />
-                <ReportCard title="New Matai Titles" desc="Entered but not yet proclaimed" onClick={printNewMatai} count={newMataiRecords.length} color="#7c3aed" />
-                <ReportCard title="Proclamation Alerts" desc="Records within 120-day alert window" onClick={printProclamation} count={alertRecords.length} />
-                <ReportCard title="Objections Report" desc="Titles with active objections filed" onClick={printObjections} count={objectionRecords.length} color="#8b1a1a" />
-              </div>
+            <div style={sStyle}>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Monthly Summary Reports</p>
+              <FullReportCard title="Full Monthly Report" desc={`All activity for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} />
+              <FullReportCard title="Registered This Month" desc={`All matai titles registered in ${monthLabel}`} onClick={printRegisteredMonth} count={registeredMonth.length} />
             </div>
-            {/* Summary */}
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Current Month Summary</p>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#1e6b3c", marginBottom:"1rem" }}>{monthLabel}</p>
               {[
-                ["Total Records", records.length, "#1a5c35"],
-                ["Registered", registeredAll.length, "#155c31"],
-                ["Ready to Register", readyToRegister.length, "#1e6b3c"],
-                ["New Titles", newMataiRecords.length, "#7c3aed"],
-                ["Proclamation Alerts", alertRecords.length, "#c0392b"],
-                ["Objections", objectionRecords.length, "#8b1a1a"],
+                ["Total Records",       records.length,          "#1a5c35"],
+                ["Registered",          registeredAll.length,    "#155c31"],
+                ["Ready to Register",   readyToRegister.length,  "#1e6b3c"],
+                ["New Titles",          newMataiRecords.length,  "#7c3aed"],
+                ["Proclamation Alerts", alertRecords.length,     "#c0392b"],
+                ["Objections",          objectionRecords.length, "#8b1a1a"],
+              ].map(([label, count, col]) => (
+                <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"0.45rem 0", borderBottom:"1px solid rgba(30,107,60,0.08)" }}>
+                  <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.65)" }}>{label}</span>
+                  <span style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1rem", color:col, fontWeight:700 }}>{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Full Reports tab ── */}
+        {activeTab === "full" && (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:"1.5rem", alignItems:"start" }}>
+            <div style={sStyle}>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.4rem" }}>◈ Full Reports — All Records, All Dates</p>
+              <p style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.45)", marginBottom:"1.2rem" }}>These reports include every record across all months, not filtered by date.</p>
+              <FullReportCard title="Ready to Register" desc="All titles where the 4-month proclamation period is complete — awaiting confirmation" onClick={printFullReady} count={readyToRegister.length} />
+              <FullReportCard title="New Matai Titles" desc="All titles entered but not yet proclaimed" onClick={printFullNew} count={newMataiRecords.length} color="#7c3aed" />
+              <FullReportCard title="Proclamation Report" desc="All active proclamations within 120-day alert window" onClick={printFullProclamation} count={alertRecords.length} />
+              <FullReportCard title="Objections Report" desc="All titles with active objections — across all dates" onClick={printFullObjections} count={objectionRecords.length} color="#8b1a1a" />
+            </div>
+            <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Overview</p>
+              {[
+                ["Ready to Register",   readyToRegister.length,  "#1e6b3c"],
+                ["New Titles",          newMataiRecords.length,  "#7c3aed"],
+                ["Proclamation Alerts", alertRecords.length,     "#1a5c35"],
+                ["Objections",          objectionRecords.length, "#8b1a1a"],
               ].map(([label, count, col]) => (
                 <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"0.45rem 0", borderBottom:"1px solid rgba(30,107,60,0.08)" }}>
                   <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.65)" }}>{label}</span>
@@ -365,50 +426,47 @@ export default function Reports({ userRole }) {
         {/* ── Registered Matai tab ── */}
         {activeTab === "registered" && (
           <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:"1.5rem", alignItems:"start" }}>
-            <div>
-              <div style={sStyle}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>◈ {registeredAll.length} Registered Matai Titles</p>
-                  <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
-                    <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
-                      style={{ fontSize:"0.78rem", padding:"0.3rem 0.6rem", border:"1px solid rgba(30,107,60,0.3)", borderRadius:"3px", color:"#1a5c35", fontFamily:"'Cinzel',serif" }} />
-                    <button onClick={printRegisteredMonth} disabled={registeredMonth.length === 0}
-                      style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background: registeredMonth.length === 0 ? "#f3f4f6" : "#155c3115", border:`1px solid ${registeredMonth.length === 0 ? "#e5e7eb" : "#155c31"}`, color: registeredMonth.length === 0 ? "#9ca3af" : "#155c31", borderRadius:"3px", cursor: registeredMonth.length === 0 ? "not-allowed" : "pointer" }}>
-                      📄 Month PDF ({registeredMonth.length})
-                    </button>
-                    <button onClick={printRegisteredAll}
-                      style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#155c3115", border:"1px solid #155c31", color:"#155c31", borderRadius:"3px", cursor:"pointer" }}>
-                      📄 All ({registeredAll.length})
-                    </button>
-                  </div>
+            <div style={sStyle}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
+                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>◈ {registeredAll.length} Registered Matai Titles</p>
+                <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+                  <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={inputStyle} />
+                  <button onClick={printRegisteredMonth} disabled={registeredMonth.length === 0}
+                    style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background: registeredMonth.length === 0 ? "#f3f4f6" : "#155c3115", border:`1px solid ${registeredMonth.length === 0 ? "#e5e7eb" : "#155c31"}`, color: registeredMonth.length === 0 ? "#9ca3af" : "#155c31", borderRadius:"3px", cursor: registeredMonth.length === 0 ? "not-allowed" : "pointer" }}>
+                    📄 Month ({registeredMonth.length})
+                  </button>
+                  <button onClick={printRegisteredAll}
+                    style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#155c3115", border:"1px solid #155c31", color:"#155c31", borderRadius:"3px", cursor:"pointer" }}>
+                    📄 All ({registeredAll.length})
+                  </button>
                 </div>
-                {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
-                : registeredAll.length === 0
-                  ? <p style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No registered records yet.</p>
-                  : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
-                    <thead>
-                      <tr style={{ background:"#155c31" }}>
-                        {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
-                          <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {registeredAll.map((r,i) => (
-                        <tr key={r.id} style={{ background: i%2===0 ? "#fff" : "#f5faf7" }}>
-                          <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#155c31" }}>{r.mataiTitle}</td>
-                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName}</td>
-                          <td style={{ padding:"0.45rem 0.75rem" }}><span className="type-badge">{r.mataiType||"—"}</span></td>
-                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
-                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
-                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
-                          <td style={{ padding:"0.45rem 0.75rem", color:"#155c31", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                }
               </div>
+              {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
+              : registeredAll.length === 0
+                ? <p style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No registered records yet.</p>
+                : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                  <thead>
+                    <tr style={{ background:"#155c31" }}>
+                      {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
+                        <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registeredAll.map((r,i) => (
+                      <tr key={r.id} style={{ background: i%2===0 ? "#fff" : "#f5faf7" }}>
+                        <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#155c31" }}>{r.mataiTitle}</td>
+                        <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName}</td>
+                        <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
+                        <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
+                        <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
+                        <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
+                        <td style={{ padding:"0.45rem 0.75rem", color:"#155c31", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              }
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Registration Summary</p>
@@ -422,14 +480,107 @@ export default function Reports({ userRole }) {
           </div>
         )}
 
-        {/* ── Other Reports tab ── */}
+        {/* ── Filtered Reports tab ── */}
         {activeTab === "other" && (
-          <div style={sStyle}>
-            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Other Reports</p>
-            <ReportCard title="Proclamation Alerts" desc="Records with proclamation date within 120 days, not yet registered" onClick={printProclamation} count={alertRecords.length} />
-            <ReportCard title="Ready to Register" desc="Proclamation period complete, awaiting confirmation" onClick={printReady} count={readyToRegister.length} />
-            <ReportCard title="New Matai Titles" desc="Titles entered but not yet proclaimed" onClick={printNewMatai} count={newMataiRecords.length} color="#7c3aed" />
-            <ReportCard title="Objections Report" desc="Titles with active objections filed" onClick={printObjections} count={objectionRecords.length} color="#8b1a1a" />
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:"1.5rem", alignItems:"start" }}>
+            <div>
+              {/* Filter controls */}
+              <div style={{ ...sStyle, marginBottom:"1rem" }}>
+                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Filter Reports</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto", gap:"0.75rem", alignItems:"end" }}>
+                  <div>
+                    <label style={labelStyle}>Report Type</label>
+                    <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                      style={{ ...inputStyle, width:"100%", appearance:"none", backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%231a5c35' fill='none' stroke-width='2'/%3E%3C/svg%3E\")", backgroundRepeat:"no-repeat", backgroundPosition:"right 8px center", paddingRight:"28px" }}>
+                      {typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>From Date</label>
+                    <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} style={{ ...inputStyle, width:"100%" }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>To Date</label>
+                    <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} style={{ ...inputStyle, width:"100%" }} />
+                  </div>
+                  <div style={{ display:"flex", gap:"0.5rem" }}>
+                    <button onClick={() => { setFilterFrom(""); setFilterTo(""); setFilterType("all"); }}
+                      style={{ fontSize:"0.68rem", padding:"0.4rem 0.75rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:"transparent", border:"1px solid rgba(30,107,60,0.3)", color:"#1e6b3c", borderRadius:"3px", cursor:"pointer", whiteSpace:"nowrap" }}>
+                      Clear
+                    </button>
+                    <button onClick={printFilteredReport} disabled={filteredTotal === 0}
+                      style={{ fontSize:"0.68rem", padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background: filteredTotal === 0 ? "#f3f4f6" : "#1a5c3515", border:`1px solid ${filteredTotal === 0 ? "#e5e7eb" : "#1a5c35"}`, color: filteredTotal === 0 ? "#9ca3af" : "#1a5c35", borderRadius:"3px", cursor: filteredTotal === 0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+                      📄 Print ({filteredTotal})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div style={sStyle}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase" }}>
+                    ◈ Results — {previewRows.length} Record{previewRows.length !== 1 ? "s" : ""}
+                  </p>
+                  <span style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.45)", fontStyle:"italic" }}>{dateRangeLabel}</span>
+                </div>
+                {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
+                : previewRows.length === 0
+                  ? <div style={{ textAlign:"center", padding:"3rem", color:"rgba(26,26,26,0.35)" }}>
+                    <p style={{ fontSize:"1.5rem", marginBottom:"0.5rem" }}>🔍</p>
+                    <p style={{ fontStyle:"italic", fontSize:"0.85rem" }}>No records match the selected filter.</p>
+                    <p style={{ fontSize:"0.75rem", marginTop:"0.25rem", color:"rgba(26,26,26,0.25)" }}>Try changing the report type or adjusting the date range.</p>
+                  </div>
+                  : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                    <thead>
+                      <tr style={{ background:"#1a5c35" }}>
+                        {["Type","Matai Title","Holder","Village","District","Date"].map(h => (
+                          <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewRows.map((r,i) => (
+                        <tr key={r.id+r._type} style={{ background: i%2===0 ? "#fff" : "#f5faf7" }}>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>
+                            <span style={{ fontSize:"0.65rem", fontFamily:"'Cinzel',serif", color:r._typeColor, background:`${r._typeColor}12`, border:`1px solid ${r._typeColor}30`, padding:"2px 7px", borderRadius:"2px", whiteSpace:"nowrap" }}>{r._type}</span>
+                          </td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#1a5c35" }}>{r.mataiTitle||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.holderName||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem", color:r._typeColor, fontWeight:600 }}>{fmtDate(r._date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                }
+              </div>
+            </div>
+
+            {/* Right summary */}
+            <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Filter Summary</p>
+              <div style={{ marginBottom:"1rem" }}>
+                <p style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.45)", marginBottom:"2px" }}>Period</p>
+                <p style={{ fontSize:"0.78rem", color:"#1a5c35", fontWeight:600 }}>{dateRangeLabel}</p>
+              </div>
+              {[
+                ["Ready to Register",   filteredReadyFinal.length,  "#1e6b3c"],
+                ["New Matai Titles",    filteredNewFinal.length,    "#7c3aed"],
+                ["Proclamation",        filteredProcFinal.length,   "#1a5c35"],
+                ["Objections",          filteredObjFinal.length,    "#8b1a1a"],
+              ].map(([label, count, col]) => (
+                <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"0.45rem 0", borderBottom:"1px solid rgba(30,107,60,0.08)" }}>
+                  <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.65)" }}>{label}</span>
+                  <span style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1rem", color:col, fontWeight:700 }}>{count}</span>
+                </div>
+              ))}
+              <div style={{ marginTop:"0.75rem", paddingTop:"0.75rem", borderTop:"2px solid rgba(30,107,60,0.15)", display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontSize:"0.78rem", fontFamily:"'Cinzel',serif", color:"#1a5c35", textTransform:"uppercase", letterSpacing:"0.06em" }}>Total</span>
+                <span style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.2rem", color:"#1a5c35", fontWeight:700 }}>{filteredTotal}</span>
+              </div>
+            </div>
           </div>
         )}
 
