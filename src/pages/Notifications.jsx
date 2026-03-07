@@ -137,9 +137,39 @@ export default function Notifications({ userRole }) {
             Automated Alerts
           </p>
           <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.8rem", color:"#1a1a1a" }}>
-            Proclamation Notifications
+            Notifications
           </h1>
         </div>
+
+        {/* ── Pending Registrations (not yet printed) ── */}
+        {(() => {
+          const pending = records.filter(r => r.status !== "completed" && !r.printedAt);
+          if (loading || pending.length === 0) return null;
+          return (
+            <div style={{ background:"#fffbf0", border:"1px solid #d68910", borderLeft:"4px solid #d68910", borderRadius:"4px", padding:"1rem 1.25rem", marginBottom:"1.5rem" }}>
+              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.15em", color:"#d68910", textTransform:"uppercase", marginBottom:"0.75rem" }}>
+                ⏳ {pending.length} Pending — Registration{pending.length !== 1 ? "s" : ""} Not Yet Printed
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
+                {pending.map(r => (
+                  <Link key={r.id} to={`/certificate/${r.id}`} style={{ textDecoration:"none" }}>
+                    <div style={{ background:"#fff", border:"1px solid rgba(214,137,16,0.25)", borderRadius:"3px", padding:"0.7rem 1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
+                      onMouseEnter={e => e.currentTarget.style.background="#fef9ec"}
+                      onMouseLeave={e => e.currentTarget.style.background="#fff"}>
+                      <div style={{ display:"flex", gap:"1.5rem", alignItems:"center", flexWrap:"wrap" }}>
+                        <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.88rem", fontWeight:"700", color:"#1e6b3c" }}>{r.mataiTitle || "—"}</span>
+                        <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.65)" }}>{r.holderName}</span>
+                        <span style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>📍 {r.village}{r.district ? `, ${r.district}` : ""}</span>
+                        {r.mataiCertNumber && <span style={{ fontSize:"0.75rem", color:"rgba(26,26,26,0.4)" }}>Cert: {r.mataiCertNumber}</span>}
+                      </div>
+                      <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", color:"#d68910", whiteSpace:"nowrap", marginLeft:"1rem" }}>→ Open to Print</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 340px", gap:"1.5rem", alignItems:"start" }}>
 
