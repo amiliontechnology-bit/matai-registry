@@ -318,8 +318,12 @@ export async function seedTestData(onProgress) {
 
     for (let i = 0; i < SAMPLES.length; i++) {
       if (onProgress) onProgress(i+1, SAMPLES.length, SAMPLES[i].mataiTitle);
+      const s = SAMPLES[i];
+      // Always compose mataiCertNumber from the 3 parts so duplicate detection works
+      const certNum = [s.certItumalo, s.certLaupepa, s.certRegBook].filter(Boolean).join("/");
       await addDoc(collection(db, "registrations"), {
-        ...SAMPLES[i],
+        ...s,
+        mataiCertNumber: certNum || s.mataiCertNumber || "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: "seed@test.com",

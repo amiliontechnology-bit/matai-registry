@@ -512,8 +512,12 @@ export default function Import({ userRole }) {
     const existingRecords = existingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const existingCertNums = new Map(
       existingRecords
-        .filter(r => r.mataiCertNumber)
-        .map(r => [r.mataiCertNumber, r])
+        .map(r => {
+          // Use stored combined field OR compose from parts
+          const certKey = r.mataiCertNumber || [r.certItumalo, r.certLaupepa, r.certRegBook].filter(Boolean).join("/");
+          return certKey ? [certKey, r] : null;
+        })
+        .filter(Boolean)
     );
     const existingTitles = new Map(
       existingRecords

@@ -173,12 +173,14 @@ export default function Notifications({ userRole }) {
   // Objection records
   const objectionRecords = records.filter(r => r.objection === "yes");
 
-  // Duplicate cert number records (flagged in audit log)
+  // Duplicate cert number records — check mataiCertNumber OR compose from parts
   const certNumberMap = new Map();
   const duplicateGroups = [];
   records.forEach(r => {
-    if (!r.mataiCertNumber) return;
-    const key = r.mataiCertNumber.trim();
+    // Use stored combined field, or build it from the 3 parts
+    const composed = [r.certItumalo, r.certLaupepa, r.certRegBook].filter(Boolean).join("/");
+    const key = (r.mataiCertNumber || composed || "").trim();
+    if (!key) return;
     if (!certNumberMap.has(key)) certNumberMap.set(key, []);
     certNumberMap.get(key).push(r);
   });

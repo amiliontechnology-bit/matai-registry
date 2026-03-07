@@ -562,11 +562,19 @@ export default function Register({ userRole }) {
     if (!certNum || certNum.split("/").length < 3) return;
     try {
       const snap = await getDocs(collection(db, "registrations"));
-      const existing = snap.docs.filter(d => d.id !== id && d.data().mataiCertNumber === certNum);
+      const existing = snap.docs.filter(d => {
+        if (d.id === id) return false; // skip self when editing
+        const data = d.data();
+        // Match against stored combined field OR parts
+        const storedCert = data.mataiCertNumber || [data.certItumalo, data.certLaupepa, data.certRegBook].filter(Boolean).join("/");
+        return storedCert === certNum;
+      });
       if (existing.length > 0) {
         const rec = existing[0].data();
         setDupWarning(`⚠️ Certificate number ${certNum} already exists on record: "${rec.mataiTitle}" (${rec.holderName}, ${rec.village}). Please check before saving.`);
         logAudit("DUPLICATE_WARNING", { certNumber: certNum, mataiTitle: form.mataiTitle, existingTitle: rec.mataiTitle });
+      } else {
+        setDupWarning(""); // clear warning if no conflict
       }
     } catch { /* ignore */ }
   };
