@@ -112,7 +112,7 @@ export default function Dashboard({ userRole }) {
   }).length;
 
   const handleSeed = async () => {
-    if (!window.confirm("This will clear all existing records and load 15 test records. Continue?")) return;
+    if (!window.confirm("This will clear all existing records and load test data. Continue?")) return;
     setSeeding(true); setSeedMsg("");
     const result = await seedTestData((done, total, title) => setSeedMsg(`Importing ${done}/${total}: ${title}…`));
     cacheClear("registrations");
