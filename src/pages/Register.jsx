@@ -5,7 +5,7 @@ import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, q
 import { auth, db } from "../firebase";
 import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
-import Sidebar from "../components/Sidebar";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 
 
 // ── Official Samoa district numbering ──
@@ -352,8 +352,15 @@ export default function Register({ userRole }) {
 
   // Load district/villages from Firestore (falls back to hardcoded if not set)
   useEffect(() => {
+    const cached = cacheGet("districtVillages");
+    if (cached) { setDistrictVillagesFS(cached); return; }
     getDoc(doc(db, "settings", "districtVillages"))
-      .then(snap => { if (snap.exists()) setDistrictVillagesFS(snap.data().data); })
+      .then(snap => {
+        if (snap.exists()) {
+          cacheSet("districtVillages", snap.data().data);
+          setDistrictVillagesFS(snap.data().data);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -504,12 +511,14 @@ export default function Register({ userRole }) {
           fieldsChanged: changes.length,
           changes: changes.join(" | ")
         });
+        cacheClear("registrations");
         setSuccess("Registration updated successfully.");
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
+        cacheClear("registrations");
         setSuccess("Title registered successfully.");
         setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
       }

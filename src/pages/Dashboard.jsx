@@ -5,6 +5,7 @@ import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 
 const fmtDate = (str) => {
   if (!str) return "—";
@@ -29,12 +30,14 @@ export default function Dashboard({ userRole }) {
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
-  const fetchRecords = async () => {
+  const fetchRecords = async (force = false) => {
+    const cached = cacheGet("registrations");
+    if (cached && !force) { setRecords(cached); setLoading(false); return; }
     try {
       const snap = await getDocs(collection(db, "registrations"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sort newest first in JS — avoids needing a Firestore composite index
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      cacheSet("registrations", list);
       setRecords(list);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -47,6 +50,7 @@ export default function Dashboard({ userRole }) {
     setDeleting(id);
     await deleteDoc(doc(db, "registrations", id));
     await logAudit("DELETE", { mataiTitle: title, recordId: id });
+    cacheClear("registrations");
     setRecords(prev => prev.filter(r => r.id !== id));
     setDeleting(null);
   };

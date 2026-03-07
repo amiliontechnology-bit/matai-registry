@@ -517,6 +517,10 @@ export default function Import({ userRole }) {
     }
 
     await logAudit("IMPORT", { count, file: file?.name, skipped: skippedRows.length });
+    // Clear registrations cache so Dashboard shows fresh data
+    const { cacheClear } = await import("../utils/cache");
+    cacheClear("registrations");
+    cacheClear("auditLog");
     setDone(count);
     setErrors([...skippedRows, ...errs]);
     setImporting(false);

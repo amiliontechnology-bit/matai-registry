@@ -5,6 +5,7 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate } from "react-router-dom";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 
 // ── Default district/village data (used to seed Firestore if not yet saved) ──
 const DEFAULT_DISTRICT_VILLAGES = {
@@ -82,14 +83,22 @@ export default function DataManage({ userRole }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, "registrations"));
-      const all  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const cached = cacheGet("registrations");
+      const all = cached || await getDocs(collection(db, "registrations")).then(snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        cacheSet("registrations", list);
+        return list;
+      });
       setRecords(all);
-      const auditSnap = await getDocs(collection(db, "auditLog"));
-      const batches = auditSnap.docs
-        .map(d => ({ id: d.id, ...d.data(), timestamp: d.data().timestamp?.toDate?.() || new Date() }))
-        .filter(d => d.action === "IMPORT")
-        .sort((a, b) => b.timestamp - a.timestamp);
+      const cachedAudit = cacheGet("auditLog");
+      const batches = cachedAudit || await getDocs(collection(db, "auditLog")).then(snap => {
+        const list = snap.docs
+          .map(d => ({ id: d.id, ...d.data(), timestamp: d.data().timestamp?.toDate?.() || new Date() }))
+          .filter(d => d.action === "IMPORT")
+          .sort((a, b) => b.timestamp - a.timestamp);
+        cacheSet("auditLog", list);
+        return list;
+      });
       setImports(batches);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -98,13 +107,12 @@ export default function DataManage({ userRole }) {
   const loadDistrictVillages = async () => {
     setDvLoading(true);
     try {
+      const cached = cacheGet("districtVillages");
+      if (cached) { setDistrictVillages(cached); setDvLoading(false); return; }
       const snap = await getDoc(doc(db, "settings", "districtVillages"));
-      if (snap.exists()) {
-        setDistrictVillages(snap.data().data || DEFAULT_DISTRICT_VILLAGES);
-      } else {
-        // Seed with defaults
-        setDistrictVillages(DEFAULT_DISTRICT_VILLAGES);
-      }
+      const data = snap.exists() ? (snap.data().data || DEFAULT_DISTRICT_VILLAGES) : DEFAULT_DISTRICT_VILLAGES;
+      cacheSet("districtVillages", data);
+      setDistrictVillages(data);
     } catch (err) { setError(err.message); }
     finally { setDvLoading(false); }
   };
@@ -114,6 +122,7 @@ export default function DataManage({ userRole }) {
     try {
       await setDoc(doc(db, "settings", "districtVillages"), { data: updated, updatedAt: Timestamp.now() });
       await logAudit("UPDATE_SETTINGS", { setting: "districtVillages" });
+      cacheSet("districtVillages", updated);
       setDistrictVillages(updated);
       setDvDone("✓ Districts & villages saved successfully.");
     } catch (err) { setError(err.message); }
@@ -190,6 +199,7 @@ export default function DataManage({ userRole }) {
       setProgress(Math.round(((i + 1) / batchRecs.length) * 100));
     }
     await logAudit("BULK_DELETE", { reason: "Undo import", file: selectedBatch.details?.file, count, undoneBy: auth.currentUser?.email });
+    cacheClear("registrations");
     setDone(`✓ Undone: ${count} records from import "${selectedBatch.details?.file || "unknown"}" deleted.`);
     setSelectedBatch(null); setMode("home"); fetchData(); setDeleting(false);
   };
@@ -203,6 +213,7 @@ export default function DataManage({ userRole }) {
       setProgress(Math.round(((i + 1) / ids.length) * 100));
     }
     await logAudit("BULK_DELETE", { reason: "Manual bulk delete", count, deletedBy: auth.currentUser?.email });
+    cacheClear("registrations");
     setDone(`✓ ${count} records deleted.`);
     setSelectedIds(new Set()); setMode("home"); fetchData(); setDeleting(false);
   };
