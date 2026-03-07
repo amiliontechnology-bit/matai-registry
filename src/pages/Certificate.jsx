@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, getDocs, collection, setDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
-import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import { cacheGet, cacheSet } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 
 // Official Samoa district number → name

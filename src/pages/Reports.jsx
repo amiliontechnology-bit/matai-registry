@@ -157,9 +157,10 @@ export default function Reports({ userRole }) {
 
   const procAll = records.filter(r => {
     if (r.objection === "yes" || r.dateRegistration || !r.dateProclamation) return false;
-    if (effectiveRegDate(r)) return false; // past → already in ready
-    const days = Math.ceil((new Date(r.dateProclamation + "T00:00:00") - now) / (1000*60*60*24));
-    return days <= 120;
+    if (effectiveRegDate(r)) return false; // reg date passed → goes to readyAll instead
+    // Include all records actively within proclamation period (proclaimed but reg date not yet reached)
+    const procDate = new Date(r.dateProclamation + "T00:00:00");
+    return procDate <= now; // proclaimed in the past, reg date not yet reached
   });
 
   // ── MONTHLY cuts (filter by current month) ──────────────────
