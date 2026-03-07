@@ -137,6 +137,41 @@ const SAMPLES = [
     notes:"Objection filed 45 days ago — court pending", status:"pending"
   },
 
+  // ── JAN 2026 PROCLAMATION TEST CASES ─────────────────────────────
+  // Proclaimed 28 Sep 2025 → reg date = 28 Feb 2026 (Feb clamped to 28) — SHOULD BE REGISTERED
+  {
+    mataiTitle: "TUIMALEALIIFANO", holderName: "Tuimalealiifano Vaaletoa", gender: "Male", mataiType: "Ali\'i",
+    village: "Lufilufi", district: "ATUA",
+    dateConferred: "2025-08-28", dateProclamation: "2025-09-28",
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1968-02-14", nuuFanau: "Lufilufi",
+    certItumalo:"06", certLaupepa:"33", certRegBook:"450",
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P7788990",
+    notes:"Sep 2025 proclamation → 28 Feb 2026 reg date (should auto-fill as date has passed)", status:"pending"
+  },
+  // Proclaimed 28 Oct 2025 → reg date = 28 Feb 2026 (Feb clamped) — SHOULD BE REGISTERED
+  {
+    mataiTitle: "TAGALOA", holderName: "Tagaloa Faleupolu Asi", gender: "Male", mataiType: "Tulafale",
+    village: "Faleasiu", district: "SAGAGA LE USOGA",
+    dateConferred: "2025-09-28", dateProclamation: "2025-10-28",
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1972-07-09", nuuFanau: "Faleasiu",
+    certItumalo:"05", certLaupepa:"19", certRegBook:"388",
+    objection:"no", objectionDate:"", idType:"drivers_licence", idNumber:"DL556677",
+    notes:"Oct 2025 proclamation → 28 Feb 2026 reg date (should auto-fill as date has passed)", status:"pending"
+  },
+  // Proclaimed 28 Jan 2026 → reg date = 29 May 2026 — still in proclamation period
+  {
+    mataiTitle: "FONOTI", holderName: "Fonoti Lesa Tuiloma", gender: "Female", mataiType: "Ali\'i",
+    village: "Nofoalii", district: "AANA ALOFI",
+    dateConferred: "2025-12-28", dateProclamation: "2026-01-28",
+    dateRegistration: "", dateIssued: "",
+    dateBirth: "1985-04-17", nuuFanau: "Nofoalii",
+    certItumalo:"07", certLaupepa:"08", certRegBook:"521",
+    objection:"no", objectionDate:"", idType:"passport", idNumber:"P4433221",
+    notes:"28 Jan 2026 proclamation → 29 May 2026 reg date (still in proclamation period)", status:"pending"
+  },
+
   // ── NEW — no proclamation date yet ────────────────────────────────
   {
     mataiTitle: "FAAUI", holderName: "Sina Faaui Pago", gender: "Female", mataiType: "Ali'i",

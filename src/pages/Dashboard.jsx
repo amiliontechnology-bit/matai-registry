@@ -101,12 +101,15 @@ export default function Dashboard({ userRole }) {
   }).length;
 
   const handleSeed = async () => {
-    if (!window.confirm("This will add 6 test records to the database. Continue?")) return;
+    if (!window.confirm("This will clear all existing records and load 15 test records. Continue?")) return;
     setSeeding(true); setSeedMsg("");
-    const results = await seedTestData((done, total, title) => setSeedMsg(`Adding ${done}/${total}: ${title}…`));
+    const result = await seedTestData((done, total, title) => setSeedMsg(`Importing ${done}/${total}: ${title}…`));
     cacheClear("registrations");
-    const ok = results.filter(r => r.ok).length;
-    setSeedMsg(`✓ Added ${ok} test records. Reloading…`);
+    if (result.success) {
+      setSeedMsg(`✓ ${result.message} Reloading…`);
+    } else {
+      setSeedMsg(`✗ ${result.message}`);
+    }
     setSeeding(false);
     setTimeout(() => window.location.reload(), 1500);
   };
