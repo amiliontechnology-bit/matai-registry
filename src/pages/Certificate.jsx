@@ -600,121 +600,127 @@ export default function Certificate({ userRole }) {
           </div>
 
           {/* ── Certificate document (prints only this) ── */}
-          <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f7f4ef" }}>
+          <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f0ede6" }}>
             <div id="certificate" style={{
-              width:"794px", minHeight:"520px", background:"#fdf8f0", color:"#1a1208",
+              width:"794px", background:"#faf8f2", color:"#1a1208",
               position:"relative", fontFamily:"'EB Garamond', Georgia, serif",
               boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
             }}>
 
-              {/* Outer double border matching real certificate */}
-              <div style={{ position:"absolute", inset:"10px", border:"2px solid #000", pointerEvents:"none", zIndex:1 }} />
-              <div style={{ position:"absolute", inset:"16px", border:"1px solid #000", pointerEvents:"none", zIndex:1 }} />
+              {/* Outer border — dark green thick */}
+              <div style={{ position:"absolute", inset:"8px",  border:"3px solid #1a5c35", pointerEvents:"none", zIndex:1 }} />
+              {/* Inner border — gold/olive thin */}
+              <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
-              {/* Double border — green, matching original design */}
-              <div style={{ position:"absolute", inset:"12px", border:`2px solid ${GREEN}`, pointerEvents:"none", zIndex:1 }} />
-              <div style={{ position:"absolute", inset:"18px", border:`1px solid ${GREEN_MID}`, pointerEvents:"none", zIndex:1 }} />
-
-              {/* Corner ornaments */}
-              {[["top","left"],["top","right"],["bottom","left"],["bottom","right"]].map(([v,h]) => (
-                <svg key={`${v}${h}`} width="60" height="60" viewBox="0 0 60 60" fill="none"
-                  style={{ position:"absolute", [v]:8, [h]:8,
-                    transform:`rotate(${v==="bottom"?180:0}deg) scaleX(${h==="right"?-1:1})`, zIndex:2, pointerEvents:"none" }}>
-                  <path d="M5 5 L25 5 L5 25 Z" fill="none" stroke={GREEN} strokeWidth="1.5"/>
-                  <path d="M5 5 L15 5 L5 15 Z" fill={GREEN_PALE}/>
-                  <circle cx="30" cy="5" r="2" fill={GREEN} opacity="0.5"/>
-                  <circle cx="5"  cy="30" r="2" fill={GREEN} opacity="0.5"/>
-                </svg>
-              ))}
-
-              {/* Side stripe patterns */}
-              <div style={{ position:"absolute", left:28, top:70, bottom:70, width:20,
-                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
-              <div style={{ position:"absolute", right:28, top:70, bottom:70, width:20,
-                backgroundImage:`repeating-linear-gradient(180deg,transparent 0,transparent 10px,${GREEN_PALE} 10px,${GREEN_PALE} 11px)`, zIndex:1 }} />
-
-              {/* ── Content ── */}
-              <div style={{ padding:"36px 70px 36px", position:"relative", zIndex:3 }}>
-
-                {/* Cert number — top right */}
-                <div style={{
-                  position:"absolute", top:24, right:70,
-                  border:`1px solid ${GREEN}`, padding:"3px 10px",
-                  fontFamily:"'Cinzel',serif", fontSize:"10px", color:GREEN, letterSpacing:"0.1em"
-                }}>
-                  {(record.certItumalo && record.certLaupepa && record.certRegBook)
-                    ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}`
-                    : record.mataiCertNumber || record.refNumber || "___/___/___"}
+              {/* ── HEADER BAND ── */}
+              <div style={{ position:"relative", zIndex:3, padding:"28px 50px 18px", display:"flex", alignItems:"center", gap:"24px", borderBottom:"2px solid #1a5c35" }}>
+                {/* Emblem left */}
+                <div style={{ flexShrink:0 }}>
+                  <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+                    style={{ width:"80px", height:"80px", objectFit:"contain" }} />
                 </div>
-
-                {/* Emblem — centred, no other header text */}
-                <div style={{ textAlign:"center", marginBottom:"6px" }}>
-                  <div style={{ width:"80px", height:"80px", margin:"0 auto 8px" }}>
-                    <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
-                      style={{ width:"80px", height:"80px", objectFit:"contain" }} />
-                  </div>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.13em", color:"#5a3e00", textTransform:"uppercase", marginBottom:"5px" }}>
+                {/* Ministry text right of emblem */}
+                <div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                     Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga
                   </p>
-                  <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"19px", color:"#3d2800", marginBottom:"14px" }}>
-                    Tusi Faamaonia o le Umia o le Suafa Matai
+                  <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"11px", color:"#5a3e00", fontStyle:"italic", marginBottom:"8px" }}>
+                    Ministry of Justice and Courts Administration
+                  </p>
+                  <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"18px", fontWeight:"700", letterSpacing:"0.18em", color:"#1a5c35", textTransform:"uppercase" }}>
+                    Tusi Resitala Suafa Matai
                   </h1>
                 </div>
+              </div>
 
-                {/* LINE 1 — Afioga [Title + Name] */}
-                <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:GREEN, letterSpacing:"0.1em", whiteSpace:"nowrap" }}>Afioga</span>
-                  <span style={{ ...uline("340px"), fontSize:"16px", textAlign:"left", paddingLeft:"6px" }}>
-                    {afiogaName}
+              {/* ── BODY ── */}
+              <div style={{ position:"relative", zIndex:3, padding:"24px 50px 28px" }}>
+
+                {/* Cert number — top right */}
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"16px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a1208", letterSpacing:"0.05em" }}>
+                    <span style={{ fontVariant:"small-caps" }}>Numera:</span>{" "}
+                    <strong style={{ fontSize:"13px" }}>
+                      {(record.certItumalo && record.certLaupepa && record.certRegBook)
+                        ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}`
+                        : record.mataiCertNumber || record.refNumber || "___/___/___"}
+                    </strong>
                   </span>
                 </div>
 
-                {/* LINE 2 — Village */}
-                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"18px" }}>
-                  <span style={{ ...uline("220px"), fontSize:"15px", textAlign:"left", paddingLeft:"6px" }}>
-                    {record.village || ""}
+                {/* Italic sub-label */}
+                <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontStyle:"italic", color:"#3d2800", textAlign:"center", marginBottom:"8px" }}>
+                  O lenei e fa'amaonia ai o le Suafa Matai
+                </p>
+
+                {/* BIG TITLE NAME */}
+                <h2 style={{ fontFamily:"'EB Garamond',serif", fontSize:"42px", fontWeight:"700", color:"#1a1208", textAlign:"center", marginBottom:"4px", letterSpacing:"0.04em" }}>
+                  {record.mataiTitle || ""}
+                </h2>
+                {/* Underline below title */}
+                <div style={{ width:"200px", borderBottom:"1px solid #1a5c35", margin:"0 auto 16px" }} />
+
+                {/* ua resitala i lalo */}
+                <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontStyle:"italic", color:"#3d2800", textAlign:"center", marginBottom:"8px" }}>
+                  ua resitala i lalo o le igoa o
+                </p>
+
+                {/* HOLDER NAME */}
+                <h3 style={{ fontFamily:"'EB Garamond',serif", fontSize:"26px", fontWeight:"400", color:"#1a1208", textAlign:"center", marginBottom:"20px" }}>
+                  {record.holderName || ""}
+                </h3>
+
+                {/* Divider line */}
+                <div style={{ borderTop:"1px solid #c9a84c", marginBottom:"18px", opacity:0.6 }} />
+
+                {/* Details grid — 2 columns */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"6px 40px", fontSize:"13px", marginBottom:"18px" }}>
+
+                  {/* Left column */}
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Ituaiga Suafa:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{record.mataiType || "—"}</span>
+                  </div>
+                  {/* Right column */}
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Nu'u:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{record.village || "—"}</span>
+                  </div>
+
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Itūmālō:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontWeight:"600", color:"#1a1208" }}>{district || "—"}</span>
+                  </div>
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso o le Saofai:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateConferred) || "—"}</span>
+                  </div>
+
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso o le Fa'asalalauga:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateProclamation) || "—"}</span>
+                  </div>
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso na Resitala ai:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateRegistration) || "—"}</span>
+                  </div>
+
+                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso Fanau:</span>
+                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateBirth) || "—"}</span>
+                  </div>
+                  <div />
+
+                </div>
+
+                {/* Bottom divider */}
+                <div style={{ borderTop:"1px solid #c9a84c", marginBottom:"14px", opacity:0.6 }} />
+
+                {/* Date issued — bottom right */}
+                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a1208", letterSpacing:"0.05em", fontVariant:"small-caps" }}>
+                    Aso Tuuina Mai: <strong style={{ fontSize:"12px" }}>{formatDate(record.dateIssued) || "—"}</strong>
                   </span>
-                </div>
-
-                {/* BODY TEXT */}
-                <div style={{ fontSize:"13px", lineHeight:"2.15", color:"#1a1208" }}>
-                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
-                    <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
-                    <span style={uline("110px")}>{record.mataiTitle || ""}</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"4px" }}>
-                    <span>o le nu'u o</span>
-                    <span style={uline("100px")}>{record.village || ""}</span>
-                    <span>i le Itumalo</span>
-                    <span style={uline("175px")}>{district}</span>
-                    <span>ma na resitara i le</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
-                    <span>aso</span>
-                    <span style={uline("34px")}>{getDay(record.dateRegistration)}</span>
-                    <span>o</span>
-                    <span style={uline("88px")}>{getMonth(record.dateRegistration)}</span>
-                    <span style={uline("54px")}>{getYear(record.dateRegistration)}</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
-                    <span>Tuuina atu i lenei aso</span>
-                    <span style={uline("34px")}>{getDay(record.dateIssued)}</span>
-                    <span>o</span>
-                    <span style={uline("88px")}>{getMonth(record.dateIssued)}</span>
-                    <span style={uline("54px")}>{getYear(record.dateIssued)}</span>
-                  </div>
-                </div>
-
-                <div style={{ height:"1px", background:`linear-gradient(to right, transparent, ${GREEN}, transparent)`, margin:"14px 0", opacity:0.4 }} />
-
-                {/* Footer — Registrar signature right-aligned */}
-                <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"flex-end" }}>
-                  <div style={{ textAlign:"center", minWidth:"220px" }}>
-                    <div style={{ borderBottom:`1px solid ${GREEN}`, marginBottom:"5px", paddingBottom:"30px" }}/>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800", marginTop:"3px" }}>
-                      Mo le: <strong>RESITARA</strong>
-                    </p>
-                  </div>
                 </div>
 
               </div>
