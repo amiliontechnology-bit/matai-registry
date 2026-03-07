@@ -609,17 +609,15 @@ export default function Certificate({ userRole }) {
 
               {/* Outer border — dark green thick */}
               <div style={{ position:"absolute", inset:"8px",  border:"3px solid #1a5c35", pointerEvents:"none", zIndex:1 }} />
-              {/* Inner border — gold/olive thin */}
+              {/* Inner border — gold thin */}
               <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
               {/* ── HEADER BAND ── */}
               <div style={{ position:"relative", zIndex:3, padding:"28px 50px 18px", display:"flex", alignItems:"center", gap:"24px", borderBottom:"2px solid #1a5c35" }}>
-                {/* Emblem left */}
                 <div style={{ flexShrink:0 }}>
                   <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
                     style={{ width:"80px", height:"80px", objectFit:"contain" }} />
                 </div>
-                {/* Ministry text right of emblem */}
                 <div>
                   <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                     Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga
@@ -628,16 +626,16 @@ export default function Certificate({ userRole }) {
                     Ministry of Justice and Courts Administration
                   </p>
                   <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"18px", fontWeight:"700", letterSpacing:"0.18em", color:"#1a5c35", textTransform:"uppercase" }}>
-                    Tusi Resitala Suafa Matai
+                    Tusi Faamaonia o le Umia o le Suafa Matai
                   </h1>
                 </div>
               </div>
 
               {/* ── BODY ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"24px 50px 28px" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"30px 50px 30px" }}>
 
                 {/* Cert number — top right */}
-                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"16px" }}>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"24px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a1208", letterSpacing:"0.05em" }}>
                     <span style={{ fontVariant:"small-caps" }}>Numera:</span>{" "}
                     <strong style={{ fontSize:"13px" }}>
@@ -648,79 +646,82 @@ export default function Certificate({ userRole }) {
                   </span>
                 </div>
 
-                {/* Italic sub-label */}
-                <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontStyle:"italic", color:"#3d2800", textAlign:"center", marginBottom:"8px" }}>
-                  O lenei e fa'amaonia ai o le Suafa Matai
-                </p>
+                {/* LINE 1 — Afioga + Title + Name */}
+                <div style={{ display:"flex", alignItems:"baseline", gap:"12px", marginBottom:"14px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a5c35", letterSpacing:"0.12em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Afioga</span>
+                  <span style={{ borderBottom:"1px solid #1a5c35", flex:1, fontSize:"17px", fontWeight:"600", paddingLeft:"8px", paddingBottom:"2px", letterSpacing:"0.02em" }}>
+                    {record.mataiTitle || ""}&nbsp;&nbsp;&nbsp;{record.holderName || ""}
+                  </span>
+                </div>
 
-                {/* BIG TITLE NAME */}
-                <h2 style={{ fontFamily:"'EB Garamond',serif", fontSize:"42px", fontWeight:"700", color:"#1a1208", textAlign:"center", marginBottom:"4px", letterSpacing:"0.04em" }}>
-                  {record.mataiTitle || ""}
-                </h2>
-                {/* Underline below title */}
-                <div style={{ width:"200px", borderBottom:"1px solid #1a5c35", margin:"0 auto 16px" }} />
+                {/* LINE 2 — Village */}
+                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"28px" }}>
+                  <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"200px", fontSize:"16px", paddingLeft:"4px", paddingBottom:"2px" }}>
+                    {record.village || ""}
+                  </span>
+                </div>
 
-                {/* ua resitala i lalo */}
-                <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontStyle:"italic", color:"#3d2800", textAlign:"center", marginBottom:"8px" }}>
-                  ua resitala i lalo o le igoa o
-                </p>
+                {/* Divider */}
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.25)", marginBottom:"20px" }} />
 
-                {/* HOLDER NAME */}
-                <h3 style={{ fontFamily:"'EB Garamond',serif", fontSize:"26px", fontWeight:"400", color:"#1a1208", textAlign:"center", marginBottom:"20px" }}>
-                  {record.holderName || ""}
-                </h3>
+                {/* Body paragraph — Ua tuuina atu... */}
+                <div style={{ fontSize:"14px", lineHeight:"2.4", color:"#1a1208", marginBottom:"8px" }}>
 
-                {/* Divider line */}
-                <div style={{ borderTop:"1px solid #c9a84c", marginBottom:"18px", opacity:0.6 }} />
-
-                {/* Details grid — 2 columns */}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"6px 40px", fontSize:"13px", marginBottom:"18px" }}>
-
-                  {/* Left column */}
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Ituaiga Suafa:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{record.mataiType || "—"}</span>
-                  </div>
-                  {/* Right column */}
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Nu'u:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{record.village || "—"}</span>
+                  {/* Row 1 */}
+                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"6px", marginBottom:"4px" }}>
+                    <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"120px", fontWeight:"700", textAlign:"center", paddingBottom:"1px" }}>
+                      {record.mataiTitle || ""}
+                    </span>
                   </div>
 
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Itūmālō:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", fontWeight:"600", color:"#1a1208" }}>{district || "—"}</span>
-                  </div>
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso o le Saofai:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateConferred) || "—"}</span>
-                  </div>
-
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso o le Fa'asalalauga:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateProclamation) || "—"}</span>
-                  </div>
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso na Resitala ai:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateRegistration) || "—"}</span>
+                  {/* Row 2 */}
+                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"6px", marginBottom:"4px" }}>
+                    <span>o le nu'u o</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"110px", textAlign:"center", paddingBottom:"1px" }}>
+                      {record.village || ""}
+                    </span>
+                    <span>i le Itumalo</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"180px", fontWeight:"600", textAlign:"center", paddingBottom:"1px" }}>
+                      {district || ""}
+                    </span>
+                    <span>ma na resitara i le</span>
                   </div>
 
-                  <div style={{ display:"flex", gap:"8px", alignItems:"baseline" }}>
-                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a5c35", letterSpacing:"0.05em", whiteSpace:"nowrap", fontVariant:"small-caps" }}>Aso Fanau:</span>
-                    <span style={{ fontFamily:"'EB Garamond',serif", fontSize:"14px", color:"#1a1208" }}>{formatDate(record.dateBirth) || "—"}</span>
+                  {/* Row 3 — registration date */}
+                  <div style={{ display:"flex", alignItems:"baseline", gap:"8px", marginBottom:"4px" }}>
+                    <span>aso</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"36px", textAlign:"center", paddingBottom:"1px" }}>{getDay(record.dateRegistration)}</span>
+                    <span>o</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"90px", textAlign:"center", paddingBottom:"1px" }}>{getMonth(record.dateRegistration)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"56px", textAlign:"center", paddingBottom:"1px" }}>{getYear(record.dateRegistration)}</span>
                   </div>
-                  <div />
+
+                  {/* Row 4 — issued date */}
+                  <div style={{ display:"flex", alignItems:"baseline", gap:"8px" }}>
+                    <span>Tuuina atu i lenei aso</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"36px", textAlign:"center", paddingBottom:"1px" }}>{getDay(record.dateIssued)}</span>
+                    <span>o</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"90px", textAlign:"center", paddingBottom:"1px" }}>{getMonth(record.dateIssued)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"56px", textAlign:"center", paddingBottom:"1px" }}>{getYear(record.dateIssued)}</span>
+                  </div>
 
                 </div>
 
                 {/* Bottom divider */}
-                <div style={{ borderTop:"1px solid #c9a84c", marginBottom:"14px", opacity:0.6 }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.25)", margin:"24px 0 14px" }} />
 
-                {/* Date issued — bottom right */}
+                {/* Signature — bottom right */}
                 <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#1a1208", letterSpacing:"0.05em", fontVariant:"small-caps" }}>
-                    Aso Tuuina Mai: <strong style={{ fontSize:"12px" }}>{formatDate(record.dateIssued) || "—"}</strong>
-                  </span>
+                  <div style={{ textAlign:"center", minWidth:"220px" }}>
+                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"32px", marginBottom:"6px" }} />
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
+                      Resitara
+                    </p>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800" }}>
+                      Mo le: <strong>RESITARA</strong>
+                    </p>
+                  </div>
                 </div>
 
               </div>
