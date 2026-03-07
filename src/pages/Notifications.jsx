@@ -126,11 +126,12 @@ export default function Notifications({ userRole }) {
 
   // ── Data cuts ──────────────────────────────────────────
 
-  // Proclamation alerts: has proclamation date, no registration date yet, no objection
+  // Proclamation alerts: in proclamation window but NOT yet past the 4-month registration date
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;          // already registered — remove from alerts
+    if (r.dateRegistration) return false;          // already formally registered
     if (!r.dateProclamation) return false;
+    if (effectiveRegDate(r)) return false;         // reg period passed — goes to readyToRegister instead
     const days = daysUntil(r.dateProclamation);
     return days !== null && days <= filterWindow;
   }).sort((a,b) => (daysUntil(a.dateProclamation)||0) - (daysUntil(b.dateProclamation)||0));
@@ -150,12 +151,12 @@ export default function Notifications({ userRole }) {
     return erd !== null && !r.dateRegistration; // period passed, not yet formally registered
   });
 
-  // Monthly registered — completed this calendar month
+  // Monthly registered — completed this calendar month (stored or auto-calculated)
   const now_m = new Date();
   const completedThisMonth = records.filter(r => {
-    if (r.status !== "completed" && !r.dateRegistration) return false;
-    if (!r.dateRegistration) return false;
-    const parts = r.dateRegistration.split("-");
+    const regDate = r.dateRegistration || effectiveRegDate(r);
+    if (!regDate) return false;
+    const parts = regDate.split("-");
     if (parts.length < 2) return false;
     return parseInt(parts[0]) === now_m.getFullYear() && parseInt(parts[1]) === (now_m.getMonth()+1);
   });
