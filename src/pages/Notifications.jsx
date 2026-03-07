@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -103,6 +103,7 @@ export default function Notifications({ userRole }) {
   const [records, setRecords]           = useState([]);
   const [loading, setLoading]           = useState(true);
   const [filterWindow, setFilterWindow] = useState(120);
+  const [confirming, setConfirming] = useState(null); // id being confirmed
   const [activeTab, setActiveTab]       = useState("proclamation");
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
@@ -123,6 +124,33 @@ export default function Notifications({ userRole }) {
   }, []);
 
   const genBy = user?.displayName || user?.email || "Admin";
+
+  const confirmRegistration = async (r) => {
+    const regDate = effectiveRegDate(r);
+    if (!regDate) return;
+    if (!window.confirm(`Confirm registration of ${r.mataiTitle} on ${fmtDate(regDate)}?`)) return;
+    setConfirming(r.id);
+    try {
+      await updateDoc(doc(db, "registrations", r.id), {
+        dateRegistration: regDate,
+        status: "completed",
+        updatedAt: serverTimestamp(),
+        confirmedBy: genBy,
+        confirmedAt: serverTimestamp(),
+      });
+      await logAudit("CONFIRM_REGISTRATION", { mataiTitle: r.mataiTitle, dateRegistration: regDate, recordId: r.id });
+      cacheClear("registrations");
+      // Remove from local records
+      setRecords(prev => prev.map(rec => rec.id === r.id
+        ? { ...rec, dateRegistration: regDate, status: "completed" }
+        : rec
+      ));
+    } catch(err) {
+      alert("Failed to confirm: " + err.message);
+    } finally {
+      setConfirming(null);
+    }
+  };
 
   // ── Data cuts ──────────────────────────────────────────
 
@@ -159,6 +187,14 @@ export default function Notifications({ userRole }) {
     const parts = regDate.split("-");
     if (parts.length < 2) return false;
     return parseInt(parts[0]) === now_m.getFullYear() && parseInt(parts[1]) === (now_m.getMonth()+1);
+  });
+
+  // Already registered — status completed or has dateRegistration
+  const registeredRecords = records.filter(r =>
+    r.status === "completed" || r.dateRegistration
+  ).sort((a,b) => {
+    const da = a.dateRegistration || ""; const db2 = b.dateRegistration || "";
+    return db2.localeCompare(da);
   });
 
   // ── Urgency helpers ────────────────────────────────────
@@ -310,7 +346,7 @@ export default function Notifications({ userRole }) {
       <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#1a5c35;font-weight:600">${fmtDate(autoRegDate(r.dateProclamation))}</td>
     </tr>`).join("");
 
-    const completedRows = completedThisMonth.map((r,i)=>`<tr style="background:${i%2?"#f9f9f9":"#fff"}">
+    const completedRows = registeredRecords.map((r,i)=>`<tr style="background:${i%2?"#f9f9f9":"#fff"}">
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${i+1}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee"><strong>${r.mataiTitle||"—"}</strong></td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.holderName||"—"}</td>
@@ -355,12 +391,12 @@ export default function Notifications({ userRole }) {
       <div class="stat"><div class="stat-num">${totalCompleted}</div><div class="stat-label">Registered</div></div>
       <div class="stat"><div class="stat-num">${newMataiRecords.length}</div><div class="stat-label">New Titles</div></div>
       <div class="stat"><div class="stat-num">${readyToRegister.length}</div><div class="stat-label">Ready to Reg.</div></div>
-      <div class="stat"><div class="stat-num">${completedThisMonth.length}</div><div class="stat-label">Reg. This Month</div></div>
+      <div class="stat"><div class="stat-num">${registeredRecords.length}</div><div class="stat-label">Registered</div></div>
       <div class="stat"><div class="stat-num" style="color:#8b1a1a">${objectionRecords.length}</div><div class="stat-label">Objections</div></div>
     </div>
     ${fmtSection("New Matai Titles (Not Yet Proclaimed)","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)}
     ${fmtSection("Ready to Register","#1a5c35",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)}
-    ${fmtSection("Registered This Month","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
+    ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
     ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)}
     <div class="footer">Matai Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
     <script>window.onload=()=>window.print();<\/script></body></html>`;
@@ -594,7 +630,7 @@ export default function Notifications({ userRole }) {
                 }
               </div>
 
-              {/* Ready to register */}
+              {/* Ready to register — confirm button */}
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                   <div>
@@ -602,30 +638,80 @@ export default function Notifications({ userRole }) {
                       ◈ Ready to Register — {readyToRegister.length} Record{readyToRegister.length!==1?"s":""}
                     </p>
                     <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
-                      4-month proclamation complete, no objection — registration date auto-set
+                      4-month proclamation complete, no objection — click Confirm to register
                     </p>
                   </div>
                   <PdfBtn onClick={printReadyReport} label="PDF Report" count={readyToRegister.length} />
                 </div>
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : readyToRegister.length === 0
-                  ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No records ready this month.</div>
-                  : readyToRegister.map(r => (
-                    <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
-                      <div style={{ background:"#f0faf4", border:"1px solid #a7d7b850", borderLeft:"4px solid #1e6b3c", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
-                        onMouseEnter={e => e.currentTarget.style.background="#e8f5ee"}
-                        onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
+                  ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No records pending registration.</div>
+                  : readyToRegister.map(r => {
+                    const regDate = effectiveRegDate(r);
+                    const isConfirming = confirming === r.id;
+                    return (
+                      <div key={r.id} style={{ background:"#f0faf4", border:"1px solid #a7d7b850", borderLeft:"4px solid #1e6b3c", borderRadius:"3px", padding:"0.85rem 1.1rem", marginBottom:"0.6rem" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                           <div>
                             <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#1e6b3c" }}>{r.mataiTitle||"—"}</span>
                             <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
                           </div>
-                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#1e6b3c", background:"#1e6b3c15", padding:"2px 8px", borderRadius:"2px" }}>✅ READY</span>
+                          <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+                            <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
+                              <button style={{ fontSize:"0.68rem", padding:"0.35rem 0.7rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:"transparent", border:"1px solid rgba(30,107,60,0.3)", color:"#1e6b3c", borderRadius:"3px", cursor:"pointer" }}>
+                                View
+                              </button>
+                            </Link>
+                            <button
+                              onClick={() => confirmRegistration(r)}
+                              disabled={isConfirming}
+                              style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background: isConfirming ? "#f3f4f6" : "#1e6b3c", border:"1px solid #1e6b3c", color: isConfirming ? "#9ca3af" : "#fff", borderRadius:"3px", cursor: isConfirming ? "not-allowed" : "pointer", fontWeight:600 }}>
+                              {isConfirming ? "Saving…" : "✓ Confirm"}
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"4px" }}>
+                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"6px" }}>
                           <span>📍 {r.village}, {r.district}</span>
                           <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
-                          <span style={{ color:"#1a5c35" }}>📋 Reg. date: <strong>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
+                          <span style={{ color:"#1a5c35", fontWeight:600 }}>📋 Reg. date: {fmtDate(regDate)}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+
+              {/* Already Registered */}
+              <div style={sStyle}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
+                  <div>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>
+                      ◈ Already Registered — {registeredRecords.length} Record{registeredRecords.length!==1?"s":""}
+                    </p>
+                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
+                      Confirmed registrations — registration date saved to record
+                    </p>
+                  </div>
+                </div>
+                {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
+                : registeredRecords.length === 0
+                  ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>No registered records yet.</div>
+                  : registeredRecords.map(r => (
+                    <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
+                      <div style={{ background:"#f0faf4", border:"1px solid #a7d7b850", borderLeft:"4px solid #155c31", borderRadius:"3px", padding:"0.75rem 1.1rem", marginBottom:"0.5rem" }}
+                        onMouseEnter={e => e.currentTarget.style.background="#e8f5ee"}
+                        onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                          <div>
+                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.88rem", fontWeight:"700", color:"#155c31" }}>{r.mataiTitle||"—"}</span>
+                            <span style={{ fontSize:"0.8rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
+                          </div>
+                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", color:"#155c31", background:"#dcfce7", border:"1px solid #86efac", padding:"2px 8px", borderRadius:"2px" }}>✓ REGISTERED</span>
+                        </div>
+                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.75rem", color:"rgba(26,26,26,0.5)", marginTop:"4px" }}>
+                          <span>📍 {r.village}, {r.district}</span>
+                          <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
+                          <span style={{ color:"#155c31", fontWeight:600 }}>✅ Registered: {fmtDate(r.dateRegistration)}</span>
                         </div>
                       </div>
                     </Link>
@@ -644,6 +730,7 @@ export default function Notifications({ userRole }) {
                 ["Objections",  objectionRecords.length,  "#8b1a1a"],
                 ["New Titles",  newMataiRecords.length,   "#7c3aed"],
                 ["Ready",       readyToRegister.length,   "#1e6b3c"],
+                ["Registered",  registeredRecords.length, "#155c31"],
               ].map(([label, count, col]) => (
                 <div key={label} style={{ background:`${col}08`, border:`1px solid ${col}30`, borderRadius:"3px", padding:"0.6rem 0.75rem", textAlign:"center" }}>
                   <p style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.4rem", color:col }}>{count}</p>
