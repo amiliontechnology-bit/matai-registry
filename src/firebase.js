@@ -11,8 +11,8 @@ const firebaseConfig = {
   appId: "1:1066492699678:web:e2e6e0859d192be347ba0f"
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const app = initializeApp(firebaseConfig);
+export const db  = getFirestore(app);
 export const auth = getAuth(app);
 
 // Secondary app used ONLY for creating new users

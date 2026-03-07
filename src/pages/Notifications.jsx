@@ -6,7 +6,7 @@ import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate, Link } from "react-router-dom";
 import { cachedFetch, cacheClear } from "../utils/cache";
-import { sendEmail, isEmailJSConfigured } from "../utils/email";
+import { sendNotificationEmail } from "../utils/email";
 
 const fmtDate = (str) => {
   if (!str) return "—";
@@ -128,30 +128,22 @@ export default function Notifications({ userRole }) {
     const subjectText = type === "objection"
       ? `Matai Registry — ${reportRecords.length} Objection Record${reportRecords.length !== 1 ? "s" : ""}`
       : `Matai Registry — ${reportRecords.length} Proclamation Alert${reportRecords.length !== 1 ? "s" : ""}`;
-    const body = buildEmailBody(reportRecords, type);
+    const textBody = buildEmailBody(reportRecords, type);
+    const generatedBy = user?.displayName || user?.email || "Admin";
     try {
-      if (isEmailJSConfigured()) {
-        await sendEmail({
-          toEmail:  recipientEmail,
-          subject:  subjectText,
-          message:  body,
-          fromName: "Matai Registry — " + (user?.displayName || user?.email || "Admin"),
-        });
-        logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type });
-        setSendResult({ ok: true, msg: `✓ Email sent to ${recipientEmail}` });
-      } else {
-        // Fallback: open mailto with report
-        const subject = encodeURIComponent(subjectText);
-        const encoded = encodeURIComponent(body);
-        window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${encoded}`;
-        logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type, via: "mailto" });
-        setSendResult({ ok: true, msg: "✓ Email client opened with report." });
-      }
+      const result = await sendNotificationEmail({
+        toEmail: recipientEmail,
+        subject: subjectText,
+        textBody,
+        generatedBy,
+      });
+      logAudit("NOTIFICATION_SENT", { recipientEmail, count: reportRecords.length, type });
+      setSendResult({ ok: true, msg: result.message });
     } catch (err) {
-      setSendResult({ ok: false, msg: "✗ Failed to send: " + (err?.text || err?.message || "Unknown error") });
+      setSendResult({ ok: false, msg: "✗ Failed to send: " + (err?.message || "Unknown error") });
     } finally {
       setSending(false);
-      setTimeout(() => setSendResult(null), 6000);
+      setTimeout(() => setSendResult(null), 8000);
     }
   };
 
@@ -429,13 +421,6 @@ export default function Notifications({ userRole }) {
               <input type="email" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)}
                 placeholder="recipient@example.com" />
             </div>
-            {!isEmailJSConfigured() && (
-              <div style={{ background:"#fffbf0", border:"1px solid #d68910", borderRadius:"3px", padding:"0.65rem 0.75rem", marginBottom:"0.75rem", fontSize:"0.75rem", color:"#5a3e00" }}>
-                ⚠ EmailJS not configured — emails will open your default mail client.{" "}
-                <a href="https://www.emailjs.com" target="_blank" rel="noreferrer" style={{ color:"#1e6b3c" }}>Set up EmailJS</a>
-              </div>
-            )}
-
             <button
               className="btn-primary"
               style={{ width:"100%", fontSize:"0.75rem", marginBottom:"0.6rem", opacity: sending ? 0.7 : 1 }}
