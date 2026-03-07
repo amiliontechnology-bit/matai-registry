@@ -7,7 +7,7 @@ import Sidebar from "../components/Sidebar";
 import { cacheGet, cacheSet } from "../utils/cache";
 
 const ALL_FIELDS = [
-  { key:"mataiCertNumber",  label:\"Matai Certificate Number\" },
+  { key:"mataiCertNumber",  label:"Matai Certificate Number" },
   { key:"mataiTitle",       label:"Matai Title" },
   { key:"holderName",       label:"Holder Name" },
   { key:"gender",           label:"Gender" },
