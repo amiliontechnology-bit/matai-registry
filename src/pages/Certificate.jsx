@@ -607,13 +607,13 @@ export default function Certificate({ userRole }) {
               boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
             }}>
 
-              {/* Outer border — dark green thick */}
+              {/* Outer border — dark green */}
               <div style={{ position:"absolute", inset:"8px",  border:"3px solid #1a5c35", pointerEvents:"none", zIndex:1 }} />
-              {/* Inner border — gold thin */}
+              {/* Inner border — gold */}
               <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
-              {/* ── HEADER BAND ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"28px 50px 18px", display:"flex", alignItems:"center", gap:"24px", borderBottom:"2px solid #1a5c35" }}>
+              {/* ── HEADER ── */}
+              <div style={{ position:"relative", zIndex:3, padding:"28px 50px 20px", display:"flex", alignItems:"center", gap:"24px", borderBottom:"2px solid #1a5c35" }}>
                 <div style={{ flexShrink:0 }}>
                   <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
                     style={{ width:"80px", height:"80px", objectFit:"contain" }} />
@@ -625,20 +625,20 @@ export default function Certificate({ userRole }) {
                   <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"11px", color:"#5a3e00", fontStyle:"italic", marginBottom:"8px" }}>
                     Ministry of Justice and Courts Administration
                   </p>
-                  <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"18px", fontWeight:"700", letterSpacing:"0.18em", color:"#1a5c35", textTransform:"uppercase" }}>
+                  <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"17px", fontWeight:"700", letterSpacing:"0.15em", color:"#1a5c35", textTransform:"uppercase" }}>
                     Tusi Faamaonia o le Umia o le Suafa Matai
                   </h1>
                 </div>
               </div>
 
               {/* ── BODY ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"30px 50px 30px" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"28px 60px 32px" }}>
 
                 {/* Cert number — top right */}
-                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"24px" }}>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"28px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a1208", letterSpacing:"0.05em" }}>
                     <span style={{ fontVariant:"small-caps" }}>Numera:</span>{" "}
-                    <strong style={{ fontSize:"13px" }}>
+                    <strong style={{ fontSize:"14px" }}>
                       {(record.certItumalo && record.certLaupepa && record.certRegBook)
                         ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}`
                         : record.mataiCertNumber || record.refNumber || "___/___/___"}
@@ -646,75 +646,76 @@ export default function Certificate({ userRole }) {
                   </span>
                 </div>
 
-                {/* LINE 1 — Afioga + Title + Name */}
-                <div style={{ display:"flex", alignItems:"baseline", gap:"12px", marginBottom:"14px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a5c35", letterSpacing:"0.12em", textTransform:"uppercase", whiteSpace:"nowrap" }}>Afioga</span>
-                  <span style={{ borderBottom:"1px solid #1a5c35", flex:1, fontSize:"17px", fontWeight:"600", paddingLeft:"8px", paddingBottom:"2px", letterSpacing:"0.02em" }}>
+                {/* Afioga line — centred */}
+                <div style={{ textAlign:"center", marginBottom:"6px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"14px" }}>Afioga</span>
+                  <span style={{ fontSize:"20px", fontWeight:"600", letterSpacing:"0.03em" }}>
                     {record.mataiTitle || ""}&nbsp;&nbsp;&nbsp;{record.holderName || ""}
                   </span>
                 </div>
+                {/* Underline for Afioga line */}
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 10px" }} />
 
-                {/* LINE 2 — Village */}
-                <div style={{ display:"flex", alignItems:"baseline", marginBottom:"28px" }}>
-                  <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"200px", fontSize:"16px", paddingLeft:"4px", paddingBottom:"2px" }}>
-                    {record.village || ""}
-                  </span>
+                {/* Village — centred */}
+                <div style={{ textAlign:"center", marginBottom:"4px" }}>
+                  <span style={{ fontSize:"17px" }}>{record.village || ""}</span>
                 </div>
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 28px" }} />
 
                 {/* Divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.25)", marginBottom:"20px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"24px" }} />
 
-                {/* Body paragraph — Ua tuuina atu... */}
-                <div style={{ fontSize:"14px", lineHeight:"2.4", color:"#1a1208", marginBottom:"8px" }}>
+                {/* Body text — centred block */}
+                <div style={{ fontSize:"14.5px", lineHeight:"2.6", color:"#1a1208", textAlign:"center" }}>
 
                   {/* Row 1 */}
-                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"6px", marginBottom:"4px" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
                     <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"120px", fontWeight:"700", textAlign:"center", paddingBottom:"1px" }}>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"130px", fontWeight:"700", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                       {record.mataiTitle || ""}
                     </span>
                   </div>
 
                   {/* Row 2 */}
-                  <div style={{ display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:"6px", marginBottom:"4px" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
                     <span>o le nu'u o</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"110px", textAlign:"center", paddingBottom:"1px" }}>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"110px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                       {record.village || ""}
                     </span>
                     <span>i le Itumalo</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"180px", fontWeight:"600", textAlign:"center", paddingBottom:"1px" }}>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"180px", fontWeight:"600", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                       {district || ""}
                     </span>
                     <span>ma na resitara i le</span>
                   </div>
 
                   {/* Row 3 — registration date */}
-                  <div style={{ display:"flex", alignItems:"baseline", gap:"8px", marginBottom:"4px" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px", marginBottom:"2px" }}>
                     <span>aso</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"36px", textAlign:"center", paddingBottom:"1px" }}>{getDay(record.dateRegistration)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateRegistration)}</span>
                     <span>o</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"90px", textAlign:"center", paddingBottom:"1px" }}>{getMonth(record.dateRegistration)}</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"56px", textAlign:"center", paddingBottom:"1px" }}>{getYear(record.dateRegistration)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(record.dateRegistration)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateRegistration)}</span>
                   </div>
 
                   {/* Row 4 — issued date */}
-                  <div style={{ display:"flex", alignItems:"baseline", gap:"8px" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px" }}>
                     <span>Tuuina atu i lenei aso</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"36px", textAlign:"center", paddingBottom:"1px" }}>{getDay(record.dateIssued)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateIssued)}</span>
                     <span>o</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"90px", textAlign:"center", paddingBottom:"1px" }}>{getMonth(record.dateIssued)}</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"56px", textAlign:"center", paddingBottom:"1px" }}>{getYear(record.dateIssued)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(record.dateIssued)}</span>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateIssued)}</span>
                   </div>
 
                 </div>
 
                 {/* Bottom divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.25)", margin:"24px 0 14px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", margin:"28px 0 16px" }} />
 
                 {/* Signature — bottom right */}
                 <div style={{ display:"flex", justifyContent:"flex-end" }}>
                   <div style={{ textAlign:"center", minWidth:"220px" }}>
-                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"32px", marginBottom:"6px" }} />
+                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                       Resitara
                     </p>
