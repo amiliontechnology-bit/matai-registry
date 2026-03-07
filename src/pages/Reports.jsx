@@ -109,6 +109,7 @@ export default function Reports({ userRole }) {
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
+  if (userRole === null) return null; // wait for role to load
   if (!perms.canPrint) return <Navigate to="/dashboard" />;
 
   useEffect(() => {
