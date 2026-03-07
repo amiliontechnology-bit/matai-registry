@@ -5,7 +5,7 @@ import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
-import { cachedFetch, cacheClear } from "../utils/cache";
+import { cacheClear } from "../utils/cache";
 import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
@@ -38,17 +38,19 @@ export default function Dashboard({ userRole }) {
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
-  const fetchRecords = async (force = false) => {
-    const cached = cacheGet("registrations");
-    if (cached && !force) { setRecords(cached); setLoading(false); return; }
+  const fetchRecords = async () => {
+    setLoading(true);
     try {
       const snap = await getDocs(collection(db, "registrations"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      cacheSet("registrations", list);
       setRecords(list);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      alert("Failed to load records: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchRecords(true); }, []);
