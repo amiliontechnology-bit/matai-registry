@@ -335,7 +335,14 @@ const EMPTY = {
   faapogai: "",
   familyTitles: "",     // Isi Suafa Matai
   notes: "",            // Isi Faamatalaga
-  suli: ""
+  suli: "",
+  // Photo ID
+  photoIdType: "",      // passport / drivers_licence
+  photoIdNumber: "",
+  photoIdImage: "",     // base64 data URL
+  // Objection
+  objection: "no",
+  objectionDate: "",
 };
 
 export default function Register({ userRole }) {
@@ -350,6 +357,25 @@ export default function Register({ userRole }) {
   const [districtVillagesFS, setDistrictVillagesFS] = useState(null);
   const isEdit = !!id;
   const perms = getPermissions(userRole);
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+
+  // Auto-set dateRegistration when objection=no and dateProclamation is set
+  const autoRegDate = (proclamation) => {
+    if (!proclamation) return "";
+    const d = new Date(proclamation + "T00:00:00");
+    d.setMonth(d.getMonth() + 4);
+    // 28th of that month
+    d.setDate(28);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-28`;
+  };
+
+  const handleIdImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(f => ({ ...f, photoIdImage: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
 
   // Load district/villages from Firestore (falls back to hardcoded if not set)
   useEffect(() => {
@@ -409,6 +435,7 @@ export default function Register({ userRole }) {
           data.dateRegistration = toDateStr(data.dateRegistration);
           data.dateIssued       = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
           data.dateBirth        = toDateStr(data.dateBirth);
+          data.objectionDate    = toDateStr(data.objectionDate);
 
           // ── 2. Cert number: parse combined string if parts missing ──
           if (!data.certItumalo && !data.certLaupepa && !data.certRegBook && data.mataiCertNumber) {
@@ -719,7 +746,80 @@ export default function Register({ userRole }) {
             </div>
           </div>
 
-                    <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+          {/* ── Photo Identification ── */}
+          <div className="card fade-in-delay-3">
+            {sectionHead("Photo Identification")}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+              <div className="form-group">
+                <label>ID Type</label>
+                <select value={form.photoIdType} onChange={set("photoIdType")}>
+                  <option value="">— Select —</option>
+                  <option value="passport">Passport</option>
+                  <option value="drivers_licence">Driver's Licence</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>ID Number</label>
+                <input type="text" value={form.photoIdNumber} onChange={set("photoIdNumber")}
+                  placeholder="Enter ID number" />
+              </div>
+              <div className="form-group" style={{ gridColumn:"1/-1" }}>
+                <label>Upload ID Image</label>
+                <input type="file" accept="image/*" onChange={handleIdImageUpload}
+                  style={{ fontSize:"0.88rem" }} />
+                {form.photoIdImage && (
+                  <div style={{ marginTop:"0.75rem" }}>
+                    <img src={form.photoIdImage} alt="ID preview"
+                      style={{ maxWidth:"220px", maxHeight:"140px", objectFit:"contain", border:"1px solid #c3e6cb", borderRadius:"4px", padding:"4px" }} />
+                    <button type="button" onClick={() => setForm(f => ({ ...f, photoIdImage:"" }))}
+                      style={{ display:"block", marginTop:"0.4rem", fontSize:"0.75rem", color:"#8b1a1a", background:"none", border:"none", cursor:"pointer" }}>
+                      ✕ Remove image
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Objection ── */}
+          <div className="card fade-in-delay-3">
+            {sectionHead("Objection (Proclamation Period)")}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+              <div className="form-group">
+                <label>Objection Filed?</label>
+                <select value={form.objection} onChange={e => {
+                  const val = e.target.value;
+                  const autoReg = val === "no" ? autoRegDate(form.dateProclamation) : "";
+                  setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: autoReg || f.dateRegistration }));
+                }}>
+                  <option value="no">No — No objection</option>
+                  <option value="yes">Yes — Objection filed</option>
+                </select>
+              </div>
+              {form.objection === "yes" && (
+                <div className="form-group">
+                  <label>Date Objection Filed</label>
+                  <input type="date" value={form.objectionDate} onChange={set("objectionDate")} />
+                </div>
+              )}
+            </div>
+            {form.objection === "yes" && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:600 }}>
+                  ⚠ Objection filed — this title cannot be registered until resolved through court.
+                </p>
+              </div>
+            )}
+            {form.objection === "no" && form.dateProclamation && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
+                  ✓ No objection — Registration date auto-set to <strong>{autoRegDate(form.dateProclamation)}</strong> (28th of 4th month after proclamation)
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
             <Link to="/dashboard"><button type="button" className="btn-secondary">Cancel</button></Link>
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}

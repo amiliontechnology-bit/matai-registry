@@ -6,6 +6,8 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import { seedTestData } from "../utils/seedData";
+import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
   if (!str) return "—";
@@ -33,6 +35,8 @@ export default function Dashboard({ userRole }) {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [deleting, setDeleting]     = useState(null);
   const [selectedPrint, setSelectedPrint] = useState(new Set());
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState("");
   const [bulkPrintMode, setBulkPrintMode] = useState(false);
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
@@ -174,6 +178,17 @@ export default function Dashboard({ userRole }) {
     return t && t !== "ali'i" && t !== "alii" && t !== "tulafale" && t !== "faipule";
   }).length;
 
+  const handleSeed = async () => {
+    if (!window.confirm("This will add 6 test records to the database. Continue?")) return;
+    setSeeding(true); setSeedMsg("");
+    const results = await seedTestData((done, total, title) => setSeedMsg(`Adding ${done}/${total}: ${title}…`));
+    cacheClear("registrations");
+    const ok = results.filter(r => r.ok).length;
+    setSeedMsg(`✓ Added ${ok} test records. Reloading…`);
+    setSeeding(false);
+    setTimeout(() => window.location.reload(), 1500);
+  };
+
   return (
     <div className="app-layout">
       <div className="pattern-bg" />
@@ -207,6 +222,13 @@ export default function Dashboard({ userRole }) {
             {perms.canAdd && (
               <Link to="/register">
                 <button className="btn-primary">＋ Register Title</button>
+                {getPermissions(userRole).canDelete && (
+                  <button onClick={handleSeed} disabled={seeding}
+                    style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seeding ? 0.6 : 1 }}>
+                    {seeding ? "Adding…" : "🧪 Add Test Data"}
+                  </button>
+                )}
+                {seedMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedMsg}</span>}
               </Link>
             )}
           </div>
