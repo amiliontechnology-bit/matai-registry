@@ -7,7 +7,6 @@ import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { seedTestData } from "../utils/seedData";
-import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
   if (!str) return "—";
