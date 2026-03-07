@@ -28,6 +28,7 @@ export default function Dashboard({ userRole }) {
   const [filterType, setFilterType] = useState("All");
   const [filterVillage, setFilterVillage] = useState("All");
   const [filterGender, setFilterGender] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [deleting, setDeleting]     = useState(null);
@@ -156,13 +157,14 @@ export default function Dashboard({ userRole }) {
     const matchType = filterType === "All" || r.mataiType === filterType;
     const matchVillage = filterVillage === "All" || r.village === filterVillage;
     const matchGender = filterGender === "All" || r.gender === filterGender;
+    const matchStatus = filterStatus === "All" || (filterStatus === "completed" ? r.status === "completed" : r.status !== "completed");
     const matchDateFrom = !filterDateFrom || (r.dateRegistration && r.dateRegistration >= filterDateFrom);
     const matchDateTo = !filterDateTo || (r.dateRegistration && r.dateRegistration <= filterDateTo);
-    return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchDateFrom && matchDateTo;
+    return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchStatus && matchDateFrom && matchDateTo;
   });
 
-  const hasActiveFilters = filterDistrict !== "All" || filterType !== "All" || filterVillage !== "All" || filterGender !== "All" || filterDateFrom || filterDateTo || search;
-  const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterDateFrom(""); setFilterDateTo(""); };
+  const hasActiveFilters = filterDistrict !== "All" || filterType !== "All" || filterVillage !== "All" || filterGender !== "All" || filterStatus !== "All" || filterDateFrom || filterDateTo || search;
+  const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterStatus("All"); setFilterDateFrom(""); setFilterDateTo(""); };
 
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli      = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
@@ -251,11 +253,19 @@ export default function Dashboard({ userRole }) {
               </select>
             </div>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto", gap:"0.75rem", alignItems:"flex-end" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr auto", gap:"0.75rem", alignItems:"flex-end" }}>
             <div className="form-group" style={{ margin:0 }}>
               <label>Gender</label>
               <select value={filterGender} onChange={e => setFilterGender(e.target.value)}>
                 {genders.map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Status</label>
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="All">All</option>
+                <option value="completed">Completed (Printed)</option>
+                <option value="pending">Pending (Not Printed)</option>
               </select>
             </div>
             <div className="form-group" style={{ margin:0 }}>
@@ -319,7 +329,14 @@ export default function Dashboard({ userRole }) {
                         }
                       </td>
                       <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
-                        {r.mataiTitle}
+                        <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
+                          {r.mataiTitle}
+                          {r.status === "completed" && (
+                            <span title={`Printed ${r.printedAt || ""}`} style={{ fontSize:"0.6rem", background:"#dcfce7", color:"#166534", border:"1px solid #86efac", borderRadius:"2px", padding:"1px 5px", fontFamily:"'Cinzel',serif", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>
+                              ✓ PRINTED
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ color:"#111827", fontWeight:500 }}>{r.holderName}</td>
                       <td>
