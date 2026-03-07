@@ -56,7 +56,7 @@ export default function Sidebar({ userRole, userEmail }) {
         {navItem("/dashboard",      "⊞",  "Dashboard")}
         {perms.canAdd    && navItem("/register",       "＋",  "New Title")}
         {perms.canAdd    && navItem("/import",          "↑",   "Import")}
-        {                   navItem("/export",          "📋",  "Reports")}
+        {                   navItem("/reports",         "📋",  "Reports")}
         {perms.canViewAudit && navItem("/notifications","🔔",  "Notifications")}
         {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
         {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}

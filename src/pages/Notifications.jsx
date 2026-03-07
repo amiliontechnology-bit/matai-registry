@@ -369,37 +369,30 @@ export default function Notifications({ userRole }) {
     const totalRecords = records.length;
     const totalCompleted = records.filter(r=>r.status==="completed"||r.dateRegistration).length;
 
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-    <title>Monthly Report — ${monthLabel}</title>
-    <style>
-      body{font-family:Georgia,serif;margin:2cm;color:#1a1a1a;font-size:0.9rem}
-      h1{font-size:1.4rem;color:#1a5c35;margin:0}
-      .meta{font-size:0.78rem;color:#555;margin:4px 0 1.5rem}
-      .summary{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
-      .stat{border:1px solid #ddd;border-radius:4px;padding:0.5rem 1rem;text-align:center;min-width:80px}
-      .stat-num{font-size:1.6rem;font-weight:bold;color:#1a5c35}
-      .stat-label{font-size:0.65rem;text-transform:uppercase;color:#666;letter-spacing:0.05em}
-      .footer{margin-top:2rem;font-size:0.7rem;color:#999;border-top:1px solid #eee;padding-top:0.5rem;text-align:center}
-      @media print{body{margin:1cm}}
-    </style></head><body>
-    <div style="border-bottom:3px solid #1a5c35;padding-bottom:0.75rem;margin-bottom:0.5rem">
-      <h1>◈ Monthly Matai Registry Report</h1>
-      <div class="meta">${monthLabel} &nbsp;·&nbsp; Generated: ${fmtDate(new Date().toISOString().split("T")[0])} &nbsp;·&nbsp; By: ${genBy}</div>
-    </div>
-    <div class="summary">
-      <div class="stat"><div class="stat-num">${totalRecords}</div><div class="stat-label">Total Records</div></div>
-      <div class="stat"><div class="stat-num">${totalCompleted}</div><div class="stat-label">Registered</div></div>
-      <div class="stat"><div class="stat-num">${newMataiRecords.length}</div><div class="stat-label">New Titles</div></div>
-      <div class="stat"><div class="stat-num">${readyToRegister.length}</div><div class="stat-label">Ready to Reg.</div></div>
-      <div class="stat"><div class="stat-num">${registeredRecords.length}</div><div class="stat-label">Registered</div></div>
-      <div class="stat"><div class="stat-num" style="color:#8b1a1a">${objectionRecords.length}</div><div class="stat-label">Objections</div></div>
-    </div>
-    ${fmtSection("New Matai Titles (Not Yet Proclaimed)","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)}
-    ${fmtSection("Ready to Register","#1a5c35",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)}
-    ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
-    ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)}
-    <div class="footer">Matai Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
-    <script>window.onload=()=>window.print();<\/script></body></html>`;
+    const html = reportHeader(
+      `Monthly Report — ${monthLabel}`,
+      `Summary of all matai title activity for ${monthLabel}`,
+      totalRecords, genBy)
+      + `<div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        ${[
+          ["Total Records", totalRecords, "#1a5c35"],
+          ["Registered",   totalCompleted, "#155c31"],
+          ["New Titles",   newMataiRecords.length, "#7c3aed"],
+          ["Ready",        readyToRegister.length, "#1e6b3c"],
+          ["Objections",   objectionRecords.length, "#8b1a1a"],
+        ].map(([l,n,c])=>
+          `<div style="border:1px solid ${c}30;border-radius:4px;padding:0.5rem 1rem;text-align:center;min-width:80px">
+            <div style="font-size:1.6rem;font-weight:bold;color:${c}">${n}</div>
+            <div style="font-size:0.6rem;text-transform:uppercase;color:${c};letter-spacing:0.05em;font-family:'Cinzel',serif">${l}</div>
+          </div>`
+        ).join("")}
+      </div>
+      ${fmtSection("New Matai Titles (Not Yet Proclaimed)","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)}
+      ${fmtSection("Ready to Register","#1a5c35",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)}
+      ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
+      ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)}
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
+      <script>window.onload=()=>window.print();<\/script></body></html>`;
     openPDF("Monthly Report", html);
     logAudit("REPORT_PDF", { type:"monthly_full", month: monthLabel });
   };
@@ -521,36 +514,7 @@ export default function Notifications({ userRole }) {
               </div>
             </>)}
 
-            {/* ── Reports tab ── */}
-            {activeTab === "reports" && (
-              <div style={sStyle}>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1.25rem" }}>◈ Generate PDF Reports</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
-                  {[
-                    { label:"Full Monthly Report", sub:"All sections: new titles, ready to register, registered this month, objections", onClick: printMonthlyFullReport, count: records.length, color:"#1a5c35" },
-                    { label:"Proclamation Alerts", sub:"Records within alert window not yet registered", onClick: printProclamationReport, count: alertRecords.length, color:"#1e6b3c" },
-                    { label:"Ready to Register", sub:"4-month proclamation complete, no objection", onClick: printReadyReport, count: readyToRegister.length, color:"#155c31" },
-                    { label:"New Matai Titles", sub:"Entered but not yet proclaimed", onClick: printNewMataiReport, count: newMataiRecords.length, color:"#7c3aed" },
-                    { label:"Objections Report", sub:"Titles with active objections filed", onClick: printObjectionReport, count: objectionRecords.length, color:"#8b1a1a" },
-                  ].map(({ label, sub, onClick, count, color }) => (
-                    <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.85rem 1rem", background:"#fafafa", border:"1px solid rgba(30,107,60,0.15)", borderRadius:"4px" }}>
-                      <div>
-                        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.78rem", color, fontWeight:600 }}>{label}</p>
-                        <p style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.5)", marginTop:"2px" }}>{sub}</p>
-                      </div>
-                      <button onClick={onClick} disabled={count === 0}
-                        style={{ fontSize:"0.72rem", padding:"0.45rem 1.1rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase",
-                          background: count === 0 ? "#f3f4f6" : `${color}15`, border:`1px solid ${count === 0 ? "#e5e7eb" : color}`,
-                          color: count === 0 ? "#9ca3af" : color, borderRadius:"3px", cursor: count === 0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
-                        📄 Print ({count})
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Objection tab ── */}}
+            {/* ── Objection tab ── */}
             {activeTab === "objection" && (
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>

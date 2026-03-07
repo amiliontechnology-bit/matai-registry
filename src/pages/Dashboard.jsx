@@ -117,12 +117,12 @@ export default function Dashboard({ userRole }) {
     const result = await seedTestData((done, total, title) => setSeedMsg(`Importing ${done}/${total}: ${title}…`));
     cacheClear("registrations");
     if (result.success) {
-      setSeedMsg(`✓ ${result.message} Reloading…`);
+      setSeedMsg(`✓ ${result.message} Redirecting…`);
     } else {
       setSeedMsg(`✗ ${result.message}`);
     }
     setSeeding(false);
-    setTimeout(() => window.location.reload(), 1500);
+    if (result.success) setTimeout(() => { cacheClear("registrations"); window.location.href = window.location.href; }, 1500);
   };
 
   return (
@@ -135,7 +135,7 @@ export default function Dashboard({ userRole }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"2rem" }}>
           <div>
             <p className="page-eyebrow">Official Record</p>
-            <h1 className="page-title">Title Registry</h1>
+            <h1 className="page-title">Samoa Matai Title Registry</h1>
           </div>
           <div style={{ display:"flex", gap:"0.75rem", alignItems:"center" }}>
 

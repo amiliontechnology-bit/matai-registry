@@ -14,6 +14,7 @@ import Import from "./pages/Import";
 import Export from "./pages/Export";
 import Notifications from "./pages/Notifications";
 import DataManage from "./pages/DataManage";
+import Reports from "./pages/Reports";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/audit" element={authed(<AuditLog userRole={userRole} />)} />
         <Route path="/import" element={authed(<Import userRole={userRole} />)} />
         <Route path="/export" element={authed(<Export userRole={userRole} />)} />
+        <Route path="/reports" element={authed(<Reports userRole={userRole} />)} />
         <Route path="/notifications" element={authed(<Notifications userRole={userRole} />)} />
         <Route path="/data-manage" element={authed(<DataManage userRole={userRole} />)} />
       </Routes>

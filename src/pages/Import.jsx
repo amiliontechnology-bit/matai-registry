@@ -4,7 +4,7 @@ import { auth, db } from "../firebase";
 import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
@@ -436,6 +436,7 @@ const PREVIEW_COLS = [
 ];
 
 export default function Import({ userRole }) {
+  const navigate = useNavigate();
   const [file, setFile]         = useState(null);
   const [preview, setPreview]   = useState([]);
   const [importing, setImporting] = useState(false);
@@ -525,6 +526,10 @@ export default function Import({ userRole }) {
     setErrors([...skippedRows, ...errs]);
     setImporting(false);
     setStep("done");
+    // Auto-redirect to dashboard after 2s if no errors
+    if (errs.length === 0 && skippedRows.length === 0) {
+      setTimeout(() => navigate("/dashboard"), 2000);
+    }
   };
 
   const reset = () => {
