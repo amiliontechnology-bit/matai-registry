@@ -217,19 +217,19 @@ export default function Notifications({ userRole }) {
   });
 
   // ── Urgency helpers ────────────────────────────────────
+  // days = days until REGISTRATION DATE (positive = still in proclamation period, negative = overdue/past)
   const urgencyColor = (days) => {
     if (days === null) return "rgba(26,26,26,0.4)";
-    if (days < -120)  return "#8b1a1a";
-    if (days < 0)     return "#c0392b";
-    if (days <= 30)   return "#c0392b";
-    if (days <= 60)   return "#d68910";
-    return "#1e6b3c";
+    if (days < 0)     return "#8b1a1a";   // overdue — reg date passed
+    if (days <= 30)   return "#c0392b";   // < 30 days to reg — urgent
+    if (days <= 60)   return "#d68910";   // 30–60 days — warning
+    return "#1e6b3c";                     // > 60 days — ok
   };
   const urgencyLabel = (days) => {
     if (days === null) return "—";
-    if (days < -120)  return `${Math.abs(days)}d OVERDUE`;
-    if (days < 0)     return `${Math.abs(days)}d past`;
-    if (days === 0)   return "TODAY";
+    if (days < 0)     return `${Math.abs(days)}d OVERDUE`;
+    if (days === 0)   return "REG TODAY";
+    if (days <= 30)   return `${days}d to reg`;
     return `${days}d remaining`;
   };
 
@@ -443,7 +443,7 @@ export default function Notifications({ userRole }) {
   );
 
   const RecordRow = ({ r }) => {
-    const days = daysUntil(r.dateProclamation);
+    const days = daysUntilReg(r);   // days until REGISTRATION date, not proclamation date
     const col  = urgencyColor(days);
     return (
       <Link to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
@@ -495,8 +495,8 @@ export default function Notifications({ userRole }) {
             {/* Tabs */}
             <div style={{ display:"flex", gap:"0.5rem", marginBottom:"1.25rem", flexWrap:"wrap" }}>
               <TabBtn tab="proclamation" label="Proclamation Alerts" count={alertRecords.length} />
+              <TabBtn tab="monthly"      label="Monthly Alerts"      count={readyToRegister.length + newMataiRecords.length} />
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
-              <TabBtn tab="monthly"      label="Monthly Reports"     count={readyToRegister.length + newMataiRecords.length} />
               {duplicateGroups.length > 0 && (
                 <TabBtn tab="duplicates" label="⚠ Duplicates" count={duplicateGroups.length} color="#c0392b" />
               )}
