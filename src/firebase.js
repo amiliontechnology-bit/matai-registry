@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBA5afvNbvfkMrFFaaVBR7kcGFWOyxzoCk",
-  authDomain: "resitalaina-o-matai.web.app",
+  authDomain: "resitalaina-o-matai.firebaseapp.com",
   projectId: "resitalaina-o-matai",
   storageBucket: "resitalaina-o-matai.firebasestorage.app",
   messagingSenderId: "1066492699678",
