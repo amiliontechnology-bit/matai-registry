@@ -413,7 +413,9 @@ export default function Register({ userRole }) {
 
   const autoRegDate = (proclamation) => {
     const result = calcRegDate(proclamation);
-    return result && result.isPast ? result.dateStr : "";
+    // Always set the calculated registration date (past or future)
+    // so it's saved to Firestore and appears on the certificate
+    return result ? result.dateStr : "";
   };
 
   const fmtDateDMY = (dateStr) => {
@@ -993,13 +995,13 @@ export default function Register({ userRole }) {
               return hint.isPast ? (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
-                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong> (day after proclamation day, in 4th month)
+                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong>
                   </p>
                 </div>
               ) : (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#7a5c00" }}>
-                    ⏳ Proclamation period not yet complete — registration date will be <strong>{hint.display}</strong> (day after proclamation day, in 4th month).
+                    ⏳ Proclamation period not yet complete — registration date pre-filled as <strong>{hint.display}</strong> and will be saved to the record.
                   </p>
                 </div>
               );
