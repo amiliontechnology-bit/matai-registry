@@ -3,8 +3,6 @@ import { collection, getDocs, writeBatch, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { logAudit } from "../utils/audit";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 // Savaii districts — all others are Upolu
 const SAVAII_DISTRICTS = [
@@ -115,63 +113,55 @@ export default function Savali({ userRole }) {
 
   const generatePDF = () => {
     const { upolu: pdfUpolu, savaii: pdfSavaii } = grouped();
-    const doc2 = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageW = doc2.internal.pageSize.getWidth();
 
-    const addSection = (island, rows, isFirst) => {
-      if (!isFirst) doc2.addPage();
+    const mkRows = (rows) => rows.map(r => `
+      <tr>
+        <td>${r.village || ""}</td>
+        <td>${r.mataiTitle || ""}</td>
+        <td>${r.holderName || ""}</td>
+        <td>${r.faapogai || ""}</td>
+      </tr>`).join("");
 
-      // Header
-      doc2.setFont("helvetica", "bold");
-      doc2.setFontSize(13);
-      doc2.text("LISI O LE SAVALI O TESEMA", pageW / 2, 20, { align: "center" });
-      doc2.setFontSize(12);
-      doc2.text(island, pageW / 2, 28, { align: "center" });
-      doc2.setFontSize(11);
-      doc2.text(`${fmt(proclamationDate)} - ${fmt(endDate)}`, pageW / 2, 35, { align: "center" });
+    const mkSection = (island, rows) => rows.length === 0 ? "" : `
+      <div class="section">
+        <h2 class="island">${island}</h2>
+        <table>
+          <thead>
+            <tr><th>NUU</th><th>SUAFA MATAI</th><th>IGOA TAULEALEA</th><th>FAAPOGAI</th></tr>
+          </thead>
+          <tbody>${mkRows(rows)}</tbody>
+        </table>
+      </div>`;
 
-      if (rows.length === 0) {
-        doc2.setFont("helvetica", "normal");
-        doc2.setFontSize(10);
-        doc2.text("No records for this island.", pageW / 2, 50, { align: "center" });
-        return;
-      }
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+      <title>Savali ${fmt(proclamationDate)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 10pt; margin: 20mm; color: #000; }
+        h1 { text-align: center; font-size: 14pt; margin-bottom: 2px; }
+        .daterange { text-align: center; font-size: 11pt; margin-bottom: 18px; }
+        .island { text-align: center; font-size: 12pt; letter-spacing: 0.1em; margin: 20px 0 8px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #000; padding: 5px 8px; text-align: center; font-size: 9pt; }
+        th { font-weight: bold; background: #fff; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .footer { margin-top: 30px; font-size: 8pt; font-style: italic; display: flex; justify-content: space-between; }
+        @media print { body { margin: 15mm; } }
+      </style>
+    </head><body>
+      <h1>LISI O LE SAVALI</h1>
+      <div class="daterange">${fmt(proclamationDate)} &nbsp;&#9658;&nbsp; ${fmt(endDate)}</div>
+      ${mkSection("UPOLU", pdfUpolu)}
+      ${mkSection("SAVAII", pdfSavaii)}
+      <div class="footer">
+        <span>SAVALI &nbsp; ${fmt(proclamationDate)} – ${fmt(endDate)}</span>
+        <span>Total: ${pdfUpolu.length + pdfSavaii.length} records</span>
+      </div>
+    </body></html>`;
 
-      autoTable(doc2, {
-        startY: 40,
-        head: [["NUU", "SUAFA MATAI", "IGOA TAULEALEA", "FAAPOGAI"]],
-        body: rows.map(r => [
-          r.village || "",
-          r.mataiTitle || "",
-          r.holderName || "",
-          r.faapogai || "",
-        ]),
-        styles: { fontSize: 9, cellPadding: 3, halign: "center", valign: "middle" },
-        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [0, 0, 0] },
-        bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0], textColor: [0, 0, 0] },
-        columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 55 },
-          3: { cellWidth: 55 },
-        },
-        alternateRowStyles: { fillColor: [255, 255, 255] },
-        didDrawPage: (data) => {
-          // Footer
-          doc2.setFont("helvetica", "italic");
-          doc2.setFontSize(8);
-          const pageH = doc2.internal.pageSize.getHeight();
-          doc2.text("SAVALI", 14, pageH - 10);
-          doc2.text(`${fmt(proclamationDate)}  ──────►  ${fmt(endDate)}`, 14, pageH - 6);
-          doc2.text(`${data.pageNumber}`, pageW - 14, pageH - 6, { align: "right" });
-        },
-      });
-    };
-
-    addSection("UPOLU", pdfUpolu, true);
-    addSection("SAVAII", pdfSavaii, false);
-
-    doc2.save(`Savali_${proclamationDate}.pdf`);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (win) win.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
   };
 
   const { upolu, savaii } = grouped();
