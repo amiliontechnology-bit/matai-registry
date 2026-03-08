@@ -823,14 +823,14 @@ export default function Reports({ userRole }) {
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:savaliSelected.size===0?"transparent":"#b4530912",color:savaliSelected.size===0?"#bbb":"#b45309",cursor:savaliSelected.size===0?"not-allowed":"pointer"}}>
                       📅 Set Date ({savaliSelected.size})
                     </button>}
-                    {perms.canPrint && savaliGrouped(savaliRecords).upolu.length>0 && <button onClick={savaliPrintUpolu}
+                    {perms.canPrint && (() => { const {upolu} = savaliGrouped(savaliByProcDate); return upolu.length>0 && <button onClick={savaliPrintUpolu}
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
-                      📄 PDF Upolu
-                    </button>}
-                    {perms.canPrint && savaliGrouped(savaliRecords).savaii.length>0 && <button onClick={savaliPrintSavaii}
+                      📄 PDF Upolu ({upolu.length})
+                    </button>; })()}
+                    {perms.canPrint && (() => { const {savaii} = savaliGrouped(savaliByProcDate); return savaii.length>0 && <button onClick={savaliPrintSavaii}
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:"#b4530912",color:"#b45309",cursor:"pointer"}}>
-                      📄 PDF Savaii
-                    </button>}
+                      📄 PDF Savaii ({savaii.length})
+                    </button>; })()}
                   </div>
                 </div>
 
