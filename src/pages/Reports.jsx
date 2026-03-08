@@ -145,12 +145,17 @@ export default function Reports({ userRole }) {
     (async () => {
       try {
         const cached = cacheGet("registrations");
-        if (cached) { setRecords(cached); setLoading(false); return; }
-        const snap = await getDocs(collection(db, "registrations"));
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-        cacheSet("registrations", data);
+        const data = cached || await (async () => {
+          const snap = await getDocs(collection(db, "registrations"));
+          const d = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          d.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+          cacheSet("registrations", d);
+          return d;
+        })();
         setRecords(data);
+        const noProc = data.filter(r => !r.dateProclamation || r.dateProclamation.trim() === "");
+        setSavaliRecords(noProc);
+        setSavaliSelected(new Set(noProc.map(r => r.id)));
       } catch(err) { console.error(err); }
       finally { setLoading(false); }
     })();
