@@ -377,7 +377,11 @@ export default function Register({ userRole }) {
   }, []);
 
   // Navigation list — use filtered IDs from dashboard state if available, else all records
-  const passedIds = location.state?.recordIds;
+  const passedIds   = location.state?.recordIds;
+  const backTo      = location.state?.backTo;
+  const backTab     = location.state?.backTab;
+  const dupCertNum  = location.state?.dupCertNum;
+  const isDupMode   = !!(backTo && dupCertNum);
   const navRecords = passedIds && allRecords.length > 0
     ? passedIds.map(pid => allRecords.find(r => r.id === pid)).filter(Boolean)
     : allRecords;
@@ -690,27 +694,42 @@ export default function Register({ userRole }) {
             </div>
             {isEdit && navRecords.length > 0 && (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"0.35rem", paddingTop:"0.5rem" }}>
-                {isFiltered && (
+                {/* Duplicate mode badge */}
+                {isDupMode && (
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.6rem", color:"#c0392b", background:"#fff5f5", border:"1px solid #fca5a5", borderRadius:"20px", padding:"1px 10px", letterSpacing:"0.06em" }}>
+                    ⚠ Duplicate Group — Cert No. {dupCertNum}
+                  </span>
+                )}
+                {/* Filtered view badge */}
+                {isFiltered && !isDupMode && (
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.6rem", color:"#1e40af", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"20px", padding:"1px 8px", letterSpacing:"0.06em" }}>
                     🔍 Filtered view — {navRecords.length} records
                   </span>
                 )}
                 <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                  {/* Back to duplicates button */}
+                  {isDupMode && (
+                    <button
+                      onClick={() => navigate(backTo, { state: { tab: backTab } })}
+                      style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background:"#fff5f5", border:"1px solid #fca5a5", color:"#c0392b", borderRadius:"3px", cursor:"pointer" }}>
+                      ✕ Close
+                    </button>
+                  )}
                   <button
                     onClick={() => prevRecord && navigate(`/register/${prevRecord.id}`, { state: location.state })}
                     disabled={!prevRecord}
                     title={prevRecord ? `← ${prevRecord.mataiTitle}` : "No previous record"}
-                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: prevRecord ? "#f0faf4" : "#f9fafb", border:`1px solid ${prevRecord ? "#a7d7b8" : "#e5e7eb"}`, color: prevRecord ? "#1e6b3c" : "#9ca3af", borderRadius:"3px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
+                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: prevRecord ? (isDupMode ? "#fff5f5" : "#f0faf4") : "#f9fafb", border:`1px solid ${prevRecord ? (isDupMode ? "#fca5a5" : "#a7d7b8") : "#e5e7eb"}`, color: prevRecord ? (isDupMode ? "#c0392b" : "#1e6b3c") : "#9ca3af", borderRadius:"3px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
                     ← Prev
                   </button>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"rgba(26,26,26,0.4)", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color: isDupMode ? "#c0392b" : "rgba(26,26,26,0.4)", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>
                     {currentIndex + 1} / {navRecords.length}
                   </span>
                   <button
                     onClick={() => nextRecord && navigate(`/register/${nextRecord.id}`, { state: location.state })}
                     disabled={!nextRecord}
                     title={nextRecord ? `${nextRecord.mataiTitle} →` : "No next record"}
-                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: nextRecord ? "#f0faf4" : "#f9fafb", border:`1px solid ${nextRecord ? "#a7d7b8" : "#e5e7eb"}`, color: nextRecord ? "#1e6b3c" : "#9ca3af", borderRadius:"3px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
+                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: nextRecord ? (isDupMode ? "#fff5f5" : "#f0faf4") : "#f9fafb", border:`1px solid ${nextRecord ? (isDupMode ? "#fca5a5" : "#a7d7b8") : "#e5e7eb"}`, color: nextRecord ? (isDupMode ? "#c0392b" : "#1e6b3c") : "#9ca3af", borderRadius:"3px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
                     Next →
                   </button>
                 </div>
@@ -988,7 +1007,10 @@ export default function Register({ userRole }) {
           </div>
 
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
-            <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
+            {isDupMode
+              ? <button type="button" className="btn-secondary" onClick={() => navigate(backTo, { state: { tab: backTab } })}>← Back to Duplicates</button>
+              : <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
+            }
             {!viewOnly && (
               <button type="submit" className="btn-primary" disabled={loading}>
                 {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}

@@ -783,7 +783,9 @@ export default function Notifications({ userRole }) {
                       ⚠ Cert No. {certNum} — {grp.length} records share this number
                     </p>
                     {grp.map(r => (
-                      <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block", marginBottom:"0.4rem" }}>
+                      <Link key={r.id} to={`/register/${r.id}`}
+                        state={{ recordIds: grp.map(x => x.id), backTo: "/notifications", backTab: "duplicates", dupCertNum: certNum }}
+                        style={{ textDecoration:"none", display:"block", marginBottom:"0.4rem" }}>
                         <div style={{ background:"#fff", border:"1px solid rgba(192,57,43,0.2)", borderRadius:"3px", padding:"0.6rem 0.85rem", display:"flex", justifyContent:"space-between", alignItems:"center" }}
                           onMouseEnter={e => e.currentTarget.style.background="#fef2f2"}
                           onMouseLeave={e => e.currentTarget.style.background="#fff"}>
