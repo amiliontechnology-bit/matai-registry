@@ -128,6 +128,7 @@ export default function Reports({ userRole }) {
   const [savaliShowConfirm,  setSavaliShowConfirm]  = useState(false);
   const [savaliSaving,       setSavaliSaving]       = useState(false);
   const [savaliProcDate,     setSavaliProcDate]     = useState(get28th());
+  const [pdfMonth,           setPdfMonth]           = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`; });
 
 
   const [filterFrom, setFilterFrom] = useState("");
@@ -395,10 +396,11 @@ export default function Reports({ userRole }) {
     const win = window.open(url,"_blank");
     if (win) win.addEventListener("load",()=>{ URL.revokeObjectURL(url); setTimeout(()=>win.print(),800); },{once:true});
   };
-  // Records matching the selected proclamation date (for PDF generation)
-  const savaliByProcDate = records.filter(r =>
-    r.dateProclamation && r.dateProclamation.trim() === savaliProcDate.trim() && r.objection !== "yes"
-  );
+  // Records matching the selected PDF month (YYYY-MM) for PDF generation
+  const savaliByProcDate = records.filter(r => {
+    if (!r.dateProclamation || r.objection === "yes") return false;
+    return r.dateProclamation.trim().startsWith(pdfMonth);
+  });
   const savaliPrintUpolu = () => {
     const {upolu} = savaliGrouped(savaliByProcDate);
     savaliOpenPDF(`Savali Upolu ${fmtDate(savaliProcDate)}`, "UPOLU", upolu, fmtDate(savaliProcDate), fmtDate(savaliEndDate));
@@ -822,21 +824,67 @@ export default function Reports({ userRole }) {
                     <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#b45309",textTransform:"uppercase",marginBottom:"2px"}}>◈ Savali Report</p>
                     <p style={{fontSize:"0.73rem",color:"rgba(26,26,26,0.45)"}}>Records pending proclamation date. Select records then set date to publish.</p>
                   </div>
-                  <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap"}}>
+                  <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
                     {perms.canEdit && <button onClick={()=>setSavaliShowConfirm(true)} disabled={savaliSelected.size===0}
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:savaliSelected.size===0?"transparent":"#b4530912",color:savaliSelected.size===0?"#bbb":"#b45309",cursor:savaliSelected.size===0?"not-allowed":"pointer"}}>
                       📅 Set Date ({savaliSelected.size})
                     </button>}
-                    {perms.canPrint && (() => { const {upolu} = savaliGrouped(savaliByProcDate); return upolu.length>0 && <button onClick={savaliPrintUpolu}
-                      style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
-                      📄 PDF Upolu ({upolu.length})
-                    </button>; })()}
-                    {perms.canPrint && (() => { const {savaii} = savaliGrouped(savaliByProcDate); return savaii.length>0 && <button onClick={savaliPrintSavaii}
-                      style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:"#b4530912",color:"#b45309",cursor:"pointer"}}>
-                      📄 PDF Savaii ({savaii.length})
-                    </button>; })()}
                   </div>
                 </div>
+
+                {/* ── PDF by Month ── */}
+                {perms.canPrint && (() => {
+                  const {upolu, savaii} = savaliGrouped(savaliByProcDate);
+                  const total = upolu.length + savaii.length;
+                  // Build list of unique proclamation months from all records
+                  const months = [...new Set(
+                    records.filter(r => r.dateProclamation && r.objection !== "yes")
+                      .map(r => r.dateProclamation.trim().substring(0,7))
+                  )].sort().reverse();
+                  return (
+                    <div style={{...sStyle, marginBottom:"1rem"}}>
+                      <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#1a5c35",textTransform:"uppercase",marginBottom:"0.75rem"}}>◈ Generate Savali PDF by Proclamation Month</p>
+                      <div style={{display:"flex",gap:"0.75rem",alignItems:"center",flexWrap:"wrap"}}>
+                        <div>
+                          <label style={{...labelStyle,marginBottom:"4px"}}>Select Month</label>
+                          <select value={pdfMonth} onChange={e=>setPdfMonth(e.target.value)}
+                            style={{...inputStyle, minWidth:"160px"}}>
+                            {months.length === 0
+                              ? <option value="">No proclaimed records</option>
+                              : months.map(m => {
+                                  const [y,mo] = m.split("-");
+                                  const label = new Date(parseInt(y), parseInt(mo)-1, 1).toLocaleString("en",{month:"long",year:"numeric"});
+                                  const cnt = records.filter(r=>r.dateProclamation&&r.dateProclamation.startsWith(m)&&r.objection!=="yes").length;
+                                  return <option key={m} value={m}>{label} ({cnt} records)</option>;
+                                })
+                            }
+                          </select>
+                        </div>
+                        <div style={{display:"flex",gap:"0.5rem",alignItems:"flex-end",paddingBottom:"0"}}>
+                          {upolu.length > 0
+                            ? <button onClick={savaliPrintUpolu}
+                                style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
+                                📄 PDF Upolu ({upolu.length})
+                              </button>
+                            : <button disabled style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #d1d5db",background:"transparent",color:"#bbb",cursor:"not-allowed"}}>
+                                📄 PDF Upolu (0)
+                              </button>
+                          }
+                          {savaii.length > 0
+                            ? <button onClick={savaliPrintSavaii}
+                                style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:"#b4530912",color:"#b45309",cursor:"pointer"}}>
+                                📄 PDF Savaii ({savaii.length})
+                              </button>
+                            : <button disabled style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #d1d5db",background:"transparent",color:"#bbb",cursor:"not-allowed"}}>
+                                📄 PDF Savaii (0)
+                              </button>
+                          }
+                        </div>
+                        {total === 0 && pdfMonth && <p style={{fontSize:"0.75rem",color:"#9ca3af",fontStyle:"italic"}}>No records with proclamation date in this month.</p>}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {loading ? <p style={{fontStyle:"italic",color:"#9ca3af",padding:"2rem",textAlign:"center"}}>Loading…</p>
                 : savaliRecords.length===0
