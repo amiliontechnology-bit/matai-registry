@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/matai-registry/static/css/main.7d755723.css",
-    "main.js": "/matai-registry/static/js/main.6f53dec9.js",
+    "main.js": "/matai-registry/static/js/main.2dcb5626.js",
     "index.html": "/matai-registry/index.html",
     "main.7d755723.css.map": "/matai-registry/static/css/main.7d755723.css.map",
-    "main.6f53dec9.js.map": "/matai-registry/static/js/main.6f53dec9.js.map"
+    "main.2dcb5626.js.map": "/matai-registry/static/js/main.2dcb5626.js.map"
   },
   "entrypoints": [
     "static/css/main.7d755723.css",
-    "static/js/main.6f53dec9.js"
+    "static/js/main.2dcb5626.js"
   ]
 }
