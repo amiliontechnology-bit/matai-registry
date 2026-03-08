@@ -413,9 +413,9 @@ export default function Register({ userRole }) {
 
   const autoRegDate = (proclamation) => {
     const result = calcRegDate(proclamation);
-    // Always set the calculated registration date (past or future)
-    // so it's saved to Firestore and appears on the certificate
-    return result ? result.dateStr : "";
+    // Only auto-fill dateRegistration if the 4-month period has already passed
+    // If still within proclamation period, leave blank — staff must confirm via Notifications
+    return result && result.isPast ? result.dateStr : "";
   };
 
   const fmtDateDMY = (dateStr) => {
@@ -643,7 +643,9 @@ export default function Register({ userRole }) {
         const changes = diffRecords(oldRec, form);
         // Compose cert number from parts if all 3 set
       const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-      const autoStatus = form.dateRegistration ? "completed" : "pending";
+      // Only mark completed if dateRegistration is set AND the 4-month period has actually passed
+      const regPassed = form.dateRegistration && new Date(form.dateRegistration + "T00:00:00") <= new Date();
+      const autoStatus = regPassed ? "completed" : "pending";
       const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
         await logAudit("UPDATE", {
@@ -656,7 +658,9 @@ export default function Register({ userRole }) {
         setSuccess("Registration updated successfully.");
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-        const autoStatus = form.dateRegistration ? "completed" : "pending";
+        // Only mark completed if dateRegistration is set AND the 4-month period has actually passed
+        const regPassed = form.dateRegistration && new Date(form.dateRegistration + "T00:00:00") <= new Date();
+        const autoStatus = regPassed ? "completed" : "pending";
         const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
@@ -1006,7 +1010,7 @@ export default function Register({ userRole }) {
               ) : (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#7a5c00" }}>
-                    ⏳ Proclamation period not yet complete — registration date pre-filled as <strong>{hint.display}</strong> and will be saved to the record.
+                    ⏳ Proclamation period not yet complete — expected registration date is <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> once that date has passed for staff to confirm.
                   </p>
                 </div>
               );

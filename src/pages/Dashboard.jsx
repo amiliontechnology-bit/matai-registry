@@ -338,20 +338,22 @@ export default function Dashboard({ userRole }) {
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:"0.3rem" }}>
-                          {perms.canPrint && r.dateRegistration && (
-                            <Link to={`/certificate/${r.id}`}>
-                              <button className="btn-ghost" title="View Certificate"
-                                onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>
+                          {(() => {
+                            const regPassed = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
+                            return perms.canPrint && regPassed ? (
+                              <Link to={`/certificate/${r.id}`}>
+                                <button className="btn-ghost" title="View Certificate"
+                                  onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>
+                                  🏅
+                                </button>
+                              </Link>
+                            ) : perms.canPrint ? (
+                              <button className="btn-ghost" title="Certificate unavailable — awaiting registration" disabled
+                                style={{ opacity:0.35, cursor:"not-allowed" }}>
                                 🏅
                               </button>
-                            </Link>
-                          )}
-                          {perms.canPrint && !r.dateRegistration && (
-                            <button className="btn-ghost" title="Certificate unavailable — no registration date" disabled
-                              style={{ opacity:0.35, cursor:"not-allowed" }}>
-                              🏅
-                            </button>
-                          )}
+                            ) : null;
+                          })()}
                           {perms.canEdit && (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
                               <button className="btn-ghost" title="Edit">✎</button>

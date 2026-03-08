@@ -408,8 +408,9 @@ export default function Certificate({ userRole }) {
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading…</div>
   );
 
-  // Block certificate access if record has no registration date
-  if (record && !record.dateRegistration) return (
+  // Block certificate access if no registration date OR date hasn't passed yet
+  const regDatePassed = record?.dateRegistration && new Date(record.dateRegistration + "T00:00:00") <= new Date();
+  if (record && !regDatePassed) return (
     <div className="app-layout">
       <div className="pattern-bg" />
       <Sidebar userRole={userRole} userEmail={auth.currentUser?.email} />
@@ -423,7 +424,10 @@ export default function Certificate({ userRole }) {
             <strong style={{ color:"#1a1a1a" }}>{record.mataiTitle} — {record.holderName}</strong>
           </p>
           <p style={{ color:"rgba(26,26,26,0.55)", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
-            This record does not have a registration date yet. A certificate can only be printed once the title has been officially registered.
+            {record.dateRegistration
+              ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed and the registration is confirmed in Notifications.</>
+              : <>This record does not have a registration date yet. Once the 4-month proclamation period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
+            }
           </p>
           <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
             <Link to="/dashboard">
