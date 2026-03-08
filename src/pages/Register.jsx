@@ -536,19 +536,8 @@ export default function Register({ userRole }) {
           if (tRaw === "alii") data.mataiType = "Ali'i";
           else if (tRaw === "tulafale") data.mataiType = "Tulafale";
 
-          // Auto-fill registration date if period has passed and no reg date set
-          if (!data.dateRegistration && data.objection === "no" && data.dateProclamation) {
-            const p = data.dateProclamation;
-            const proc = new Date(p + "T00:00:00");
-            const target = new Date(proc.getFullYear(), proc.getMonth() + 4, 1);
-            const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-            const regDay = Math.min(29, lastDay);
-            const reg = new Date(target.getFullYear(), target.getMonth(), regDay);
-            const todayD = new Date(); todayD.setHours(0,0,0,0);
-            if (reg <= todayD) {
-              data.dateRegistration = `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`;
-            }
-          }
+          // dateRegistration must only be set via Notifications confirm — never auto-filled
+          // Old/backlogged records with past proclamation dates will appear in Notifications as overdue
           setForm({ ...EMPTY, ...data });
         }
       } catch { setError("Failed to load record."); }
@@ -1002,9 +991,9 @@ export default function Register({ userRole }) {
               const hint = regDateHint(form.dateProclamation);
               if (!hint) return null;
               return hint.isPast ? (
-                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#e8f5ed", border:"1px solid #c3e6cb", borderRadius:"4px" }}>
-                  <p style={{ fontSize:"0.85rem", color:"#155c31" }}>
-                    ✓ Proclamation period complete — Registration date set to <strong>{hint.display}</strong>
+                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef3c7", border:"1px solid #fcd34d", borderRadius:"4px" }}>
+                  <p style={{ fontSize:"0.85rem", color:"#92400e" }}>
+                    ⚠ Proclamation period has passed — expected registration date was <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> as overdue and must be confirmed before the certificate is available.
                   </p>
                 </div>
               ) : (
