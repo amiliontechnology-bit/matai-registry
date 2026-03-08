@@ -334,7 +334,7 @@ export default function Dashboard({ userRole }) {
                         {(() => {
                           const d = effectiveRegDate(r);
                           return d
-                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#c0392b", fontStyle: r.dateRegistration ? "normal" : "italic" }}>{fmtDate(d)}{!r.dateRegistration && " *"}</span>
+                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#b45309", fontStyle: r.dateRegistration ? "normal" : "italic", background: r.dateRegistration ? "none" : "#fef3c7", padding: r.dateRegistration ? "0" : "1px 5px", borderRadius:"3px" }}>{fmtDate(d)}{!r.dateRegistration && " ⚠"}</span>
                             : <span style={{ color:"#9ca3af" }}>—</span>;
                         })()}
                       </td>

@@ -173,7 +173,8 @@ export default function Notifications({ userRole }) {
     if (r.objection === "yes") return false;
     if (r.dateRegistration) return false;
     if (!r.dateProclamation) return false;
-    if (effectiveRegDate(r)) return false;         // reg period passed — goes to readyToRegister instead
+    // Include overdue records (period passed, not yet confirmed) — they show as red "Xd OVERDUE"
+    // They also appear in Ready to Register for confirmation
     const days = daysUntilReg(r);
     return days !== null && days <= filterWindow;
   }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
