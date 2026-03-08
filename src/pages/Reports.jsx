@@ -395,12 +395,16 @@ export default function Reports({ userRole }) {
     const win = window.open(url,"_blank");
     if (win) win.addEventListener("load",()=>{ URL.revokeObjectURL(url); setTimeout(()=>win.print(),800); },{once:true});
   };
+  // Records matching the selected proclamation date (for PDF generation)
+  const savaliByProcDate = records.filter(r =>
+    r.dateProclamation && r.dateProclamation.trim() === savaliProcDate.trim() && r.objection !== "yes"
+  );
   const savaliPrintUpolu = () => {
-    const {upolu} = savaliGrouped(savaliRecords);
+    const {upolu} = savaliGrouped(savaliByProcDate);
     savaliOpenPDF(`Savali Upolu ${fmtDate(savaliProcDate)}`, "UPOLU", upolu, fmtDate(savaliProcDate), fmtDate(savaliEndDate));
   };
   const savaliPrintSavaii = () => {
-    const {savaii} = savaliGrouped(savaliRecords);
+    const {savaii} = savaliGrouped(savaliByProcDate);
     savaliOpenPDF(`Savali Savaii ${fmtDate(savaliProcDate)}`, "SAVAII", savaii, fmtDate(savaliProcDate), fmtDate(savaliEndDate));
   };
 
