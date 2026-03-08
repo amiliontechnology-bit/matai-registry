@@ -89,7 +89,7 @@ function reportHeader(title, subtitle, count, generatedBy, extra) {
     @media print{@page{margin:1.2cm}body{padding:0}}
   </style></head><body>
   <div class="hdr">
-    <img src="${window.location.origin}/matai-registry/mjca_logo.jpeg" alt="Emblem"/>
+    <img src="${window.location.origin}/mjca_logo.jpeg" alt="Emblem"/>
     <div>
       <div class="ministry">Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</div>
       <div class="doc-title">${title}</div>
