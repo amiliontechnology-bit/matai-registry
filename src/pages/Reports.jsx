@@ -1,11 +1,24 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import { cacheClear, cacheGet, cacheSet } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 import { Navigate } from "react-router-dom";
+
+
+// ── Savali helpers ────────────────────────────────────────────────────────────
+const SAVAII_DISTRICTS = [
+  "FAASALELEAGA Nu 1","FAASALELEAGA Nu 2","FAASALELEAGA Nu 3","FAASALELEAGA Nu. 04",
+  "GAGAEMAUGA Nu.01","GAGAEMAUGA Nu.02","GAGAEMAUGA Nu.03",
+  "GAGAIFOMAUGA Nu.03","GAGAIFOMAUGA Nu.1","GAGAIFOMAUGA Nu.2",
+  "ALATAUA SISIFO","FALEALUPO","PALAULI","PALAULI LE FALEFA","PALAULI SISIFO",
+  "SATUPAITEA","VAISIGANO Nu.1","VAISIGANO Nu.02","SALEGA",
+];
+const getSavaliIsland = (d) => SAVAII_DISTRICTS.some(s => s.toUpperCase() === (d||"").trim().toUpperCase()) ? "SAVAII" : "UPOLU";
+const get28th = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-28`;
+const addMonths4 = (ds) => { const d = new Date(ds+"T00:00:00"); d.setMonth(d.getMonth()+4); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -107,6 +120,16 @@ export default function Reports({ userRole }) {
   const [records,    setRecords]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState("monthly");
+  // ── Savali tab state ──────────────────────────────────────────────────────
+  const [savaliRecords,      setSavaliRecords]      = useState([]);
+  const [savaliSelected,     setSavaliSelected]     = useState(new Set());
+  const [savaliEditRecord,   setSavaliEditRecord]   = useState(null);
+  const [savaliEditForm,     setSavaliEditForm]     = useState({});
+  const [savaliShowConfirm,  setSavaliShowConfirm]  = useState(false);
+  const [savaliSaving,       setSavaliSaving]       = useState(false);
+  const [savaliProcDate,     setSavaliProcDate]     = useState(get28th());
+
+
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo,   setFilterTo]   = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -287,6 +310,94 @@ export default function Reports({ userRole }) {
     logAudit("REPORT_PDF", { type:"filtered", filterType, from:filterFrom, to:filterTo });
   };
 
+
+  // ── Savali helpers ────────────────────────────────────────────────────────
+  const savaliGrouped = (rows) => {
+    const sort = arr => [...arr].sort((a,b) => (a.village||"").localeCompare(b.village||""));
+    return { upolu: sort(rows.filter(r => getSavaliIsland(r.district)==="UPOLU")), savaii: sort(rows.filter(r => getSavaliIsland(r.district)==="SAVAII")) };
+  };
+  const savaliToggleAll = () => savaliSelected.size === savaliRecords.length ? setSavaliSelected(new Set()) : setSavaliSelected(new Set(savaliRecords.map(r=>r.id)));
+  const savaliToggleOne = (id) => { const s=new Set(savaliSelected); s.has(id)?s.delete(id):s.add(id); setSavaliSelected(s); };
+  const savaliOpenEdit = (r) => { setSavaliEditRecord(r); setSavaliEditForm({ village:r.village||"", mataiTitle:r.mataiTitle||"", holderName:r.holderName||"", faapogai:r.faapogai||"" }); };
+  const savaliSaveEdit = async () => {
+    if (!savaliEditRecord) return;
+    setSavaliSaving(true);
+    try {
+      await updateDoc(doc(db,"registrations",savaliEditRecord.id), savaliEditForm);
+      cacheClear("registrations");
+      await logAudit("EDIT_SAVALI_RECORD",{id:savaliEditRecord.id,changes:savaliEditForm});
+      setSavaliEditRecord(null);
+      const snap = await getDocs(collection(db,"registrations"));
+      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      cacheSet("registrations",all);
+      const noProc = all.filter(r=>!r.dateProclamation||r.dateProclamation.trim()==="");
+      setSavaliRecords(noProc); setRecords(all);
+    } catch(e) { alert("Error: "+e.message); }
+    setSavaliSaving(false);
+  };
+  const savaliSetDates = async () => {
+    setSavaliSaving(true);
+    const toSet = savaliRecords.filter(r=>savaliSelected.has(r.id));
+    try {
+      const batch = writeBatch(db);
+      toSet.forEach(r => batch.update(doc(db,"registrations",r.id),{dateProclamation:savaliProcDate}));
+      await batch.commit();
+      cacheClear("registrations");
+      await logAudit("SET_PROCLAMATION_DATE",{date:savaliProcDate,count:toSet.length,recordIds:toSet.map(r=>r.id)});
+      setSavaliShowConfirm(false);
+      const snap = await getDocs(collection(db,"registrations"));
+      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      cacheSet("registrations",all);
+      const noProc = all.filter(r=>!r.dateProclamation||r.dateProclamation.trim()==="");
+      setSavaliRecords(noProc); setRecords(all);
+      setSavaliSelected(new Set(noProc.map(r=>r.id)));
+    } catch(e) { alert("Error: "+e.message); }
+    setSavaliSaving(false);
+  };
+  const savaliEndDate = addMonths4(savaliProcDate);
+  const savaliPrintPDF = () => {
+    const {upolu:pu, savaii:ps} = savaliGrouped(savaliRecords);
+    const mkRows = rows => rows.map(r=>`<tr><td>${r.village||""}</td><td style="text-transform:uppercase">${r.mataiTitle||""}</td><td>${r.holderName||""}</td><td>${r.faapogai||""}</td></tr>`).join("");
+    const mkSec = (island,rows) => rows.length===0?"":
+      `<h2 style="text-align:center;font-family:'Cinzel',serif;font-size:11pt;letter-spacing:0.12em;margin:20px 0 6px;text-transform:uppercase">${island}</h2>
+       <table><thead><tr><th>NUU</th><th>SUAFA MATAI</th><th>IGOA TAULEALEA</th><th>FAAPOGAI</th></tr></thead><tbody>${mkRows(rows)}</tbody></table>`;
+    const procFmt = fmtDate(savaliProcDate);
+    const endFmt  = fmtDate(savaliEndDate);
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Savali ${procFmt}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,sans-serif;padding:15mm 20mm;color:#000;font-size:10pt}
+        .hdr{text-align:center;border-bottom:2px solid #1a5c35;padding-bottom:10px;margin-bottom:14px}
+        .hdr img{height:65px;margin-bottom:6px}
+        .hdr h1{font-family:'Cinzel',serif;font-size:13pt;letter-spacing:0.08em;color:#1a5c35;margin-bottom:3px}
+        .hdr .dr{font-size:10pt;color:#555}
+        .meta{display:flex;justify-content:space-between;font-size:7pt;color:#888;margin-bottom:12px;font-style:italic}
+        table{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto}
+        thead{display:table-header-group}
+        th{background:#1a5c35;color:#fff;padding:4px 8px;text-align:center;font-family:'Cinzel',serif;font-size:7pt;letter-spacing:0.08em;text-transform:uppercase}
+        td{border:1px solid #ccc;padding:4px 7px;text-align:center;font-size:9pt}
+        tr:nth-child(even) td{background:#f5faf7}
+        tr{page-break-inside:avoid}
+        .footer{margin-top:20px;font-size:7pt;color:#aaa;border-top:1px solid #eee;padding-top:6px;display:flex;justify-content:space-between;font-style:italic;font-family:'Cinzel',serif;letter-spacing:0.06em}
+        @media print{body{padding:12mm 15mm}}
+      </style></head><body>
+      <div class="hdr">
+        <img src="${window.location.origin}/mjca_logo.jpeg" alt="Emblem" onerror="this.style.display='none'"/>
+        <h1>LISI O LE SAVALI</h1>
+        <div class="dr">Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</div>
+        <div class="dr" style="margin-top:4px;font-weight:bold">${procFmt} &nbsp;&#9658;&nbsp; ${endFmt}</div>
+      </div>
+      <div class="meta"><span>Printed: ${fmtDate(new Date().toISOString().split("T")[0])}</span><span>Total: ${pu.length+ps.length} records</span></div>
+      ${mkSec("UPOLU",pu)}${mkSec("SAVAII",ps)}
+      <div class="footer"><span>SAVALI &mdash; ${procFmt} &ndash; ${endFmt}</span><span>Aofa&#x2019;i: ${pu.length+ps.length}</span></div>
+    </body></html>`;
+    const blob = new Blob([html],{type:"text/html"});
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url,"_blank");
+    if (win) win.addEventListener("load",()=>{ URL.revokeObjectURL(url); setTimeout(()=>win.print(),800); },{once:true});
+  };
+
   // ── Shared UI components ──────────────────────────────────────
   const sStyle = { background:"#fff", border:"1px solid rgba(30,107,60,0.2)", borderRadius:"4px", padding:"1.5rem", marginBottom:"1rem", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" };
   const inputStyle = { fontSize:"0.78rem", padding:"0.4rem 0.65rem", border:"1px solid rgba(30,107,60,0.3)", borderRadius:"3px", color:"#1a5c35", fontFamily:"'Cinzel',serif", background:"#fff" };
@@ -408,6 +519,7 @@ export default function Reports({ userRole }) {
           <TabBtn id="full"       label="Full Reports" />
           <TabBtn id="registered" label="Registered Matai" count={registeredAll.length} color="#155c31" />
           <TabBtn id="other"      label="Filtered Reports" />
+          <TabBtn id="savali"    label="Savali" count={savaliRecords.length} color="#b45309" />
         </div>
 
         {/* ══ MONTHLY REPORTS ══ */}
@@ -656,6 +768,146 @@ export default function Reports({ userRole }) {
             </div>
           </div>
         )}
+
+        {/* ══ SAVALI REPORT ══ */}
+        {activeTab === "savali" && (() => {
+          const { upolu: svUpolu, savaii: svSavaii } = savaliGrouped(savaliRecords);
+          const TH = { padding:"0.5rem 0.8rem", textAlign:"center", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", background:"#1a5c35", color:"#fff" };
+          const TD = (i) => ({ padding:"0.45rem 0.8rem", textAlign:"center", fontSize:"0.82rem", borderBottom:"1px solid #e5e7eb", background:i%2===0?"#fff":"#f5faf7" });
+          const SvTable = ({ rows, offset=0 }) => {
+            const allSel = rows.length>0 && rows.every(r=>savaliSelected.has(r.id));
+            return (
+              <div style={{overflowX:"auto",marginBottom:"1.25rem"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead>
+                    <tr>
+                      <th style={{...TH,width:"38px"}}><input type="checkbox" checked={allSel} onChange={()=>{const s=new Set(savaliSelected);rows.forEach(r=>allSel?s.delete(r.id):s.add(r.id));setSavaliSelected(s);}}/></th>
+                      {["NUU","SUAFA MATAI","IGOA TAULEALEA","FAAPOGAI",""].map(h=><th key={h} style={TH}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r,i)=>(
+                      <tr key={r.id}>
+                        <td style={{...TD(i+offset),borderBottom:"1px solid #e5e7eb"}}><input type="checkbox" checked={savaliSelected.has(r.id)} onChange={()=>savaliToggleOne(r.id)}/></td>
+                        <td style={TD(i+offset)}>{r.village||<span style={{color:"#bbb"}}>—</span>}</td>
+                        <td style={{...TD(i+offset),textTransform:"uppercase",fontFamily:"'Cinzel',serif",fontSize:"0.72rem",color:"#1a5c35",fontWeight:600}}>{r.mataiTitle||<span style={{color:"#bbb"}}>—</span>}</td>
+                        <td style={TD(i+offset)}>{r.holderName||<span style={{color:"#bbb"}}>—</span>}</td>
+                        <td style={TD(i+offset)}>{r.faapogai||<span style={{color:"#bbb"}}>—</span>}</td>
+                        <td style={{...TD(i+offset),width:"50px"}}>
+                          <button onClick={()=>savaliOpenEdit(r)} style={{background:"none",border:"1px solid #d1d5db",borderRadius:"3px",padding:"2px 7px",cursor:"pointer",fontSize:"0.75rem",color:"#555"}}>✏️</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          };
+          return (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 260px",gap:"1.5rem",alignItems:"start"}}>
+              <div>
+                {/* Controls bar */}
+                <div style={{...sStyle,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.75rem",marginBottom:"1rem"}}>
+                  <div>
+                    <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#b45309",textTransform:"uppercase",marginBottom:"2px"}}>◈ Savali Report</p>
+                    <p style={{fontSize:"0.73rem",color:"rgba(26,26,26,0.45)"}}>Records pending proclamation date. Select records then set date to publish.</p>
+                  </div>
+                  <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap"}}>
+                    {perms.canEdit && <button onClick={()=>setSavaliShowConfirm(true)} disabled={savaliSelected.size===0}
+                      style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:savaliSelected.size===0?"transparent":"#b4530912",color:savaliSelected.size===0?"#bbb":"#b45309",cursor:savaliSelected.size===0?"not-allowed":"pointer"}}>
+                      📅 Set Date ({savaliSelected.size})
+                    </button>}
+                    {perms.canPrint && savaliRecords.length>0 && <button onClick={savaliPrintPDF}
+                      style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
+                      📄 Print / PDF
+                    </button>}
+                  </div>
+                </div>
+
+                {loading ? <p style={{fontStyle:"italic",color:"#9ca3af",padding:"2rem",textAlign:"center"}}>Loading…</p>
+                : savaliRecords.length===0
+                ? <div style={{textAlign:"center",padding:"3rem",color:"rgba(26,26,26,0.35)"}}>
+                    <p style={{fontSize:"2rem",marginBottom:"0.5rem"}}>✅</p>
+                    <p style={{fontStyle:"italic"}}>All records have proclamation dates set.</p>
+                  </div>
+                : <>
+                    {svUpolu.length>0 && <>
+                      <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.75rem",letterSpacing:"0.18em",color:"#1a5c35",textAlign:"center",margin:"0.5rem 0 0.6rem",textTransform:"uppercase"}}>— UPOLU —</p>
+                      <SvTable rows={svUpolu} offset={0}/>
+                    </>}
+                    {svSavaii.length>0 && <>
+                      <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.75rem",letterSpacing:"0.18em",color:"#1a5c35",textAlign:"center",margin:"1rem 0 0.6rem",textTransform:"uppercase"}}>— SAVAII —</p>
+                      <SvTable rows={svSavaii} offset={svUpolu.length}/>
+                    </>}
+                  </>}
+              </div>
+
+              {/* Sidebar summary */}
+              <div style={{...sStyle,position:"sticky",top:"2rem"}}>
+                <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#b45309",textTransform:"uppercase",marginBottom:"1rem"}}>◈ Savali Summary</p>
+                <div style={{marginBottom:"1rem"}}>
+                  <p style={{fontSize:"0.65rem",fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",color:"rgba(26,26,26,0.45)",textTransform:"uppercase",marginBottom:"3px"}}>Proclamation Date</p>
+                  <input type="date" value={savaliProcDate} onChange={e=>setSavaliProcDate(e.target.value)}
+                    style={{width:"100%",padding:"0.4rem 0.65rem",border:"1px solid rgba(180,83,9,0.4)",borderRadius:"3px",fontSize:"0.78rem",color:"#b45309",fontFamily:"'Cinzel',serif",background:"#fff",boxSizing:"border-box"}}/>
+                  <p style={{fontSize:"0.68rem",color:"rgba(26,26,26,0.4)",marginTop:"4px",fontStyle:"italic"}}>
+                    Range: {fmtDate(savaliProcDate)} – {fmtDate(savaliEndDate)}
+                  </p>
+                </div>
+                <div style={{borderTop:"1px solid rgba(180,83,9,0.15)",paddingTop:"0.75rem"}}>
+                  <SummaryRow label="Pending Records" count={savaliRecords.length} color="#b45309"/>
+                  <SummaryRow label="Upolu"           count={svUpolu.length}       color="#1a5c35"/>
+                  <SummaryRow label="Savaii"          count={svSavaii.length}      color="#1a5c35"/>
+                  <SummaryRow label="Selected"        count={savaliSelected.size}  color="#b45309"/>
+                </div>
+                <button onClick={savaliToggleAll} style={{marginTop:"0.75rem",width:"100%",padding:"0.4rem",fontFamily:"'Cinzel',serif",fontSize:"0.6rem",letterSpacing:"0.08em",textTransform:"uppercase",border:"1px solid rgba(180,83,9,0.3)",borderRadius:"3px",background:"transparent",color:"#b45309",cursor:"pointer"}}>
+                  {savaliSelected.size===savaliRecords.length?"Deselect All":"Select All"}
+                </button>
+              </div>
+
+              {/* Set Date modal */}
+              {savaliShowConfirm && (
+                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{background:"#fff",borderRadius:"8px",padding:"2rem",maxWidth:"400px",width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+                    <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.8rem",letterSpacing:"0.1em",color:"#1a5c35",marginBottom:"0.75rem",textTransform:"uppercase"}}>Set Proclamation Date</p>
+                    <p style={{fontSize:"0.88rem",color:"#374151",marginBottom:"1rem"}}>Setting date for <strong>{savaliSelected.size}</strong> record{savaliSelected.size!==1?"s":""}.</p>
+                    <input type="date" value={savaliProcDate} onChange={e=>setSavaliProcDate(e.target.value)}
+                      style={{width:"100%",padding:"0.5rem",border:"1px solid #d1d5db",borderRadius:"4px",fontSize:"0.9rem",marginBottom:"0.5rem",boxSizing:"border-box"}}/>
+                    <p style={{fontSize:"0.75rem",color:"#6b7280",marginBottom:"1.25rem"}}>Range: {fmtDate(savaliProcDate)} – {fmtDate(savaliEndDate)}</p>
+                    <div style={{display:"flex",gap:"0.75rem",justifyContent:"flex-end"}}>
+                      <button onClick={()=>setSavaliShowConfirm(false)} disabled={savaliSaving} style={{padding:"0.5rem 1rem",borderRadius:"4px",border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.08em",textTransform:"uppercase"}}>Cancel</button>
+                      <button onClick={savaliSetDates} disabled={savaliSaving||!savaliProcDate} style={{padding:"0.5rem 1rem",borderRadius:"4px",border:"none",background:"#1a5c35",color:"#fff",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                        {savaliSaving?"Saving…":`Confirm — ${savaliSelected.size}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit modal */}
+              {savaliEditRecord && (
+                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{background:"#fff",borderRadius:"8px",padding:"2rem",maxWidth:"460px",width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+                    <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.8rem",letterSpacing:"0.1em",color:"#1a5c35",marginBottom:"1.25rem",textTransform:"uppercase"}}>Edit Record</p>
+                    {[{key:"village",label:"NUU (Village)"},{key:"mataiTitle",label:"Suafa Matai (Matai Title)"},{key:"holderName",label:"Igoa Taulealea (Untitled Name)"},{key:"faapogai",label:"Faapogai"}].map(({key,label})=>(
+                      <div key={key} style={{marginBottom:"0.85rem"}}>
+                        <label style={{display:"block",fontFamily:"'Cinzel',serif",fontSize:"0.6rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(26,26,26,0.5)",marginBottom:"4px"}}>{label}</label>
+                        <input value={savaliEditForm[key]||""} onChange={e=>setSavaliEditForm(f=>({...f,[key]:e.target.value}))}
+                          style={{width:"100%",padding:"0.45rem 0.6rem",border:"1px solid #d1d5db",borderRadius:"4px",fontSize:"0.88rem",boxSizing:"border-box"}}/>
+                      </div>
+                    ))}
+                    <div style={{display:"flex",gap:"0.75rem",justifyContent:"flex-end",marginTop:"1.25rem"}}>
+                      <button onClick={()=>setSavaliEditRecord(null)} disabled={savaliSaving} style={{padding:"0.5rem 1rem",borderRadius:"4px",border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.08em",textTransform:"uppercase"}}>Cancel</button>
+                      <button onClick={savaliSaveEdit} disabled={savaliSaving} style={{padding:"0.5rem 1rem",borderRadius:"4px",border:"none",background:"#1a5c35",color:"#fff",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                        {savaliSaving?"Saving…":"Save Changes"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
 
       </div>
     </div>
