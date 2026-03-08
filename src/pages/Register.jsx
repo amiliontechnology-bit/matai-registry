@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
@@ -348,6 +348,7 @@ const EMPTY = {
 export default function Register({ userRole }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
@@ -355,9 +356,36 @@ export default function Register({ userRole }) {
   const [success, setSuccess] = useState("");
   const [dupWarning, setDupWarning] = useState("");
   const [districtVillagesFS, setDistrictVillagesFS] = useState(null);
+  const [allRecords, setAllRecords] = useState([]);
   const isEdit = !!id;
   const perms = getPermissions(userRole);
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+
+  // Load all records for prev/next navigation
+  useEffect(() => {
+    (async () => {
+      try {
+        const cached = cacheGet("registrations");
+        if (cached) { setAllRecords(cached); return; }
+        const snap = await getDocs(collection(db, "registrations"));
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        cacheSet("registrations", data);
+        setAllRecords(data);
+      } catch {}
+    })();
+  }, []);
+
+  // Navigation list — use filtered IDs from dashboard state if available, else all records
+  const passedIds = location.state?.recordIds;
+  const navRecords = passedIds && allRecords.length > 0
+    ? passedIds.map(pid => allRecords.find(r => r.id === pid)).filter(Boolean)
+    : allRecords;
+  const isFiltered = !!(passedIds && passedIds.length < allRecords.length);
+
+  const currentIndex = isEdit ? navRecords.findIndex(r => r.id === id) : -1;
+  const prevRecord   = currentIndex > 0 ? navRecords[currentIndex - 1] : null;
+  const nextRecord   = currentIndex >= 0 && currentIndex < navRecords.length - 1 ? navRecords[currentIndex + 1] : null;
 
   // Auto-set dateRegistration when objection=no and dateProclamation is set
   // Registration date rule:
@@ -544,11 +572,16 @@ export default function Register({ userRole }) {
   const checkDuplicate = async (title) => {
     if (!title.trim()) return;
     try {
-      const q = query(collection(db, "registrations"), where("mataiTitle", "==", title.trim()));
-      const snap = await getDocs(q);
-      const existing = snap.docs.filter(d => d.id !== id);
+      // Use cached records if available
+      let allDocs = cacheGet("registrations");
+      if (!allDocs) {
+        const snap = await getDocs(collection(db, "registrations"));
+        allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        cacheSet("registrations", allDocs);
+      }
+      const existing = allDocs.filter(d => d.id !== id && d.mataiTitle === title.trim());
       if (existing.length > 0) {
-        const rec = existing[0].data();
+        const rec = existing[0];
         setDupWarning(`⚠️ A registration for "${title}" already exists (holder: ${rec.holderName}, village: ${rec.village}). Please verify before proceeding.`);
       } else {
         setDupWarning("");
@@ -561,16 +594,20 @@ export default function Register({ userRole }) {
     const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
     if (!certNum || certNum.split("/").length < 3) return;
     try {
-      const snap = await getDocs(collection(db, "registrations"));
-      const existing = snap.docs.filter(d => {
-        if (d.id === id) return false; // skip self when editing
-        const data = d.data();
-        // Match against stored combined field OR parts
-        const storedCert = data.mataiCertNumber || [data.certItumalo, data.certLaupepa, data.certRegBook].filter(Boolean).join("/");
+      // Use cached records if available — avoids a full Firestore read
+      let allDocs = cacheGet("registrations");
+      if (!allDocs) {
+        const snap = await getDocs(collection(db, "registrations"));
+        allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        cacheSet("registrations", allDocs);
+      }
+      const existing = allDocs.filter(d => {
+        if (d.id === id) return false;
+        const storedCert = d.mataiCertNumber || [d.certItumalo, d.certLaupepa, d.certRegBook].filter(Boolean).join("/");
         return storedCert === certNum;
       });
       if (existing.length > 0) {
-        const rec = existing[0].data();
+        const rec = existing[0];
         setDupWarning(`⚠️ Certificate number ${certNum} already exists on record: "${rec.mataiTitle}" (${rec.holderName}, ${rec.village}). Please check before saving.`);
         logAudit("DUPLICATE_WARNING", { certNumber: certNum, mataiTitle: form.mataiTitle, existingTitle: rec.mataiTitle });
       } else {
@@ -584,6 +621,11 @@ export default function Register({ userRole }) {
     setError(""); setSuccess("");
     if (!form.mataiTitle.trim() || !form.holderName.trim()) {
       setError("Matai Title (Suafa Matai) and Untitled Name (Suafa Taulealea) are required.");
+      return;
+    }
+    // Block save if a cert number duplicate is detected
+    if (dupWarning) {
+      setError("Please resolve the duplicate certificate number warning before saving.");
       return;
     }
     setLoading(true);
@@ -632,6 +674,8 @@ export default function Register({ userRole }) {
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "var(--gold)", fontStyle: "italic" }}>Loading…</div>
   );
 
+  const viewOnly = !perms.canEdit && isEdit; // view-only mode when no edit permission
+
   return (
     <div className="app-layout">
       <div className="pattern-bg" />
@@ -639,15 +683,55 @@ export default function Register({ userRole }) {
       <div className="sidebar-content">
 
         <div className="fade-in" style={{ marginBottom: "2.5rem" }}>
-          <p className="page-eyebrow">{isEdit ? "Edit Record" : "New Registration"}</p>
-          <h2 className="page-title">{isEdit ? "Update Matai Title" : "New Matai Entry"}</h2>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div>
+              <p className="page-eyebrow">{viewOnly ? "View Record" : isEdit ? "Edit Record" : "New Registration"}</p>
+              <h2 className="page-title">{viewOnly ? "Matai Title Details" : isEdit ? "Update Matai Title" : "New Matai Entry"}</h2>
+            </div>
+            {isEdit && navRecords.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"0.35rem", paddingTop:"0.5rem" }}>
+                {isFiltered && (
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.6rem", color:"#1e40af", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"20px", padding:"1px 8px", letterSpacing:"0.06em" }}>
+                    🔍 Filtered view — {navRecords.length} records
+                  </span>
+                )}
+                <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                  <button
+                    onClick={() => prevRecord && navigate(`/register/${prevRecord.id}`, { state: location.state })}
+                    disabled={!prevRecord}
+                    title={prevRecord ? `← ${prevRecord.mataiTitle}` : "No previous record"}
+                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: prevRecord ? "#f0faf4" : "#f9fafb", border:`1px solid ${prevRecord ? "#a7d7b8" : "#e5e7eb"}`, color: prevRecord ? "#1e6b3c" : "#9ca3af", borderRadius:"3px", cursor: prevRecord ? "pointer" : "not-allowed" }}>
+                    ← Prev
+                  </button>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"rgba(26,26,26,0.4)", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>
+                    {currentIndex + 1} / {navRecords.length}
+                  </span>
+                  <button
+                    onClick={() => nextRecord && navigate(`/register/${nextRecord.id}`, { state: location.state })}
+                    disabled={!nextRecord}
+                    title={nextRecord ? `${nextRecord.mataiTitle} →` : "No next record"}
+                    style={{ padding:"0.5rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", textTransform:"uppercase", background: nextRecord ? "#f0faf4" : "#f9fafb", border:`1px solid ${nextRecord ? "#a7d7b8" : "#e5e7eb"}`, color: nextRecord ? "#1e6b3c" : "#9ca3af", borderRadius:"3px", cursor: nextRecord ? "pointer" : "not-allowed" }}>
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {viewOnly && (
+          <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderLeft:"4px solid #0284c7", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1.5rem", display:"flex", alignItems:"center", gap:"0.75rem" }}>
+            <span style={{ fontSize:"1rem" }}>👁</span>
+            <p style={{ fontSize:"0.85rem", color:"#0369a1", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em" }}>View Only — you do not have permission to edit this record.</p>
+          </div>
+        )}
 
         {error && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{error}</div>}
         {success && <div className="alert alert-success" style={{ marginBottom: "1.5rem" }}>{success}</div>}
         {dupWarning && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{dupWarning}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+        <fieldset disabled={viewOnly} style={{ border:"none", padding:0, margin:0 }}>
 
           {/* ── Title & Holder ── */}
           <div className="card fade-in-delay-1">
@@ -904,11 +988,14 @@ export default function Register({ userRole }) {
           </div>
 
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
-            <Link to="/dashboard"><button type="button" className="btn-secondary">Cancel</button></Link>
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
-            </button>
+            <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
+            {!viewOnly && (
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
+              </button>
+            )}
           </div>
+          </fieldset>
         </form>
       </div>
     </div>

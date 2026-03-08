@@ -60,14 +60,10 @@ export default function Login() {
 
         {/* Logo & title */}
         <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ marginBottom: "1rem" }}>
-            <polygon points="32,4 60,20 60,44 32,60 4,44 4,20" stroke="#155c31" strokeWidth="1.5" fill="none" opacity="0.5"/>
-            <polygon points="32,12 52,24 52,40 32,52 12,40 12,24" stroke="#155c31" strokeWidth="1" fill="none" opacity="0.3"/>
-            <circle cx="32" cy="32" r="8" fill="#155c31" opacity="0.9"/>
-            <circle cx="32" cy="32" r="3.5" fill="#f0f2f0"/>
-          </svg>
+          <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+            style={{ width: "90px", height: "auto", objectFit: "contain", marginBottom: "1rem", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))" }} />
           <h1 style={{ fontFamily:"'Cinzel Decorative', serif", fontSize:"1.4rem", color:"#155c31", letterSpacing:"0.05em", marginBottom:"0.3rem" }}>
-            Matai Registry
+            Samoa Matai Registry
           </h1>
           <p style={{ fontFamily:"'Cinzel', serif", fontSize:"0.65rem", color:"#6b7280", letterSpacing:"0.25em", textTransform:"uppercase" }}>
             Resitalaina o Matai

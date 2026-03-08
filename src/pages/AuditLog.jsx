@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, orderBy, query, limit } from "firebase/firestore";
-import { cacheGet, cacheSet } from "../utils/cache";
+import { collection, getDocs, deleteDoc, doc, orderBy, query, limit } from "firebase/firestore";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
+import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate } from "react-router-dom";
 
@@ -27,21 +28,37 @@ export default function AuditLog({ userRole }) {
   const [loading, setLoading] = useState(true);
   const [filterAction, setFilterAction] = useState("All");
   const [filterUser, setFilterUser] = useState("");
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const perms = getPermissions(userRole);
   const currentUser = auth.currentUser;
 
+  if (userRole === null) return null;
   if (!perms.canViewAudit) return <Navigate to="/dashboard" />;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const q = query(collection(db, "auditLog"), orderBy("timestamp", "desc"), limit(200));
-        const snap = await getDocs(q);
-        setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  const loadLogs = async () => {
+    try {
+      const q = query(collection(db, "auditLog"), orderBy("timestamp", "desc"), limit(200));
+      const snap = await getDocs(q);
+      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const handleClearAuditLog = async () => {
+    setClearing(true);
+    try {
+      const snap = await getDocs(collection(db, "auditLog"));
+      for (const d of snap.docs) await deleteDoc(doc(db, "auditLog", d.id));
+      cacheClear("auditLog");
+      await logAudit("CLEAR_AUDIT_LOG", { clearedBy: currentUser?.email, count: snap.docs.length });
+      setLogs([]);
+      setConfirmClear(false);
+    } catch (err) { console.error(err); }
+    finally { setClearing(false); }
+  };
+
+  useEffect(() => { loadLogs(); }, []);
 
   const actions = ["All", ...new Set(logs.map(l => l.action))].sort();
 
@@ -69,10 +86,36 @@ export default function AuditLog({ userRole }) {
           <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.25em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.4rem" }}>Administration</p>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
             <h1 style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"1.8rem", color:"#1a1a1a" }}>Audit Log</h1>
-            <button onClick={() => window.print()} style={{ background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none", padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem", fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer" }}>
-              🖨 Print / PDF
-            </button>
+            <div style={{ display:"flex", gap:"0.75rem" }}>
+              <button onClick={() => setConfirmClear(true)}
+                style={{ background:"transparent", color:"#991b1b", border:"1px solid rgba(153,27,27,0.4)", padding:"0.6rem 1.2rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", fontWeight:"700", letterSpacing:"0.1em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer" }}>
+                🗑 Clear Log
+              </button>
+              <button onClick={() => window.print()} style={{ background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none", padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem", fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer" }}>
+                🖨 Print / PDF
+              </button>
+            </div>
           </div>
+
+          {confirmClear && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ background:"#fff", borderRadius:"6px", padding:"2rem", maxWidth:"420px", width:"90%", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.78rem", color:"#991b1b", marginBottom:"0.5rem", letterSpacing:"0.1em", textTransform:"uppercase" }}>⚠ Confirm Clear Audit Log</p>
+                <p style={{ fontSize:"0.9rem", color:"#374151", marginBottom:"1.5rem", lineHeight:1.6 }}>
+                  This will permanently delete all <strong>{logs.length}</strong> audit log entries. This action cannot be undone.
+                </p>
+                <div style={{ display:"flex", gap:"0.75rem", justifyContent:"flex-end" }}>
+                  <button onClick={() => setConfirmClear(false)} style={{ padding:"0.5rem 1.2rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", background:"transparent", border:"1px solid #e5e7eb", color:"#6b7280", borderRadius:"3px", cursor:"pointer" }}>
+                    Cancel
+                  </button>
+                  <button onClick={handleClearAuditLog} disabled={clearing}
+                    style={{ padding:"0.5rem 1.2rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", background:"#991b1b", color:"#fff", border:"none", borderRadius:"3px", cursor:clearing?"not-allowed":"pointer", opacity:clearing?0.7:1 }}>
+                    {clearing ? "Clearing…" : "Clear All Entries"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <p style={{ color:"rgba(26,26,26,0.45)", fontStyle:"italic", marginTop:"0.3rem", fontSize:"0.88rem" }}>
             Showing last 200 entries
           </p>

@@ -408,7 +408,7 @@ export default function Certificate({ userRole }) {
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading…</div>
   );
 
-  const afiogaName = record ? [record.mataiTitle, record.holderName].filter(Boolean).join("  ") : "";
+  const afiogaName = record ? [record.mataiTitle?.toUpperCase(), record.holderName].filter(Boolean).join("  ") : "";
   const district   = record ? resolveDistrict(record.district, record.village) : "";
 
   return (
@@ -638,7 +638,9 @@ export default function Certificate({ userRole }) {
                 <div style={{ textAlign:"center", marginBottom:"6px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"14px" }}>Afioga</span>
                   <span style={{ fontSize:"20px", fontWeight:"600", letterSpacing:"0.03em" }}>
-                    {record.mataiTitle || ""}&nbsp;&nbsp;&nbsp;{record.holderName || ""}
+                    <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
+                    &nbsp;&nbsp;&nbsp;
+                    <span>{record.holderName || ""}</span>
                   </span>
                 </div>
                 {/* Underline for Afioga line */}
@@ -659,7 +661,7 @@ export default function Certificate({ userRole }) {
                   {/* Row 1 */}
                   <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
                     <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
-                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"130px", fontWeight:"700", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
+                    <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"130px", fontWeight:"700", textAlign:"center", paddingBottom:"1px", display:"inline-block", textTransform:"uppercase" }}>
                       {record.mataiTitle || ""}
                     </span>
                   </div>

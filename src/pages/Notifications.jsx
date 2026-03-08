@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
-import { cacheClear } from "../utils/cache";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
-import { Navigate, Link } from "react-router-dom";
-import { cachedFetch } from "../utils/cache";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -60,9 +59,10 @@ function isMonthlyRunDay() {
 }
 
 function openPDF(title, html) {
-  const win = window.open("", "_blank");
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: "text/html" });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, "_blank");
+  if (win) win.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
 }
 
 function reportHeader(title, subtitle, count, generatedBy) {
@@ -85,7 +85,7 @@ function reportHeader(title, subtitle, count, generatedBy) {
     @media print{@page{margin:1.2cm}body{padding:0}}
   </style></head><body>
   <div class="hdr">
-    <img src="${window.location.origin}/matai-registry/emblem.png" alt="Emblem"/>
+    <img src="${window.location.origin}/matai-registry/mjca_logo.jpeg" alt="Emblem"/>
     <div>
       <div class="ministry">Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</div>
       <div class="doc-title">${title}</div>
@@ -100,23 +100,31 @@ function reportHeader(title, subtitle, count, generatedBy) {
 }
 
 export default function Notifications({ userRole }) {
+  const location = useLocation();
   const [records, setRecords]           = useState([]);
   const [loading, setLoading]           = useState(true);
   const [filterWindow, setFilterWindow] = useState(120);
-  const [confirming, setConfirming] = useState(null); // id being confirmed
-  const [activeTab, setActiveTab]       = useState("proclamation");
+  const [confirming, setConfirming] = useState(null);
+  const [activeTab, setActiveTab]       = useState(location.state?.tab || "proclamation");
+  const [alertPage, setAlertPage]       = useState(1);
+  const [objPage, setObjPage]           = useState(1);
+  const [readyPage, setReadyPage]       = useState(1);
+  const N_PAGE = 20;
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
-  if (!perms.canViewAudit) return <Navigate to="/dashboard" />;
+  if (userRole === null) return null;
+  if (!perms.canViewNotifications) return <Navigate to="/dashboard" />;
 
   useEffect(() => {
     (async () => {
       try {
-        cacheClear("registrations"); // always fresh on page load
+        const cached = cacheGet("registrations");
+        if (cached) { setRecords(cached); setLoading(false); return; }
         const snap = await getDocs(collection(db, "registrations"));
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        cacheSet("registrations", data);
         setRecords(data);
       } catch(err) { console.error(err); }
       finally { setLoading(false); }
@@ -154,8 +162,8 @@ export default function Notifications({ userRole }) {
 
   // ── Data cuts ──────────────────────────────────────────
 
-  // Proclamation alerts: show records where days until REG DATE <= filterWindow
-  // daysUntilReg = days from today until the auto reg date (positive = still in period, negative = overdue)
+  // Proclamation alerts: records within the filter window OR overdue (past reg date, not yet confirmed)
+  // daysUntilReg = days from today until auto reg date (positive = still in period, negative = overdue/past)
   const daysUntilReg = (r) => {
     const rd = autoRegDate(r.dateProclamation);
     if (!rd) return null;
@@ -163,11 +171,13 @@ export default function Notifications({ userRole }) {
   };
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;
+    if (r.dateRegistration) return false;          // already manually registered
+    if (r.status === "completed") return false;    // already confirmed
     if (!r.dateProclamation) return false;
-    if (effectiveRegDate(r)) return false;         // reg period passed — goes to readyToRegister instead
     const days = daysUntilReg(r);
-    return days !== null && days <= filterWindow;
+    if (days === null) return false;
+    // Include: within filter window, OR overdue (negative days = past reg date, not yet confirmed)
+    return days <= filterWindow;
   }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
 
   // Objection records
@@ -218,14 +228,51 @@ export default function Notifications({ userRole }) {
     return db2.localeCompare(da);
   });
 
+  // Paged slices
+  const alertTotalPages = Math.ceil(alertRecords.length / N_PAGE);
+  const alertPageSafe   = Math.min(alertPage, Math.max(1, alertTotalPages));
+  const alertPaged      = alertRecords.slice((alertPageSafe-1)*N_PAGE, alertPageSafe*N_PAGE);
+
+  const objTotalPages   = Math.ceil(objectionRecords.length / N_PAGE);
+  const objPageSafe     = Math.min(objPage, Math.max(1, objTotalPages));
+  const objPaged        = objectionRecords.slice((objPageSafe-1)*N_PAGE, objPageSafe*N_PAGE);
+
+  const readyTotalPages = Math.ceil(readyToRegister.length / N_PAGE);
+  const readyPageSafe   = Math.min(readyPage, Math.max(1, readyTotalPages));
+  const readyPaged      = readyToRegister.slice((readyPageSafe-1)*N_PAGE, readyPageSafe*N_PAGE);
+
+  const Pager = ({ page, totalPages, setPage }) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"0.75rem", paddingTop:"0.75rem", borderTop:"1px solid rgba(30,107,60,0.15)" }}>
+        <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", color:"#6b7280", letterSpacing:"0.08em" }}>Page {page} of {totalPages}</span>
+        <div style={{ display:"flex", gap:"0.25rem" }}>
+          {[
+            { label:"«", action:() => setPage(1), disabled: page===1 },
+            { label:"‹", action:() => setPage(p => Math.max(1,p-1)), disabled: page===1 },
+            { label:"›", action:() => setPage(p => Math.min(totalPages,p+1)), disabled: page===totalPages },
+            { label:"»", action:() => setPage(totalPages), disabled: page===totalPages },
+          ].map(({ label, action, disabled }) => (
+            <button key={label} onClick={action} disabled={disabled} style={{ padding:"0.25rem 0.55rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", background: disabled?"#f3f4f6":"#fff", color: disabled?"#9ca3af":"#1e6b3c", border:`1px solid ${disabled?"#e5e7eb":"rgba(30,107,60,0.3)"}`, borderRadius:"3px", cursor: disabled?"not-allowed":"pointer" }}>{label}</button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // ── Urgency helpers ────────────────────────────────────
   // days = days until REGISTRATION DATE (positive = still in proclamation period, negative = overdue/past)
   const urgencyColor = (days) => {
     if (days === null) return "rgba(26,26,26,0.4)";
-    if (days < 0)     return "#8b1a1a";   // overdue — reg date passed
-    if (days <= 30)   return "#c0392b";   // < 30 days to reg — urgent
-    if (days <= 60)   return "#d68910";   // 30–60 days — warning
-    return "#1e6b3c";                     // > 60 days — ok
+    if (days < 0)     return "#c0392b";   // overdue — reg date passed, not yet confirmed
+    if (days <= 30)   return "#d68910";   // < 30 days to reg — approaching
+    return "#1e6b3c";                     // still in proclamation period — ok
+  };
+  const urgencyBg = (days) => {
+    if (days === null) return "#fafafa";
+    if (days < 0)     return "#fff5f5";   // overdue — light red bg
+    if (days <= 30)   return "#fffbeb";   // approaching — light yellow bg
+    return "#f0faf4";                     // in period — light green bg
   };
   const urgencyLabel = (days) => {
     if (days === null) return "—";
@@ -259,7 +306,7 @@ export default function Notifications({ userRole }) {
     const html = reportHeader(`Proclamation Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`, filterDesc, alertRecords.length, genBy2)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("Proclamation Alerts Report", html);
     logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
   };
@@ -283,7 +330,7 @@ export default function Notifications({ userRole }) {
         objectionRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Objection Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("Objections Report", html);
     logAudit("REPORT_PDF", { type:"objection", count: objectionRecords.length });
   };
@@ -307,7 +354,7 @@ export default function Notifications({ userRole }) {
         newMataiRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Type</th><th>Date Conferred</th><th>Date Entered</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("New Matai Titles — All Records", html);
     logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
   };
@@ -333,7 +380,7 @@ export default function Notifications({ userRole }) {
         readyToRegister.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Registration Date</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("Ready to Register — All Records", html);
     logAudit("REPORT_PDF", { type:"ready_all", count: readyToRegister.length });
   };
@@ -415,7 +462,7 @@ export default function Notifications({ userRole }) {
       ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
       ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)}
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("Monthly Report", html);
     logAudit("REPORT_PDF", { type:"monthly_full", month: monthLabel });
   };
@@ -452,7 +499,7 @@ export default function Notifications({ userRole }) {
           <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Note</th>
         </tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      <script>window.onload=()=>window.print();<\/script></body></html>`;
+      </body></html>`;
     openPDF("Duplicate Certificate Numbers Report", html);
     logAudit("REPORT_PDF", { type:"duplicates", count: duplicateGroups.reduce((n,g)=>n+g.records.length,0) });
   };
@@ -484,26 +531,27 @@ export default function Notifications({ userRole }) {
   );
 
   const RecordRow = ({ r }) => {
-    const days = daysUntilReg(r);   // days until REGISTRATION date, not proclamation date
+    const days = daysUntilReg(r);
     const col  = urgencyColor(days);
+    const bg   = urgencyBg(days);
     return (
       <Link to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
-        <div style={{ background:"#fafafa", border:`1px solid ${col}30`, borderLeft:`4px solid ${col}`, borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
-          onMouseEnter={e => e.currentTarget.style.background="#f0faf4"}
-          onMouseLeave={e => e.currentTarget.style.background="#fafafa"}>
+        <div style={{ background:bg, border:`1px solid ${col}40`, borderLeft:`4px solid ${col}`, borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
+          onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.97)"; }}
+          onMouseLeave={e => { e.currentTarget.style.filter="none"; }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
             <div>
-              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#1e6b3c" }}>{r.mataiTitle||"—"}</span>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#1e2a1e" }}>{r.mataiTitle||"—"}</span>
               <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
             </div>
-            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:col, background:`${col}15`, padding:"2px 8px", borderRadius:"2px" }}>
+            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:col, background:`${col}18`, padding:"3px 10px", borderRadius:"2px", border:`1px solid ${col}30` }}>
               {urgencyLabel(days)}
             </span>
           </div>
           <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
             <span>📍 {r.village}, {r.district}</span>
-            <span>🗓 Proclaimed: <strong style={{ color:col }}>{fmtDate(r.dateProclamation)}</strong></span>
-            <span>📋 Reg. date: <strong style={{color:"#1a5c35"}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
+            <span>🗓 Proclaimed: <strong style={{ color:"rgba(26,26,26,0.7)" }}>{fmtDate(r.dateProclamation)}</strong></span>
+            <span>📋 Reg. date: <strong style={{color:col}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
           </div>
         </div>
       </Link>
@@ -536,7 +584,7 @@ export default function Notifications({ userRole }) {
             {/* Tabs */}
             <div style={{ display:"flex", gap:"0.5rem", marginBottom:"1.25rem", flexWrap:"wrap" }}>
               <TabBtn tab="proclamation" label="Proclamation Alerts" count={alertRecords.length} />
-              <TabBtn tab="monthly"      label="Monthly Alerts"      count={readyToRegister.length + newMataiRecords.length} />
+              <TabBtn tab="monthly"      label="Monthly Notifications" count={readyToRegister.length + newMataiRecords.length} />
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
               {duplicateGroups.length > 0 && (
                 <TabBtn tab="duplicates" label="⚠ Duplicates" count={duplicateGroups.length} color="#c0392b" />
@@ -563,15 +611,16 @@ export default function Notifications({ userRole }) {
               </div>
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase" }}>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#c0392b", textTransform:"uppercase" }}>
                     ◈ {alertRecords.length} Record{alertRecords.length!==1?"s":""} Requiring Attention
                   </p>
-                  <PdfBtn onClick={printProclamationReport} label="PDF Report" count={alertRecords.length} />
+                  {perms.canPrint && <PdfBtn onClick={printProclamationReport} label="PDF Report" count={alertRecords.length} color="#c0392b" />}
                 </div>
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : alertRecords.length === 0
                   ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No records within {filterWindow} days.</div>
-                  : alertRecords.map(r => <RecordRow key={r.id} r={r} />)
+                  : <>{alertPaged.map(r => <RecordRow key={r.id} r={r} />)}
+                    <Pager page={alertPageSafe} totalPages={alertTotalPages} setPage={setAlertPage} /></>
                 }
               </div>
             </>)}
@@ -583,7 +632,7 @@ export default function Notifications({ userRole }) {
                   <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#8b1a1a", textTransform:"uppercase" }}>
                     ◈ {objectionRecords.length} Objection{objectionRecords.length!==1?"s":""} Recorded
                   </p>
-                  <PdfBtn onClick={printObjectionReport} label="PDF Report" count={objectionRecords.length} color="#8b1a1a" />
+                  {perms.canPrint && <PdfBtn onClick={printObjectionReport} label="PDF Report" count={objectionRecords.length} color="#8b1a1a" />}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginBottom:"1.25rem" }}>
                   These titles have an objection. They cannot be registered until resolved through court.
@@ -591,7 +640,7 @@ export default function Notifications({ userRole }) {
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : objectionRecords.length === 0
                   ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No objections recorded.</div>
-                  : objectionRecords.map(r => (
+                  : <>{objPaged.map(r => (
                     <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
                       <div style={{ background:"#fdf8f8", border:"1px solid #e8b4b430", borderLeft:"4px solid #8b1a1a", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
                         onMouseEnter={e => e.currentTarget.style.background="#fdf0f0"}
@@ -610,7 +659,8 @@ export default function Notifications({ userRole }) {
                         </div>
                       </div>
                     </Link>
-                  ))
+                  ))}
+                  <Pager page={objPageSafe} totalPages={objTotalPages} setPage={setObjPage} /></>
                 }
               </div>
             )}
@@ -672,7 +722,7 @@ export default function Notifications({ userRole }) {
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : readyToRegister.length === 0
                   ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No records pending registration.</div>
-                  : readyToRegister.map(r => {
+                  : <>{readyPaged.map(r => {
                     const regDate = effectiveRegDate(r);
                     const isConfirming = confirming === r.id;
                     return (
@@ -703,7 +753,8 @@ export default function Notifications({ userRole }) {
                         </div>
                       </div>
                     );
-                  })
+                  })}
+                  <Pager page={readyPageSafe} totalPages={readyTotalPages} setPage={setReadyPage} /></>
                 }
               </div>
 
@@ -716,10 +767,12 @@ export default function Notifications({ userRole }) {
                   <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#c0392b", textTransform:"uppercase" }}>
                     ◈ ⚠ Duplicate Certificate Numbers — {duplicateGroups.length} Group{duplicateGroups.length!==1?"s":""}
                   </p>
-                  <button onClick={printDuplicatesReport}
-                    style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#c0392b15", border:"1px solid #c0392b", color:"#c0392b", borderRadius:"3px", cursor:"pointer" }}>
-                    📄 PDF Report ({duplicateGroups.reduce((n,g)=>n+g.records.length,0)})
-                  </button>
+                  {perms.canPrint && (
+                    <button onClick={printDuplicatesReport}
+                      style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#c0392b15", border:"1px solid #c0392b", color:"#c0392b", borderRadius:"3px", cursor:"pointer" }}>
+                      📄 PDF Report ({duplicateGroups.reduce((n,g)=>n+g.records.length,0)})
+                    </button>
+                  )}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.5)", marginBottom:"1.2rem" }}>
                   These records share the same certificate number. Please review and correct — only one should be kept or they should have unique cert numbers.
@@ -769,16 +822,29 @@ export default function Notifications({ userRole }) {
               ))}
             </div>
 
-            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.1em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>Generate PDF Reports</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem" }}>
-              <PdfBtn onClick={printProclamationReport} label="Proclamation Alerts"  count={alertRecords.length} />
-              <PdfBtn onClick={printObjectionReport}    label="Objections Report"    count={objectionRecords.length} color="#8b1a1a" />
-              <PdfBtn onClick={printNewMataiReport}     label="New Matai Titles"     count={newMataiRecords.length} color="#7c3aed" />
-              <PdfBtn onClick={printReadyReport}        label="Ready to Register"    count={readyToRegister.length} />
-              {duplicateGroups.length > 0 && (
-                <PdfBtn onClick={printDuplicatesReport} label="Duplicate Cert Nos." count={duplicateGroups.reduce((n,g)=>n+g.records.length,0)} color="#c0392b" />
-              )}
+            {perms.canPrint && (<>
+            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.1em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ Generate PDF Reports</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem" }}>
+              {[
+                { label:"New Matai Titles",    count: newMataiRecords.length,   color:"#5b21b6", bg:"#f5f3ff", border:"#c4b5fd", icon:"🆕", onClick: printNewMataiReport },
+                { label:"Proclamation Alerts", count: alertRecords.length,      color:"#1e6b3c", bg:"#f0faf4", border:"#a7d7b8", icon:"📋", onClick: printProclamationReport },
+                { label:"Ready to Register",   count: readyToRegister.length,   color:"#1e6b3c", bg:"#f0faf4", border:"#a7d7b8", icon:"✅", onClick: printReadyReport },
+                { label:"Objections Report",   count: objectionRecords.length,  color:"#8b1a1a", bg:"#fff5f5", border:"#fca5a5", icon:"⚠️", onClick: printObjectionReport },
+                ...(duplicateGroups.length > 0 ? [{ label:"Duplicate Cert Nos.", count: duplicateGroups.reduce((n,g)=>n+g.records.length,0), color:"#c0392b", bg:"#fff5f5", border:"#fca5a5", icon:"🔁", onClick: printDuplicatesReport }] : []),
+              ].map(({ label, count, color, bg, border, icon, onClick }) => (
+                <button key={label} onClick={onClick}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:bg, border:`1px solid ${border}`, borderRadius:"4px", padding:"0.55rem 0.85rem", cursor:"pointer", textAlign:"left" }}
+                  onMouseEnter={e => e.currentTarget.style.filter="brightness(0.96)"}
+                  onMouseLeave={e => e.currentTarget.style.filter="none"}>
+                  <span style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                    <span style={{ fontSize:"0.85rem" }}>{icon}</span>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.67rem", letterSpacing:"0.07em", textTransform:"uppercase", color }}>{label}</span>
+                  </span>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color, background:`${color}15`, border:`1px solid ${border}`, borderRadius:"2px", padding:"1px 7px", minWidth:"24px", textAlign:"center" }}>{count}</span>
+                </button>
+              ))}
             </div>
+            </>)}
 
             <div style={{ marginTop:"1rem", padding:"0.75rem", background:"#f9fafb", borderRadius:"3px", fontSize:"0.75rem", color:"rgba(26,26,26,0.5)", lineHeight:1.5 }}>
               📧 Email sending coming soon

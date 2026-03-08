@@ -441,6 +441,7 @@ export default function Import({ userRole }) {
   const [preview, setPreview]   = useState([]);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [skippedDupesCount, setSkippedDupesCount] = useState(0);
   const [done, setDone]         = useState(0);
   const [errors, setErrors]     = useState([]);
   const [step, setStep]         = useState("upload");
@@ -526,21 +527,34 @@ export default function Import({ userRole }) {
     );
 
     const valid = preview.filter(r => r.mataiTitle);
+    let skippedDupes = 0;
     for (let i = 0; i < valid.length; i++) {
       const row = valid[i];
 
-      // Check for duplicate cert number
+      // Skip if exact same cert number already exists
       if (row.mataiCertNumber && existingCertNums.has(row.mataiCertNumber)) {
         const existing = existingCertNums.get(row.mataiCertNumber);
-        dupWarnings.push(`⚠ Row ${i+1} — Cert No. ${row.mataiCertNumber} already exists: "${existing.mataiTitle}" (${existing.holderName}). Imported anyway — please review.`);
-        await logAudit("DUPLICATE_WARNING", { certNumber: row.mataiCertNumber, mataiTitle: row.mataiTitle, existingTitle: existing.mataiTitle, source: "import" });
+        dupWarnings.push(`⏭ Row ${i+1} — SKIPPED. Cert No. ${row.mataiCertNumber} already exists: "${existing.mataiTitle}" (${existing.holderName}).`);
+        await logAudit("DUPLICATE_SKIPPED", { certNumber: row.mataiCertNumber, mataiTitle: row.mataiTitle, existingTitle: existing.mataiTitle, source: "import" });
+        skippedDupes++;
+        setProgress(Math.round(((i + 1) / valid.length) * 100));
+        continue;
       }
 
-      // Check for duplicate matai title
+      // Skip if exact same title + same holder already exists
       const titleKey = row.mataiTitle.trim().toUpperCase();
       if (existingTitles.has(titleKey)) {
         const existing = existingTitles.get(titleKey);
-        dupWarnings.push(`⚠ Row ${i+1} — Title "${row.mataiTitle}" already exists (holder: ${existing.holderName}). Imported anyway — please review.`);
+        if (existing.holderName?.trim().toUpperCase() === row.holderName?.trim().toUpperCase()) {
+          dupWarnings.push(`⏭ Row ${i+1} — SKIPPED. "${row.mataiTitle}" with holder "${row.holderName}" is an exact duplicate of an existing record.`);
+          await logAudit("DUPLICATE_SKIPPED", { mataiTitle: row.mataiTitle, holderName: row.holderName, source: "import" });
+          skippedDupes++;
+          setProgress(Math.round(((i + 1) / valid.length) * 100));
+          continue;
+        } else {
+          // Same title, different holder — warn but allow
+          dupWarnings.push(`⚠ Row ${i+1} — Title "${row.mataiTitle}" already exists with a different holder (${existing.holderName}). Imported — please review.`);
+        }
       }
 
       try {
@@ -552,11 +566,12 @@ export default function Import({ userRole }) {
       setProgress(Math.round(((i + 1) / valid.length) * 100));
     }
 
-    await logAudit("IMPORT", { count, file: file?.name, skipped: skippedRows.length, duplicates: dupWarnings.length });
+    await logAudit("IMPORT", { count, file: file?.name, skipped: skippedRows.length, duplicatesSkipped: skippedDupes, warnings: dupWarnings.length });
     const { cacheClear } = await import("../utils/cache");
     cacheClear("registrations");
     cacheClear("auditLog");
     setDone(count);
+    setSkippedDupesCount(skippedDupes);
     setErrors([...skippedRows, ...dupWarnings, ...errs]);
     setImporting(false);
     setStep("done");
@@ -760,6 +775,11 @@ export default function Import({ userRole }) {
               {skippedCount > 0 && (
                 <p style={{ marginTop:"0.75rem", fontSize:"0.88rem", color:"#991b1b" }}>
                   {skippedCount} rows were skipped (missing Matai Title)
+                </p>
+              )}
+              {skippedDupesCount > 0 && (
+                <p style={{ marginTop:"0.5rem", fontSize:"0.88rem", color:"#c0392b", fontWeight:600 }}>
+                  ⏭ {skippedDupesCount} exact duplicate{skippedDupesCount !== 1 ? "s" : ""} skipped — already exist in the registry
                 </p>
               )}
             </div>

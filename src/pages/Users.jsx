@@ -1,22 +1,64 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
-import { createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { auth, db, secondaryAuth } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { Navigate } from "react-router-dom";
 
-const ROLES = ["admin", "data_entry", "view_print", "view"];
-const ROLE_LABELS = { admin:"Admin", data_entry:"Data Entry", view_print:"View & Print", view:"View Only" };
-const ROLE_COLORS = { admin:"#991b1b", data_entry:"#155c31", view_print:"#1e40af", view:"#374151" };
+const ROLES = ["admin", "standard_admin", "data_entry", "view"];
+const ROLE_LABELS = { admin:"Admin", standard_admin:"Standard Admin", data_entry:"Data Entry", view:"View Only" };
+const ROLE_COLORS = { admin:"#991b1b", standard_admin:"#1e40af", data_entry:"#155c31", view:"#374151" };
 const ROLE_DESC = {
-  admin:      ["Full access to all features", "Add / Edit / Delete records", "Manage users", "View audit log", "Import & Export"],
-  data_entry: ["Add new records", "Edit existing records", "Import records", "Cannot delete", "Cannot print certificates"],
-  view_print: ["View all records", "Add & edit records", "Print certificates", "Export reports", "Cannot delete"],
-  view:       ["View records only", "Cannot print", "Cannot edit", "Cannot delete", "Read-only access"],
+  admin: [
+    "Full access to all features",
+    "Add, edit & delete records",
+    "Import records from Excel",
+    "Export records to Excel",
+    "Print & view certificates",
+    "View all notifications & confirm registrations",
+    "Generate all PDF reports",
+    "Manage users & roles",
+    "View full audit log",
+    "Access data management",
+  ],
+  standard_admin: [
+    "Add, edit & delete records",
+    "Import records from Excel",
+    "Export records to Excel",
+    "Print & view certificates",
+    "View all notifications & confirm registrations",
+    "Generate all PDF reports",
+    "Cannot manage users, audit log or data management",
+  ],
+  data_entry: [
+    "Add & edit records",
+    "Import records from Excel",
+    "View certificates (cannot print)",
+    "View notifications — see & fix duplicate alerts",
+    "View reports (cannot print PDFs)",
+    "Cannot delete records",
+    "Cannot manage users, audit log or data management",
+  ],
+  view: [
+    "View all registry records",
+    "View notifications (cannot confirm or edit)",
+    "View reports (cannot print PDFs)",
+    "Cannot add, edit or delete records",
+    "Cannot print certificates",
+    "Cannot import or export",
+    "Cannot manage users, audit log or data management",
+  ],
 };
+
+const TEST_USERS = [
+  { email: "admin.test@matai.gov.ws",          password: "Admin@1234",        role: "admin",          displayName: "Test Admin",          department: "Registry Administration" },
+  { email: "standardadmin.test@matai.gov.ws",  password: "StdAdmin@1234",     role: "standard_admin", displayName: "Test Standard Admin", department: "Registry Division" },
+  { email: "dataentry.test@matai.gov.ws",      password: "DataEntry@1234",    role: "data_entry",     displayName: "Test Data Entry",     department: "Registry Division" },
+  { email: "view.test@matai.gov.ws",           password: "View@1234",         role: "view",           displayName: "Test View Only",      department: "Public Access" },
+];
 
 const fmtDate = (ts) => {
   if (!ts?.toDate) return "—";
@@ -35,9 +77,25 @@ export default function Users({ userRole }) {
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [resetMsg, setResetMsg]           = useState({ id: null, msg: "", ok: false });
+  const [seedingUsers, setSeedingUsers] = useState(false);
+  const [seedUserMsg, setSeedUserMsg]   = useState("");
+
+  const handleResetPassword = async (email, userId) => {
+    setResetMsg({ id: userId, msg: "Sending…", ok: false });
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMsg({ id: userId, msg: `✓ Reset email sent to ${email}`, ok: true });
+      await logAudit("PASSWORD_RESET_SENT", { email });
+    } catch (err) {
+      setResetMsg({ id: userId, msg: `✗ Failed: ${err.message}`, ok: false });
+    }
+    setTimeout(() => setResetMsg({ id: null, msg: "", ok: false }), 4000);
+  };
   const perms       = getPermissions(userRole);
   const currentUser = auth.currentUser;
 
+  if (userRole === null) return null; // still loading — don't redirect yet
   if (!perms.canViewUsers) return <Navigate to="/dashboard" />;
 
   const fetchUsers = async () => {
@@ -142,6 +200,32 @@ export default function Users({ userRole }) {
     } catch (err) { console.error(err); }
   };
 
+  const handleSeedUsers = async () => {
+    if (!window.confirm("Create 4 test users (admin, data entry, view & print, view only)? Existing accounts will be skipped.")) return;
+    setSeedingUsers(true); setSeedUserMsg("");
+    let created = 0, skipped = 0;
+    for (const u of TEST_USERS) {
+      try {
+        setSeedUserMsg(`Creating ${u.displayName}…`);
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, u.email, u.password);
+        await setDoc(doc(db, "users", cred.user.uid), {
+          email: u.email, role: u.role,
+          displayName: u.displayName, department: u.department,
+          phone: "", createdAt: serverTimestamp()
+        });
+        await secondaryAuth.signOut();
+        created++;
+      } catch (err) {
+        if (err.code === "auth/email-already-in-use") skipped++;
+        else console.error(u.email, err.message);
+      }
+    }
+    cacheClear("users");
+    setSeedUserMsg(`✓ Done — ${created} created, ${skipped} already existed.`);
+    setSeedingUsers(false);
+    fetchUsers();
+  };
+
   const th = { padding:"0.75rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.15em", textTransform:"uppercase", color:"rgba(255,255,255,0.9)", textAlign:"left", whiteSpace:"nowrap" };
   const td = { padding:"0.85rem 1rem", fontSize:"0.9rem", borderBottom:"1px solid #e5e7eb" };
 
@@ -158,9 +242,16 @@ export default function Users({ userRole }) {
             <h1 className="page-title">User Management</h1>
           </div>
           {mode === "list" && (
-            <button className="btn-primary" onClick={() => { resetForm(); setMode("add"); }}>
-              ＋ Add User
-            </button>
+            <div style={{ display:"flex", gap:"0.75rem", alignItems:"center" }}>
+              <button className="btn-primary" onClick={() => { resetForm(); setMode("add"); }}>
+                ＋ Add User
+              </button>
+              <button onClick={handleSeedUsers} disabled={seedingUsers}
+                style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seedingUsers ? 0.6 : 1 }}>
+                {seedingUsers ? "Creating…" : "🧪 Create Test Users"}
+              </button>
+              {seedUserMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedUserMsg}</span>}
+            </div>
           )}
           {mode !== "list" && (
             <button className="btn-secondary" onClick={resetForm}>← Back to Users</button>
@@ -347,13 +438,23 @@ export default function Users({ userRole }) {
                         </td>
                         <td style={{ ...td, color:"#6b7280", fontSize:"0.83rem" }}>{fmtDate(u.createdAt)}</td>
                         <td style={td}>
-                          <div style={{ display:"flex", gap:"0.4rem" }}>
+                          <div style={{ display:"flex", gap:"0.4rem", alignItems:"center", flexWrap:"wrap" }}>
                             <button className="btn-ghost" onClick={() => openEdit(u)} title="Edit user"
                               style={{ fontSize:"0.82rem" }}>✎ Edit</button>
+                            <button className="btn-ghost" onClick={() => handleResetPassword(u.email, u.id)}
+                              title="Send password reset email"
+                              style={{ fontSize:"0.82rem", color:"#1e40af", borderColor:"rgba(30,64,175,0.3)" }}>
+                              🔑 Reset PW
+                            </button>
                             {u.id !== currentUser?.uid && (
                               <button className="btn-ghost" onClick={() => setConfirmDelete(u)}
                                 style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)", fontSize:"0.82rem" }}
                                 title="Delete user">✕ Delete</button>
+                            )}
+                            {resetMsg.id === u.id && (
+                              <span style={{ fontSize:"0.72rem", color: resetMsg.ok ? "#155c31" : "#991b1b", fontStyle:"italic" }}>
+                                {resetMsg.msg}
+                              </span>
                             )}
                           </div>
                         </td>

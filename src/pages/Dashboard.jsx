@@ -5,7 +5,7 @@ import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
-import { cacheClear } from "../utils/cache";
+import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
@@ -47,15 +47,24 @@ export default function Dashboard({ userRole }) {
   const [deleting, setDeleting]     = useState(null);
   const [seeding, setSeeding] = useState(false);
   const [seedMsg, setSeedMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
-  const fetchRecords = async () => {
+  const fetchRecords = async (useCache = true) => {
     setLoading(true);
     try {
+      const cached = useCache ? cacheGet("registrations") : null;
+      if (cached) {
+        setRecords(cached);
+        setLoading(false);
+        return;
+      }
       const snap = await getDocs(collection(db, "registrations"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      cacheSet("registrations", list);
       setRecords(list);
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -102,7 +111,12 @@ export default function Dashboard({ userRole }) {
   });
 
   const hasActiveFilters = filterDistrict !== "All" || filterType !== "All" || filterVillage !== "All" || filterGender !== "All" || filterStatus !== "All" || filterDateFrom || filterDateTo || search;
-  const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterStatus("All"); setFilterDateFrom(""); setFilterDateTo(""); };
+  const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterStatus("All"); setFilterDateFrom(""); setFilterDateTo(""); setPage(1); };
+
+  // Reset to page 1 when filters change
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const safePage = Math.min(page, Math.max(1, totalPages));
+  const pageRecords = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli      = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
@@ -111,6 +125,16 @@ export default function Dashboard({ userRole }) {
     const t = normalizeType(r.mataiType);
     return t && t !== "ali'i" && t !== "alii" && t !== "tulafale" && t !== "faipule";
   }).length;
+
+  // Detect duplicate cert numbers for dashboard warning
+  const certMap = new Map();
+  records.forEach(r => {
+    const composed = [r.certItumalo, r.certLaupepa, r.certRegBook].filter(Boolean).join("/");
+    const key = (r.mataiCertNumber || composed || "").trim();
+    if (!key) return;
+    certMap.set(key, (certMap.get(key) || 0) + 1);
+  });
+  const duplicateCertCount = [...certMap.values()].filter(v => v > 1).length;
 
   const handleSeed = async () => {
     if (!window.confirm("This will clear all existing records and load test data. Continue?")) return;
@@ -125,6 +149,14 @@ export default function Dashboard({ userRole }) {
     setSeeding(false);
     if (result.success) setTimeout(() => { cacheClear("registrations"); navigate("/dashboard"); window.location.reload(); }, 1500);
   };
+
+  const pgBtn = (disabled, active = false) => ({
+    padding:"0.3rem 0.6rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem",
+    background: active ? "#155c31" : disabled ? "#f3f4f6" : "#fff",
+    color: active ? "#fff" : disabled ? "#9ca3af" : "#155c31",
+    border: `1px solid ${active ? "#155c31" : disabled ? "#e5e7eb" : "rgba(21,92,49,0.3)"}`,
+    borderRadius:"3px", cursor: disabled ? "not-allowed" : "pointer", letterSpacing:"0.04em"
+  });
 
   return (
     <div className="app-layout">
@@ -168,6 +200,30 @@ export default function Dashboard({ userRole }) {
             </div>
           ))}
         </div>
+
+        {/* ── Duplicate cert number warning ── */}
+        {duplicateCertCount > 0 && (
+          <Link to="/notifications" state={{ tab:"duplicates" }} style={{ textDecoration:"none" }}>
+            <div style={{ background:"#fff5f5", border:"1px solid #fca5a5", borderLeft:"4px solid #c0392b", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background="#fee2e2"}
+              onMouseLeave={e => e.currentTarget.style.background="#fff5f5"}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+                <span style={{ fontSize:"1.1rem" }}>⚠️</span>
+                <div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", fontWeight:700, color:"#c0392b", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                    Duplicate Certificate Numbers Detected
+                  </p>
+                  <p style={{ fontSize:"0.8rem", color:"#7f1d1d", marginTop:"2px" }}>
+                    {duplicateCertCount} certificate number{duplicateCertCount !== 1 ? "s are" : " is"} shared across multiple records — review required.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#c0392b", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+                View in Notifications →
+              </span>
+            </div>
+          </Link>
+        )}
 
         {/* ── Filter bar ── */}
         <div style={{ background:"#fff", border:"1px solid #d1d5db", borderRadius:"6px", padding:"1rem 1.25rem", marginBottom:"1rem", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
@@ -229,7 +285,7 @@ export default function Dashboard({ userRole }) {
 
         {/* ── Results count ── */}
         <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", color:"#6b7280", letterSpacing:"0.1em", marginBottom:"0.85rem" }}>
-          Showing <strong style={{ color:"#155c31" }}>{filtered.length}</strong> of <strong>{records.length}</strong> records
+          Showing <strong style={{ color:"#155c31" }}>{filtered.length === 0 ? 0 : `${(safePage-1)*PAGE_SIZE+1}–${Math.min(safePage*PAGE_SIZE, filtered.length)}`}</strong> of <strong>{records.length}</strong> records
         </p>
 
         {/* ── Table ── */}
@@ -253,10 +309,9 @@ export default function Dashboard({ userRole }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(r => (
+                  {pageRecords.map(r => (
                     <tr key={r.id}>
                       <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280", whiteSpace:"nowrap" }}>
-                        {/* Show combined cert number: Itumalo/Laupepa/RegBook */}
                         {r.certItumalo && r.certLaupepa && r.certRegBook
                           ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
                           : r.mataiCertNumber || r.refNumber || "—"
@@ -277,7 +332,7 @@ export default function Dashboard({ userRole }) {
                         {(() => {
                           const d = effectiveRegDate(r);
                           return d
-                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#d68910", fontStyle: r.dateRegistration ? "normal" : "italic" }}>{fmtDate(d)}{!r.dateRegistration && " *"}</span>
+                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#c0392b", fontStyle: r.dateRegistration ? "normal" : "italic" }}>{fmtDate(d)}{!r.dateRegistration && " *"}</span>
                             : <span style={{ color:"#9ca3af" }}>—</span>;
                         })()}
                       </td>
@@ -292,12 +347,12 @@ export default function Dashboard({ userRole }) {
                             </Link>
                           )}
                           {perms.canEdit && (
-                            <Link to={`/register/${r.id}`}>
+                            <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
                               <button className="btn-ghost" title="Edit">✎</button>
                             </Link>
                           )}
                           {!perms.canEdit && (
-                            <Link to={`/certificate/${r.id}`}>
+                            <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
                               <button className="btn-ghost" title="View">👁</button>
                             </Link>
                           )}
@@ -318,6 +373,34 @@ export default function Dashboard({ userRole }) {
             </div>
           )}
         </div>
+
+        {/* ── Pagination ── */}
+        {totalPages > 1 && (
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"1rem", padding:"0.5rem 0" }}>
+            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#6b7280", letterSpacing:"0.08em" }}>
+              Page {safePage} of {totalPages}
+            </p>
+            <div style={{ display:"flex", gap:"0.3rem" }}>
+              <button onClick={() => setPage(1)} disabled={safePage === 1} style={pgBtn(safePage === 1)}>«</button>
+              <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={safePage === 1} style={pgBtn(safePage === 1)}>‹ Prev</button>
+              {Array.from({ length: totalPages }, (_, i) => i+1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+                .reduce((acc, p, i, arr) => {
+                  if (i > 0 && p - arr[i-1] > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) => p === "..." ? (
+                  <span key={`ellipsis-${i}`} style={{ padding:"0.35rem 0.5rem", color:"#9ca3af", fontSize:"0.8rem" }}>…</span>
+                ) : (
+                  <button key={p} onClick={() => setPage(p)} style={pgBtn(false, p === safePage)}>{p}</button>
+                ))
+              }
+              <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={safePage === totalPages} style={pgBtn(safePage === totalPages)}>Next ›</button>
+              <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages} style={pgBtn(safePage === totalPages)}>»</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

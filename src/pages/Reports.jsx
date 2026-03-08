@@ -3,7 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
-import { cacheClear } from "../utils/cache";
+import { cacheClear, cacheGet, cacheSet } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 import { Navigate } from "react-router-dom";
 
@@ -62,9 +62,11 @@ function isUpToToday(dateStr) {
 }
 
 function openPDF(title, html) {
-  const win = window.open("", "_blank");
-  win.document.write(html);
-  win.document.close();
+  const blob = new Blob([html], { type: "text/html" });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, "_blank");
+  // Release the object URL after the tab has loaded
+  if (win) win.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
 }
 
 function reportHeader(title, subtitle, count, generatedBy, extra) {
@@ -87,7 +89,7 @@ function reportHeader(title, subtitle, count, generatedBy, extra) {
     @media print{@page{margin:1.2cm}body{padding:0}}
   </style></head><body>
   <div class="hdr">
-    <img src="${window.location.origin}/matai-registry/emblem.png" alt="Emblem"/>
+    <img src="${window.location.origin}/matai-registry/mjca_logo.jpeg" alt="Emblem"/>
     <div>
       <div class="ministry">Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</div>
       <div class="doc-title">${title}</div>
@@ -117,21 +119,22 @@ export default function Reports({ userRole }) {
   const user  = auth.currentUser;
 
   useEffect(() => {
-    if (userRole === null || !perms.canPrint) return;
     (async () => {
       try {
-        cacheClear("registrations");
+        const cached = cacheGet("registrations");
+        if (cached) { setRecords(cached); setLoading(false); return; }
         const snap = await getDocs(collection(db, "registrations"));
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        cacheSet("registrations", data);
         setRecords(data);
       } catch(err) { console.error(err); }
       finally { setLoading(false); }
     })();
-  }, [userRole]);
+  }, []);
 
   if (userRole === null) return null;
-  if (!perms.canPrint)   return <Navigate to="/dashboard" />;
+  if (!perms.canViewReports) return <Navigate to="/dashboard" />;
 
   const genBy      = user?.displayName || user?.email || "Admin";
   const now        = new Date();
@@ -216,7 +219,7 @@ export default function Reports({ userRole }) {
 
   // ── PDF helpers ───────────────────────────────────────────────
   const footer = `<div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-    <script>window.onload=()=>window.print();<\/script></body></html>`;
+    </body></html>`;
 
   const mkRow = (cells, i) =>
     `<tr style="background:${i%2?"#f9f9f9":"#fff"}">${cells.map(c=>`<td style="padding:4px 8px;border-bottom:1px solid #eee">${c}</td>`).join("")}</tr>`;
@@ -303,22 +306,77 @@ export default function Reports({ userRole }) {
     </button>
   );
 
-  const ReportRow = ({ title, desc, onClick, count, color="#1a5c35" }) => (
-    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1rem", background:"#fafafa", border:"1px solid rgba(30,107,60,0.1)", borderRadius:"4px", marginBottom:"0.5rem" }}>
-      <div>
-        <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.8rem", color, fontWeight:600 }}>{title}</p>
-        <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.5)", marginTop:"2px" }}>{desc}</p>
+  const [expandedReport, setExpandedReport] = useState(null);
+
+  const ReportRow = ({ title, desc, onClick, count, color="#1a5c35", data=[], headers=[] }) => {
+    const isExpanded = expandedReport === title;
+    return (
+      <div style={{ marginBottom:"0.5rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0.9rem 1rem", background:"#fafafa", border:"1px solid rgba(30,107,60,0.1)", borderRadius: isExpanded ? "4px 4px 0 0" : "4px" }}>
+          <div>
+            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.8rem", color, fontWeight:600 }}>{title}</p>
+            <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.5)", marginTop:"2px" }}>{desc}</p>
+          </div>
+          {perms.canPrint ? (
+            <button onClick={onClick} disabled={count === 0}
+              style={{ fontSize:"0.68rem", padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase",
+                background: count===0 ? "#f3f4f6" : `${color}15`,
+                border:`1px solid ${count===0 ? "#e5e7eb" : color}`,
+                color: count===0 ? "#9ca3af" : color,
+                borderRadius:"3px", cursor:count===0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+              📄 Print ({count})
+            </button>
+          ) : (
+            <button onClick={() => count > 0 && setExpandedReport(isExpanded ? null : title)}
+              disabled={count === 0}
+              style={{ fontSize:"0.68rem", padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase",
+                background: count===0 ? "#f3f4f6" : isExpanded ? `${color}25` : `${color}10`,
+                border:`1px solid ${count===0 ? "#e5e7eb" : color}`,
+                color: count===0 ? "#9ca3af" : color,
+                borderRadius:"3px", cursor:count===0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
+              {count===0 ? "0 records" : isExpanded ? "▲ Hide" : `▼ View (${count})`}
+            </button>
+          )}
+        </div>
+        {!perms.canPrint && isExpanded && data.length > 0 && (
+          <div style={{ border:"1px solid rgba(30,107,60,0.1)", borderTop:"none", borderRadius:"0 0 4px 4px", overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.78rem" }}>
+              <thead>
+                <tr style={{ background: color }}>
+                  {headers.map(h => (
+                    <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.1em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((r, i) => (
+                  <tr key={r.id} style={{ background: i%2 ? "#f9fafb" : "#fff" }}>
+                    {headers.map((h,j) => (
+                      <td key={j} style={{ padding:"0.5rem 0.75rem", borderBottom:"1px solid #f3f4f6", color:"#374151" }}>
+                        {j===0 ? i+1
+                          : h==="Matai Title" ? (r.mataiTitle||"—")
+                          : h==="Holder" ? (r.holderName||"—")
+                          : h==="Type" ? (r.mataiType||"—")
+                          : h==="Village" ? (r.village||"—")
+                          : h==="District" ? (r.district||"—")
+                          : h==="Proclaimed" ? fmtDate(r.dateProclamation)
+                          : h==="Reg. Date" ? fmtDate(effectiveRegDate(r)||autoRegDate(r.dateProclamation))
+                          : h==="Auto Reg. Date" ? fmtDate(autoRegDate(r.dateProclamation))
+                          : h==="Date Conferred" ? fmtDate(r.dateConferred)
+                          : h==="Objection Date" ? fmtDate(r.objectionDate)
+                          : h==="Registered" ? fmtDate(r.dateRegistration)
+                          : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <button onClick={onClick} disabled={count === 0}
-        style={{ fontSize:"0.68rem", padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase",
-          background: count===0 ? "#f3f4f6" : `${color}15`,
-          border:`1px solid ${count===0 ? "#e5e7eb" : color}`,
-          color: count===0 ? "#9ca3af" : color,
-          borderRadius:"3px", cursor:count===0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>
-        📄 Print ({count})
-      </button>
-    </div>
-  );
+    );
+  };
 
   const SummaryRow = ({ label, count, color }) => (
     <div style={{ display:"flex", justifyContent:"space-between", padding:"0.45rem 0", borderBottom:"1px solid rgba(30,107,60,0.08)" }}>
@@ -358,11 +416,11 @@ export default function Reports({ userRole }) {
             <div style={sStyle}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>◈ Monthly Reports — {monthLabel}</p>
               <p style={{ fontSize:"0.74rem", color:"rgba(26,26,26,0.4)", marginBottom:"1.1rem" }}>All data filtered to the current month only.</p>
-              <ReportRow title="Full Monthly Report" desc={`All activity summary for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} />
-              <ReportRow title="New Matai Titles" desc={`Titles entered or imported in ${monthLabel}`} onClick={printMonthlyNew} count={newMonth.length} color="#7c3aed" />
-              <ReportRow title="Ready to Register" desc={`Registration date falls in ${monthLabel} — awaiting confirmation`} onClick={printMonthlyReady} count={readyMonth.length} />
-              <ReportRow title="Proclamation Report" desc={`Proclamations active in ${monthLabel}`} onClick={printMonthlyProc} count={procMonth.length} />
-              <ReportRow title="Objections Report" desc={`Objections filed in ${monthLabel}`} onClick={printMonthlyObj} count={objMonth.length} color="#8b1a1a" />
+              <ReportRow title="Full Monthly Report" desc={`All activity summary for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} data={records} headers={["#","Matai Title","Holder","Type","Village","District","Proclaimed"]} />
+              <ReportRow title="New Matai Titles" desc={`Titles entered or imported in ${monthLabel}`} onClick={printMonthlyNew} count={newMonth.length} color="#7c3aed" data={newMonth} headers={HDR_NEW} />
+              <ReportRow title="Ready to Register" desc={`Registration date falls in ${monthLabel} — awaiting confirmation`} onClick={printMonthlyReady} count={readyMonth.length} data={readyMonth} headers={HDR_READY} />
+              <ReportRow title="Proclamation Report" desc={`Proclamations active in ${monthLabel}`} onClick={printMonthlyProc} count={procMonth.length} data={procMonth} headers={HDR_PROC} />
+              <ReportRow title="Objections Report" desc={`Objections filed in ${monthLabel}`} onClick={printMonthlyObj} count={objMonth.length} color="#8b1a1a" data={objMonth} headers={HDR_OBJ} />
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ {monthLabel} Summary</p>
@@ -382,10 +440,10 @@ export default function Reports({ userRole }) {
             <div style={sStyle}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>◈ Full Reports — All Records Up To Today</p>
               <p style={{ fontSize:"0.74rem", color:"rgba(26,26,26,0.4)", marginBottom:"1.1rem" }}>Includes every record across all months, not limited to the current month.</p>
-              <ReportRow title="New Matai Titles"   desc="All titles entered but not yet proclaimed — across all dates"  onClick={printFullNew}   count={newAll.length}   color="#7c3aed" />
-              <ReportRow title="Ready to Register"  desc="All titles where the 4-month proclamation period is complete"  onClick={printFullReady} count={readyAll.length} />
-              <ReportRow title="Proclamation Report" desc="All active proclamations within 120-day window"               onClick={printFullProc}  count={procAll.length} />
-              <ReportRow title="Objections Report"  desc="All titles with active objections — across all dates"          onClick={printFullObj}   count={objAll.length}  color="#8b1a1a" />
+              <ReportRow title="New Matai Titles"   desc="All titles entered but not yet proclaimed — across all dates"  onClick={printFullNew}   count={newAll.length}   color="#7c3aed" data={newAll}   headers={HDR_NEW} />
+              <ReportRow title="Ready to Register"  desc="All titles where the 4-month proclamation period is complete"  onClick={printFullReady} count={readyAll.length} data={readyAll} headers={HDR_READY} />
+              <ReportRow title="Proclamation Report" desc="All active proclamations within 120-day window"               onClick={printFullProc}  count={procAll.length} data={procAll}  headers={HDR_PROC} />
+              <ReportRow title="Objections Report"  desc="All titles with active objections — across all dates"          onClick={printFullObj}   count={objAll.length}  color="#8b1a1a" data={objAll} headers={HDR_OBJ} />
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ All-Time Overview</p>
@@ -408,10 +466,10 @@ export default function Reports({ userRole }) {
                     <label style={{ ...labelStyle, display:"inline", marginRight:"6px" }}>Filter month</label>
                     <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={inputStyle} />
                   </div>
-                  <button onClick={printRegisteredFiltered} disabled={registeredFiltered.length===0}
+                  {perms.canPrint && <button onClick={printRegisteredFiltered} disabled={registeredFiltered.length===0}
                     style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:registeredFiltered.length===0?"#f3f4f6":"#155c3115", border:`1px solid ${registeredFiltered.length===0?"#e5e7eb":"#155c31"}`, color:registeredFiltered.length===0?"#9ca3af":"#155c31", borderRadius:"3px", cursor:registeredFiltered.length===0?"not-allowed":"pointer" }}>
                     📄 {selMonthLabel} ({registeredFiltered.length})
-                  </button>
+                  </button>}
 
                 </div>
               </div>
@@ -458,10 +516,10 @@ export default function Reports({ userRole }) {
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#155c31", textTransform:"uppercase" }}>
                       ◈ All Registered Records — {registeredAll.length}
                     </p>
-                    <button onClick={printRegisteredAll}
+                    {perms.canPrint && <button onClick={printRegisteredAll}
                       style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background:"#155c3115", border:"1px solid #155c31", color:"#155c31", borderRadius:"3px", cursor:"pointer" }}>
                       📄 Generate All Records Report
-                    </button>
+                    </button>}
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
                     <thead>
@@ -501,8 +559,8 @@ export default function Reports({ userRole }) {
           <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:"1.5rem", alignItems:"start" }}>
             <div>
               <div style={{ ...sStyle }}>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1rem" }}>◈ Filter Reports</p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto", gap:"0.75rem", alignItems:"end" }}>
+                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"1.25rem" }}>◈ Filter Reports</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1fr 1fr", gap:"1rem", marginBottom:"0.75rem" }}>
                   <div>
                     <label style={labelStyle}>Report Type</label>
                     <select value={filterType} onChange={e => setFilterType(e.target.value)}
@@ -522,15 +580,23 @@ export default function Reports({ userRole }) {
                     <label style={labelStyle}>To Date</label>
                     <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} style={{ ...inputStyle, width:"100%" }} />
                   </div>
-                  <div style={{ display:"flex", gap:"0.4rem" }}>
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <p style={{ fontSize:"0.68rem", color:"rgba(30,107,60,0.5)", fontStyle:"italic" }}>
+                    {filterType === "ready" || filterType === "proclamation" ? "📅 Filtering by proclamation date" :
+                     filterType === "new" ? "📅 Filtering by date conferred" :
+                     filterType === "objections" ? "📅 Filtering by objection date" :
+                     "📅 Date filter applies across proclamation, conferred & objection dates"}
+                  </p>
+                  <div style={{ display:"flex", gap:"0.5rem" }}>
                     <button onClick={() => { setFilterFrom(""); setFilterTo(""); setFilterType("all"); }}
-                      style={{ fontSize:"0.68rem", padding:"0.4rem 0.65rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:"transparent", border:"1px solid rgba(30,107,60,0.3)", color:"#1e6b3c", borderRadius:"3px", cursor:"pointer" }}>
+                      style={{ fontSize:"0.68rem", padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:"transparent", border:"1px solid rgba(30,107,60,0.3)", color:"#1e6b3c", borderRadius:"3px", cursor:"pointer" }}>
                       Clear
                     </button>
-                    <button onClick={printFiltered} disabled={filteredTotal===0}
-                      style={{ fontSize:"0.68rem", padding:"0.4rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:filteredTotal===0?"#f3f4f6":"#1a5c3515", border:`1px solid ${filteredTotal===0?"#e5e7eb":"#1a5c35"}`, color:filteredTotal===0?"#9ca3af":"#1a5c35", borderRadius:"3px", cursor:filteredTotal===0?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                      📄 Print ({filteredTotal})
-                    </button>
+                    {perms.canPrint && <button onClick={printFiltered} disabled={filteredTotal===0}
+                      style={{ fontSize:"0.68rem", padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background:filteredTotal===0?"#f3f4f6":"#1a5c3515", border:`1px solid ${filteredTotal===0?"#e5e7eb":"#1a5c35"}`, color:filteredTotal===0?"#9ca3af":"#1a5c35", borderRadius:"3px", cursor:filteredTotal===0?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                      📄 Open Report ({filteredTotal})
+                    </button>}
                   </div>
                 </div>
               </div>

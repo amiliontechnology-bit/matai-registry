@@ -54,12 +54,13 @@ const DEFAULT_DISTRICT_VILLAGES = {
 
 export default function DataManage({ userRole }) {
   const perms = getPermissions(userRole);
+  if (userRole === null) return null;
   if (!perms.canDelete) return <Navigate to="/dashboard" />;
 
   const [records,       setRecords]       = useState([]);
   const [imports,       setImports]       = useState([]);
   const [loading,       setLoading]       = useState(true);
-  const [mode,          setMode]          = useState("home"); // home | undo | bulk | districts
+  const [mode,          setMode]          = useState("home"); // home | undo | bulk | reset
   const [selectedIds,   setSelectedIds]   = useState(new Set());
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [deleting,      setDeleting]      = useState(false);
@@ -68,6 +69,7 @@ export default function DataManage({ userRole }) {
   const [progress,      setProgress]      = useState(0);
   const [confirmOpen,   setConfirmOpen]   = useState(false);
   const [searchTerm,    setSearchTerm]    = useState("");
+  const [resetType,     setResetType]     = useState(""); // "imports" | "audit"
 
   // District/village editor state
   const [districtVillages, setDistrictVillages] = useState({});
@@ -218,6 +220,37 @@ export default function DataManage({ userRole }) {
     setSelectedIds(new Set()); setMode("home"); fetchData(); setDeleting(false);
   };
 
+  const handleReset = async () => {
+    setDeleting(true); setProgress(0); setError(""); setConfirmOpen(false);
+    try {
+      if (resetType === "imports") {
+        // Delete only auditLog entries of type IMPORT to reset the import stat/history
+        const snap = await getDocs(collection(db, "auditLog"));
+        const importDocs = snap.docs.filter(d => d.data().action === "IMPORT");
+        let i = 0;
+        for (const d of importDocs) {
+          await deleteDoc(doc(db, "auditLog", d.id));
+          setProgress(Math.round(((++i) / importDocs.length) * 100));
+        }
+        cacheClear("auditLog");
+      }
+      if (resetType === "audit") {
+        const snap = await getDocs(collection(db, "auditLog"));
+        let i = 0;
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, "auditLog", d.id));
+          setProgress(Math.round(((++i) / snap.docs.size) * 100));
+        }
+        cacheClear("auditLog");
+      }
+      setDone(`✓ Reset complete.`);
+      setMode("home"); fetchData();
+    } catch (err) {
+      setError(`Reset error: ${err.message}`);
+    }
+    setDeleting(false); setResetType("");
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
@@ -297,15 +330,26 @@ export default function DataManage({ userRole }) {
                 <button onClick={() => setMode("bulk")} style={{ background:"#991b1b", color:"#fff", border:"none", padding:"0.6rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.78rem", letterSpacing:"0.1em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer", width:"100%" }}>Select Records to Delete</button>
               </div>
 
-              <div className="card" style={{ borderLeft:"4px solid #2563eb" }}>
+              <div className="card" style={{ borderLeft:"4px solid #4b1c82" }}>
                 <div style={{ display:"flex", alignItems:"flex-start", gap:"1rem", marginBottom:"1rem" }}>
-                  <span style={{ fontSize:"2rem" }}>🗺️</span>
+                  <span style={{ fontSize:"2rem" }}>🔄</span>
                   <div>
-                    <h3 style={{ fontFamily:"'Cinzel',serif", fontSize:"0.9rem", color:"#111827", marginBottom:"0.3rem" }}>Districts & Villages</h3>
-                    <p style={{ fontSize:"0.85rem", color:"#6b7280", lineHeight:1.6 }}>Add, edit or remove districts and their villages used in registration.</p>
+                    <h3 style={{ fontFamily:"'Cinzel',serif", fontSize:"0.9rem", color:"#111827", marginBottom:"0.3rem" }}>Reset Data</h3>
+                    <p style={{ fontSize:"0.85rem", color:"#6b7280", lineHeight:1.6 }}>Clear all records, audit logs, or both. Use before going live or switching datasets.</p>
                   </div>
                 </div>
-                <button onClick={() => { setMode("districts"); loadDistrictVillages(); }} style={{ background:"#2563eb", color:"#fff", border:"none", padding:"0.6rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.78rem", letterSpacing:"0.1em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer", width:"100%" }}>Manage Districts</button>
+                <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem" }}>
+                  {[
+                    { label:"Reset Import Count", type:"imports", color:"#991b1b" },
+                  ].map(({ label, type, color }) => (
+                    <button key={type} onClick={() => { setResetType(type); setConfirmOpen("reset"); }}
+                      style={{ background:"transparent", border:`1px solid ${color}50`, color, padding:"0.45rem 0.75rem", fontFamily:"'Cinzel',serif", fontSize:"0.7rem", letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer", width:"100%", textAlign:"left" }}
+                      onMouseEnter={e => e.currentTarget.style.background=`${color}10`}
+                      onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
             </div>
@@ -326,86 +370,6 @@ export default function DataManage({ userRole }) {
               </div>
             </div>
           </>
-        )}
-
-        {/* ── DISTRICTS & VILLAGES MODE ── */}
-        {mode === "districts" && !deleting && (
-          <div style={{ display:"grid", gridTemplateColumns:"280px 1fr", gap:"1.5rem", alignItems:"start" }}>
-
-            {/* Left: district list */}
-            <div className="card" style={{ padding:0, overflow:"hidden" }}>
-              <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid #e5e7eb", background:"#f9fafb" }}>
-                <h3 style={{ fontFamily:"'Cinzel',serif", fontSize:"0.8rem", color:"#111827", marginBottom:"0.75rem" }}>◈ Districts ({sortedDistricts.length})</h3>
-                <div style={{ display:"flex", gap:"0.5rem" }}>
-                  <input type="text" value={newDistrictName} onChange={e => setNewDistrictName(e.target.value)}
-                    placeholder="New district name…"
-                    style={{ flex:1, padding:"0.4rem 0.6rem", border:"1.5px solid #d1d5db", borderRadius:"4px", fontSize:"0.8rem", fontFamily:"inherit" }} />
-                  <button onClick={handleAddDistrict} style={{ background:"#155c31", color:"#fff", border:"none", padding:"0.4rem 0.75rem", borderRadius:"4px", cursor:"pointer", fontSize:"0.8rem", fontFamily:"'Cinzel',serif" }}>+ Add</button>
-                </div>
-              </div>
-              {dvLoading ? (
-                <p style={{ padding:"1rem", color:"#6b7280", fontSize:"0.85rem" }}>Loading…</p>
-              ) : (
-                <div style={{ maxHeight:"520px", overflowY:"auto" }}>
-                  {sortedDistricts.map(name => (
-                    <div key={name} onClick={() => handleSelectDistrict(name)}
-                      style={{ padding:"0.65rem 1.25rem", cursor:"pointer", borderBottom:"1px solid #f3f4f6",
-                        background: selectedDistrict === name ? "#e8f5ed" : "transparent",
-                        borderLeft: selectedDistrict === name ? "3px solid #155c31" : "3px solid transparent",
-                        transition:"all 0.1s" }}>
-                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color: selectedDistrict === name ? "#155c31" : "#374151", fontWeight: selectedDistrict === name ? "700" : "400" }}>{name}</p>
-                      <p style={{ fontSize:"0.7rem", color:"#9ca3af", marginTop:"2px" }}>{(districtVillages[name] || []).length} villages</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Right: village editor */}
-            <div>
-              {dvDone && <div className="alert alert-success" style={{ marginBottom:"1rem" }}>{dvDone}</div>}
-              {!selectedDistrict ? (
-                <div className="card" style={{ textAlign:"center", padding:"3rem", color:"#9ca3af" }}>
-                  <p style={{ fontSize:"2rem", marginBottom:"0.75rem" }}>🗺️</p>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.82rem" }}>Select a district to edit its villages</p>
-                </div>
-              ) : (
-                <div className="card">
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
-                    <h3 style={{ fontFamily:"'Cinzel',serif", fontSize:"0.9rem", color:"#111827" }}>◈ {selectedDistrict}</h3>
-                    <button onClick={() => handleDeleteDistrict(selectedDistrict)}
-                      style={{ background:"#991b1b", color:"#fff", border:"none", padding:"0.4rem 0.9rem", borderRadius:"4px", cursor:"pointer", fontSize:"0.75rem", fontFamily:"'Cinzel',serif" }}>
-                      Delete District
-                    </button>
-                  </div>
-                  <p style={{ fontSize:"0.82rem", color:"#6b7280", marginBottom:"0.75rem", lineHeight:1.6 }}>
-                    Enter villages separated by commas. Current: <strong>{(districtVillages[selectedDistrict] || []).length} villages</strong>
-                  </p>
-                  <textarea
-                    value={editingVillages}
-                    onChange={e => setEditingVillages(e.target.value)}
-                    rows={8}
-                    placeholder="Village 1, Village 2, Village 3…"
-                    style={{ width:"100%", padding:"0.75rem", border:"1.5px solid #d1d5db", borderRadius:"4px", fontSize:"0.88rem", fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}
-                  />
-                  <div style={{ marginTop:"0.5rem", marginBottom:"1rem" }}>
-                    <p style={{ fontSize:"0.78rem", color:"#6b7280" }}>
-                      Preview: {editingVillages.split(",").map(v => v.trim()).filter(Boolean).length} villages
-                    </p>
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:"0.4rem", marginTop:"0.5rem" }}>
-                      {editingVillages.split(",").map(v => v.trim()).filter(Boolean).map((v, i) => (
-                        <span key={i} style={{ background:"#e8f5ed", color:"#155c31", padding:"2px 10px", borderRadius:"10px", fontSize:"0.75rem", fontFamily:"'Cinzel',serif" }}>{v}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={handleSaveVillages} disabled={dvSaving}
-                    style={{ background:"#155c31", color:"#fff", border:"none", padding:"0.65rem 2rem", fontFamily:"'Cinzel',serif", fontSize:"0.78rem", letterSpacing:"0.1em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer" }}>
-                    {dvSaving ? "Saving…" : "Save Villages"}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
         )}
 
         {/* ── UNDO IMPORT MODE ── */}
@@ -541,11 +505,13 @@ export default function DataManage({ userRole }) {
               <p style={{ fontSize:"0.9rem", color:"#374151", textAlign:"center", lineHeight:1.7, marginBottom:"1.5rem" }}>
                 {confirmOpen === "undo"
                   ? `You are about to delete ${getBatchRecords(selectedBatch).length} records from the import "${selectedBatch?.details?.file || "unknown"}". This cannot be undone.`
+                  : confirmOpen === "reset"
+                  ? { imports: `This will clear all import history entries from the audit log, resetting the import count to zero. Registration records will not be affected.` }[resetType]
                   : `You are about to permanently delete ${selectedIds.size} selected record${selectedIds.size !== 1 ? "s" : ""}. This cannot be undone.`}
               </p>
               <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
-                <button onClick={() => setConfirmOpen(false)} className="btn-secondary" style={{ fontSize:"0.82rem" }}>Cancel</button>
-                <button onClick={confirmOpen === "undo" ? handleUndoImport : handleBulkDelete}
+                <button onClick={() => { setConfirmOpen(false); setResetType(""); }} className="btn-secondary" style={{ fontSize:"0.82rem" }}>Cancel</button>
+                <button onClick={confirmOpen === "undo" ? handleUndoImport : confirmOpen === "reset" ? handleReset : handleBulkDelete}
                   style={{ background:"#991b1b", color:"#fff", border:"none", padding:"0.65rem 1.8rem", fontFamily:"'Cinzel',serif", fontSize:"0.82rem", letterSpacing:"0.1em", textTransform:"uppercase", borderRadius:"4px", cursor:"pointer" }}>
                   Yes, Delete Permanently
                 </button>
