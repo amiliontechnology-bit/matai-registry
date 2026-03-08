@@ -360,47 +360,53 @@ export default function Reports({ userRole }) {
     setSavaliSaving(false);
   };
   const savaliEndDate = addMonths4(savaliProcDate);
-  const savaliPrintPDF = () => {
-    const {upolu:pu, savaii:ps} = savaliGrouped(savaliRecords);
-    const mkRows = rows => rows.map(r=>`<tr><td>${r.village||""}</td><td style="text-transform:uppercase">${r.mataiTitle||""}</td><td>${r.holderName||""}</td><td>${r.faapogai||""}</td></tr>`).join("");
-    const mkSec = (island,rows) => rows.length===0?"":
-      `<h2 style="text-align:center;font-family:'Cinzel',serif;font-size:11pt;letter-spacing:0.12em;margin:20px 0 6px;text-transform:uppercase">${island}</h2>
-       <table><thead><tr><th>NUU</th><th>SUAFA MATAI</th><th>IGOA TAULEALEA</th><th>FAAPOGAI</th></tr></thead><tbody>${mkRows(rows)}</tbody></table>`;
-    const procFmt = fmtDate(savaliProcDate);
-    const endFmt  = fmtDate(savaliEndDate);
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Savali ${procFmt}</title>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:Arial,sans-serif;padding:15mm 20mm;color:#000;font-size:10pt}
-        .hdr{text-align:center;border-bottom:2px solid #1a5c35;padding-bottom:10px;margin-bottom:14px}
-        .hdr img{height:65px;margin-bottom:6px}
-        .hdr h1{font-family:'Cinzel',serif;font-size:13pt;letter-spacing:0.08em;color:#1a5c35;margin-bottom:3px}
-        .hdr .dr{font-size:10pt;color:#555}
-        .meta{display:flex;justify-content:space-between;font-size:7pt;color:#888;margin-bottom:12px;font-style:italic}
-        table{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto}
-        thead{display:table-header-group}
-        th{background:#1a5c35;color:#fff;padding:4px 8px;text-align:center;font-family:'Cinzel',serif;font-size:7pt;letter-spacing:0.08em;text-transform:uppercase}
-        td{border:1px solid #ccc;padding:4px 7px;text-align:center;font-size:9pt}
-        tr:nth-child(even) td{background:#f5faf7}
-        tr{page-break-inside:avoid}
-        .footer{margin-top:20px;font-size:7pt;color:#aaa;border-top:1px solid #eee;padding-top:6px;display:flex;justify-content:space-between;font-style:italic;font-family:'Cinzel',serif;letter-spacing:0.06em}
-        @media print{body{padding:12mm 15mm}}
-      </style></head><body>
+  const savaliPDFStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;padding:15mm 20mm;color:#000;font-size:10pt}
+    .hdr{text-align:center;border-bottom:2px solid #1a5c35;padding-bottom:10px;margin-bottom:14px}
+    .hdr img{height:65px;margin-bottom:6px}
+    .hdr h1{font-family:'Cinzel',serif;font-size:13pt;letter-spacing:0.08em;color:#1a5c35;margin-bottom:3px}
+    .hdr .sub{font-size:9pt;color:#555;margin-top:2px}
+    .hdr .dr{font-size:10pt;color:#555}
+    .meta{display:flex;justify-content:space-between;font-size:7pt;color:#888;margin-bottom:12px;font-style:italic}
+    table{width:100%;border-collapse:collapse;margin-bottom:14px;page-break-inside:auto}
+    thead{display:table-header-group}
+    th{background:#1a5c35;color:#fff;padding:4px 8px;text-align:center;font-family:'Cinzel',serif;font-size:7pt;letter-spacing:0.08em;text-transform:uppercase}
+    td{border:1px solid #ccc;padding:4px 7px;text-align:center;font-size:9pt}
+    tr:nth-child(even) td{background:#f5faf7}
+    tr{page-break-inside:avoid}
+    .footer{margin-top:20px;font-size:7pt;color:#aaa;border-top:1px solid #eee;padding-top:6px;display:flex;justify-content:space-between;font-style:italic;font-family:'Cinzel',serif;letter-spacing:0.06em}
+    @media print{body{padding:12mm 15mm}}
+  `;
+  const savaliMkRows = rows => rows.map(r=>`<tr><td>${r.village||""}</td><td style="text-transform:uppercase;font-weight:600">${r.mataiTitle||""}</td><td>${r.holderName||""}</td><td>${r.faapogai||""}</td></tr>`).join("");
+  const savaliOpenPDF = (title, island, rows, procFmt, endFmt) => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
+      <style>${savaliPDFStyles}</style></head><body>
       <div class="hdr">
         <img src="${window.location.origin}/mjca_logo.jpeg" alt="Emblem" onerror="this.style.display='none'"/>
         <h1>LISI O LE SAVALI</h1>
+        <div class="sub">${island}</div>
         <div class="dr">Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</div>
         <div class="dr" style="margin-top:4px;font-weight:bold">${procFmt} &nbsp;&#9658;&nbsp; ${endFmt}</div>
       </div>
-      <div class="meta"><span>Printed: ${fmtDate(new Date().toISOString().split("T")[0])}</span><span>Total: ${pu.length+ps.length} records</span></div>
-      ${mkSec("UPOLU",pu)}${mkSec("SAVAII",ps)}
-      <div class="footer"><span>SAVALI &mdash; ${procFmt} &ndash; ${endFmt}</span><span>Aofa&#x2019;i: ${pu.length+ps.length}</span></div>
+      <div class="meta"><span>Printed: ${fmtDate(new Date().toISOString().split("T")[0])}</span><span>${island} — ${rows.length} record${rows.length!==1?"s":""}</span></div>
+      <table><thead><tr><th>NUU</th><th>SUAFA MATAI</th><th>IGOA TAULEALEA</th><th>FAAPOGAI</th></tr></thead>
+      <tbody>${savaliMkRows(rows)}</tbody></table>
+      <div class="footer"><span>SAVALI &mdash; ${island} &mdash; ${procFmt} &ndash; ${endFmt}</span><span>Aofa&#x2019;i: ${rows.length}</span></div>
     </body></html>`;
     const blob = new Blob([html],{type:"text/html"});
     const url = URL.createObjectURL(blob);
     const win = window.open(url,"_blank");
     if (win) win.addEventListener("load",()=>{ URL.revokeObjectURL(url); setTimeout(()=>win.print(),800); },{once:true});
+  };
+  const savaliPrintUpolu = () => {
+    const {upolu} = savaliGrouped(savaliRecords);
+    savaliOpenPDF(`Savali Upolu ${fmtDate(savaliProcDate)}`, "UPOLU", upolu, fmtDate(savaliProcDate), fmtDate(savaliEndDate));
+  };
+  const savaliPrintSavaii = () => {
+    const {savaii} = savaliGrouped(savaliRecords);
+    savaliOpenPDF(`Savali Savaii ${fmtDate(savaliProcDate)}`, "SAVAII", savaii, fmtDate(savaliProcDate), fmtDate(savaliEndDate));
   };
 
   // ── Shared UI components ──────────────────────────────────────
@@ -822,9 +828,13 @@ export default function Reports({ userRole }) {
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:savaliSelected.size===0?"transparent":"#b4530912",color:savaliSelected.size===0?"#bbb":"#b45309",cursor:savaliSelected.size===0?"not-allowed":"pointer"}}>
                       📅 Set Date ({savaliSelected.size})
                     </button>}
-                    {perms.canPrint && savaliRecords.length>0 && <button onClick={savaliPrintPDF}
+                    {perms.canPrint && savaliGrouped(savaliRecords).upolu.length>0 && <button onClick={savaliPrintUpolu}
                       style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
-                      📄 Print / PDF
+                      📄 PDF Upolu
+                    </button>}
+                    {perms.canPrint && savaliGrouped(savaliRecords).savaii.length>0 && <button onClick={savaliPrintSavaii}
+                      style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:"#b4530912",color:"#b45309",cursor:"pointer"}}>
+                      📄 PDF Savaii
                     </button>}
                   </div>
                 </div>
