@@ -738,12 +738,14 @@ export default function Notifications({ userRole }) {
                                 View
                               </button>
                             </Link>
-                            <button
-                              onClick={() => confirmRegistration(r)}
-                              disabled={isConfirming}
-                              style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background: isConfirming ? "#f3f4f6" : "#1e6b3c", border:"1px solid #1e6b3c", color: isConfirming ? "#9ca3af" : "#fff", borderRadius:"3px", cursor: isConfirming ? "not-allowed" : "pointer", fontWeight:600 }}>
-                              {isConfirming ? "Saving…" : "✓ Confirm"}
-                            </button>
+                            {perms.canEdit && (
+                              <button
+                                onClick={() => confirmRegistration(r)}
+                                disabled={isConfirming}
+                                style={{ fontSize:"0.68rem", padding:"0.35rem 0.9rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.06em", textTransform:"uppercase", background: isConfirming ? "#f3f4f6" : "#1e6b3c", border:"1px solid #1e6b3c", color: isConfirming ? "#9ca3af" : "#fff", borderRadius:"3px", cursor: isConfirming ? "not-allowed" : "pointer", fontWeight:600 }}>
+                                {isConfirming ? "Saving…" : "✓ Confirm"}
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"6px" }}>
