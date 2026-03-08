@@ -114,7 +114,7 @@ export default function Savali({ userRole }) {
   const endDate = addMonths(proclamationDate, 4);
 
   const generatePDF = () => {
-    const { upolu, savaii } = grouped();
+    const { upolu: pdfUpolu, savaii: pdfSavaii } = grouped();
     const doc2 = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = doc2.internal.pageSize.getWidth();
 
@@ -168,9 +168,8 @@ export default function Savali({ userRole }) {
       });
     };
 
-    const { upolu, savaii } = grouped();
-    addSection("UPOLU", upolu, true);
-    addSection("SAVAII", savaii, false);
+    addSection("UPOLU", pdfUpolu, true);
+    addSection("SAVAII", pdfSavaii, false);
 
     doc2.save(`Savali_${proclamationDate}.pdf`);
   };
