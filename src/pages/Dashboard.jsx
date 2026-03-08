@@ -119,8 +119,9 @@ export default function Dashboard({ userRole }) {
   const pageRecords = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const normalizeType = (t) => (t || "").trim().toLowerCase();
-  const totalAli      = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
-  const totalTulafale = records.filter(r => normalizeType(r.mataiType) === "tulafale").length;
+  const totalAli        = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
+  const totalTulafale   = records.filter(r => normalizeType(r.mataiType) === "tulafale").length;
+  const totalRegistered = records.filter(r => r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date()).length;
   const totalOther    = records.filter(r => {
     const t = normalizeType(r.mataiType);
     return t && t !== "ali'i" && t !== "alii" && t !== "tulafale" && t !== "faipule";
@@ -188,9 +189,10 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
-            { label:"Total Registered", value: records.length,  accent:"#155c31" },
+            { label:"Total Entries",    value: records.length,   accent:"#155c31" },
+            { label:"Total Registered", value: totalRegistered,  accent:"#1a5c35" },
             { label:"Ali'i",            value: totalAli,         accent:"#1e7a42" },
             { label:"Tulafale",         value: totalTulafale,    accent:"#0d2818" },
           ].map(s => (
