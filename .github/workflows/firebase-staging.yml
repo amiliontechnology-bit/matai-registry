@@ -43,4 +43,4 @@ jobs:
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
-          firebase hosting:channel:deploy staging --project resitalaina-o-matai --expires 30d --non-interactive
+          firebase hosting:channel:deploy staging --project resitalaina-o-matai --non-interactive
