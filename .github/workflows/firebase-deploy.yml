@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -23,7 +27,6 @@ jobs:
 
       - name: Build for Firebase (root URL)
         run: |
-          # Temporarily set homepage to / for Firebase build
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
@@ -39,3 +42,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           projectId: resitalaina-o-matai
           channelId: live
+          disableComment: true
