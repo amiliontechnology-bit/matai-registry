@@ -338,13 +338,19 @@ export default function Dashboard({ userRole }) {
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:"0.3rem" }}>
-                          {perms.canPrint && (
+                          {perms.canPrint && r.dateRegistration && (
                             <Link to={`/certificate/${r.id}`}>
                               <button className="btn-ghost" title="View Certificate"
                                 onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>
                                 🏅
                               </button>
                             </Link>
+                          )}
+                          {perms.canPrint && !r.dateRegistration && (
+                            <button className="btn-ghost" title="Certificate unavailable — no registration date" disabled
+                              style={{ opacity:0.35, cursor:"not-allowed" }}>
+                              🏅
+                            </button>
                           )}
                           {perms.canEdit && (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>

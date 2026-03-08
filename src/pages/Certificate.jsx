@@ -408,6 +408,40 @@ export default function Certificate({ userRole }) {
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading…</div>
   );
 
+  // Block certificate access if record has no registration date
+  if (record && !record.dateRegistration) return (
+    <div className="app-layout">
+      <div className="pattern-bg" />
+      <Sidebar userRole={userRole} userEmail={auth.currentUser?.email} />
+      <div className="sidebar-content">
+        <div style={{ maxWidth:"600px", margin:"6rem auto", textAlign:"center" }}>
+          <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>🏅</div>
+          <h2 style={{ fontFamily:"'Cinzel',serif", fontSize:"1.3rem", color:"#1a5c35", marginBottom:"0.75rem" }}>
+            Certificate Not Yet Available
+          </h2>
+          <p style={{ color:"rgba(26,26,26,0.6)", fontSize:"0.95rem", marginBottom:"0.5rem" }}>
+            <strong style={{ color:"#1a1a1a" }}>{record.mataiTitle} — {record.holderName}</strong>
+          </p>
+          <p style={{ color:"rgba(26,26,26,0.55)", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
+            This record does not have a registration date yet. A certificate can only be printed once the title has been officially registered.
+          </p>
+          <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
+            <Link to="/dashboard">
+              <button style={{ padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em", textTransform:"uppercase", background:"#f0faf4", border:"1px solid #a7d7b8", color:"#1e6b3c", borderRadius:"3px", cursor:"pointer" }}>
+                ← Back to Registry
+              </button>
+            </Link>
+            <Link to={`/register/${record.id}`}>
+              <button style={{ padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em", textTransform:"uppercase", background:"#1a5c35", border:"1px solid #1a5c35", color:"#fff", borderRadius:"3px", cursor:"pointer" }}>
+                ✎ Edit Record
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const afiogaName = record ? [record.mataiTitle?.toUpperCase(), record.holderName].filter(Boolean).join("  ") : "";
   const district   = record ? resolveDistrict(record.district, record.village) : "";
 

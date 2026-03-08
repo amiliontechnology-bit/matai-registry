@@ -662,7 +662,12 @@ export default function Register({ userRole }) {
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
         cacheClear("registrations");
         setSuccess("Title registered successfully.");
-        setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
+        // Only navigate to certificate if a registration date is set
+        if (form.dateRegistration) {
+          setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
+        } else {
+          setTimeout(() => navigate(`/dashboard`), 1200);
+        }
       }
     } catch (err) {
       setError("Failed to save. Please try again.");
