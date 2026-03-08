@@ -171,9 +171,10 @@ export default function Notifications({ userRole }) {
   };
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;          // already manually registered
-    if (r.status === "completed") return false;    // already confirmed
     if (!r.dateProclamation) return false;
+    // Truly registered = dateRegistration is set AND in the past AND status completed
+    const regPast = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
+    if (regPast && r.status === "completed") return false;
     const days = daysUntilReg(r);
     if (days === null) return false;
     // Include: within filter window, OR overdue (negative days = past reg date, not yet confirmed)
@@ -204,9 +205,10 @@ export default function Notifications({ userRole }) {
   // Monthly — Ready to register: 4 months past proclamation, no objection, not yet registered
   const readyToRegister = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.status === "completed") return false;
-    if (r.dateRegistration) return false;   // already registered
     if (!r.dateProclamation) return false;
+    // Truly registered = dateRegistration set AND past AND status completed
+    const regPast = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
+    if (regPast && r.status === "completed") return false;
     return !!effectiveRegDate(r);           // reg date has passed — period complete
   });
 
@@ -606,7 +608,7 @@ export default function Notifications({ userRole }) {
                   ))}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
-                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today (4 months after proclamation). Overdue records appear in Ready to Register.
+                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today, plus any overdue records not yet confirmed. Overdue records also appear in <strong>Ready to Register</strong> for confirmation.
                 </p>
               </div>
               <div style={sStyle}>
