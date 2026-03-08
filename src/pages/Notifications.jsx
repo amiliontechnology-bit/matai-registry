@@ -171,13 +171,14 @@ export default function Notifications({ userRole }) {
   };
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
-    if (r.dateRegistration) return false;          // already manually registered
+    if (r.dateRegistration) return false;          // already registered
     if (r.status === "completed") return false;    // already confirmed
     if (!r.dateProclamation) return false;
     const days = daysUntilReg(r);
     if (days === null) return false;
-    // Include: within filter window, OR overdue (negative days = past reg date, not yet confirmed)
-    return days <= filterWindow;
+    // Only show records STILL within proclamation period (days > 0) and within filter window
+    // Overdue records (days <= 0) show in Ready to Register tab only
+    return days > 0 && days <= filterWindow;
   }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
 
   // Objection records
@@ -606,7 +607,7 @@ export default function Notifications({ userRole }) {
                   ))}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
-                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today (4 months after proclamation). Overdue records appear in Ready to Register.
+                  Records still within their proclamation period whose <strong>registration date falls within {filterWindow} days</strong> from today. Records whose registration date has already passed appear in <strong>Ready to Register</strong>.
                 </p>
               </div>
               <div style={sStyle}>
@@ -618,7 +619,7 @@ export default function Notifications({ userRole }) {
                 </div>
                 {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                 : alertRecords.length === 0
-                  ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No records within {filterWindow} days.</div>
+                  ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No active proclamations within {filterWindow} days.</div>
                   : <>{alertPaged.map(r => <RecordRow key={r.id} r={r} />)}
                     <Pager page={alertPageSafe} totalPages={alertTotalPages} setPage={setAlertPage} /></>
                 }
