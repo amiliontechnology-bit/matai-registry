@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -117,18 +117,15 @@ export default function Notifications({ userRole }) {
   if (!perms.canViewNotifications) return <Navigate to="/dashboard" />;
 
   useEffect(() => {
-    (async () => {
-      try {
-        const cached = cacheGet("registrations");
-        if (cached) { setRecords(cached); setLoading(false); return; }
-        const snap = await getDocs(collection(db, "registrations"));
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-        cacheSet("registrations", data);
-        setRecords(data);
-      } catch(err) { console.error(err); }
-      finally { setLoading(false); }
-    })();
+    setLoading(true);
+    const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      cacheSet("registrations", data);
+      setRecords(data);
+      setLoading(false);
+    }, (err) => { console.error(err); setLoading(false); });
+    return () => unsub();
   }, []);
 
   const genBy = user?.displayName || user?.email || "Admin";

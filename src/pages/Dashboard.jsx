@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -52,29 +52,20 @@ export default function Dashboard({ userRole }) {
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
 
-  const fetchRecords = async (useCache = true) => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      const cached = useCache ? cacheGet("registrations") : null;
-      if (cached) {
-        setRecords(cached);
-        setLoading(false);
-        return;
-      }
-      const snap = await getDocs(collection(db, "registrations"));
+    const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", list);
       setRecords(list);
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      alert("Failed to load records: " + err.message);
-    } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchRecords(true); }, []);
+    }, (err) => {
+      console.error("Dashboard listener error:", err);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   const handleDelete = async (id, title) => {
     if (!window.confirm("Remove this registration permanently?")) return;
@@ -82,7 +73,7 @@ export default function Dashboard({ userRole }) {
     await deleteDoc(doc(db, "registrations", id));
     await logAudit("DELETE", { mataiTitle: title, recordId: id });
     cacheClear("registrations");
-    setRecords(prev => prev.filter(r => r.id !== id));
+    // onSnapshot will auto-update records list
     setDeleting(null);
   };
 

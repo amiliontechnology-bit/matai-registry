@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, writeBatch, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -142,23 +142,18 @@ export default function Reports({ userRole }) {
   const user  = auth.currentUser;
 
   useEffect(() => {
-    (async () => {
-      try {
-        const cached = cacheGet("registrations");
-        const data = cached || await (async () => {
-          const snap = await getDocs(collection(db, "registrations"));
-          const d = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          d.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-          cacheSet("registrations", d);
-          return d;
-        })();
-        setRecords(data);
-        const noProc = data.filter(r => !r.dateProclamation || r.dateProclamation.trim() === "");
-        setSavaliRecords(noProc);
-        setSavaliSelected(new Set(noProc.map(r => r.id)));
-      } catch(err) { console.error(err); }
-      finally { setLoading(false); }
-    })();
+    setLoading(true);
+    const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      cacheSet("registrations", data);
+      setRecords(data);
+      const noProc = data.filter(r => !r.dateProclamation || r.dateProclamation.trim() === "");
+      setSavaliRecords(noProc);
+      setSavaliSelected(new Set(noProc.map(r => r.id)));
+      setLoading(false);
+    }, (err) => { console.error(err); setLoading(false); });
+    return () => unsub();
   }, []);
 
   if (userRole === null) return null;
