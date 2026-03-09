@@ -905,40 +905,60 @@ export default function Register({ userRole }) {
           {/* ── Certificate Numbers ── */}
           <div className="card fade-in-delay-2">
             {sectionHead("Certificate Numbers")}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.2rem" }}>
-              <div className="form-group">
-                <label>Numera o le Itumalo <span style={{ color:"#c0392b", fontWeight:700 }}>*</span> <span style={{ fontSize:"0.7rem", color:"#6b7280", fontWeight:400 }}>(auto-set from District)</span></label>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.5rem", alignItems:"start" }}>
+
+              {/* Itumalo */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Numera o le Itumalo <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Auto-set from District</span>
+                </label>
                 <input type="number" min="1" max="41" value={form.certItumalo} onChange={set("certItumalo")}
-                  placeholder="1–41"
-                  style={{ borderColor: certMismatch ? "#c0392b" : undefined, background: certMismatch ? "#fff5f5" : undefined }} />
-                {form.certItumalo && DISTRICT_NUM[Number(form.certItumalo)] && (
-                  <p style={{ fontSize:"0.75rem", color: certMismatch ? "#c0392b" : "#155c31", marginTop:"4px", fontStyle:"italic" }}>
-                    {DISTRICT_NUM[Number(form.certItumalo)]}
+                  placeholder="e.g. 1"
+                  style={{ width:"100%", boxSizing:"border-box",
+                    borderColor: certMismatch ? "#c0392b" : form.certItumalo ? "#155c31" : undefined,
+                    background: certMismatch ? "#fff5f5" : undefined }} />
+                {form.certItumalo && DISTRICT_NUM[Number(form.certItumalo)] && !certMismatch && (
+                  <p style={{ fontSize:"0.72rem", color:"#155c31", marginTop:"5px", fontStyle:"italic", letterSpacing:"0.03em" }}>
+                    ✓ {DISTRICT_NUM[Number(form.certItumalo)]}
                   </p>
                 )}
                 {certMismatch && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px", lineHeight:1.4 }}>{certMismatch}</p>
+                  <p style={{ fontSize:"0.7rem", color:"#c0392b", marginTop:"5px", lineHeight:1.4 }}>{certMismatch}</p>
                 )}
               </div>
-              <div className="form-group">
-                <label>Numera ole Laupepa</label>
+
+              {/* Laupepa */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Numera ole Laupepa
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
+                </label>
                 <input type="text" value={form.certLaupepa} onChange={set("certLaupepa")}
-                  placeholder="Volume / Book number" />
+                  placeholder="e.g. 12"
+                  style={{ width:"100%", boxSizing:"border-box" }} />
               </div>
-              <div className="form-group">
-                <label>Registry Book Numbers</label>
+
+              {/* Registry Book */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Registry Book Numbers
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
+                </label>
                 <input type="text" value={form.certRegBook} onChange={set("certRegBook")}
                   onBlur={checkCertDuplicate}
-                  placeholder="Entry number" />
+                  placeholder="e.g. 1234"
+                  style={{ width:"100%", boxSizing:"border-box" }} />
               </div>
             </div>
+
+            {/* Composed cert number preview */}
             {(form.certItumalo || form.certLaupepa || form.certRegBook) && (
-              <div style={{ marginTop:"0.75rem", padding:"0.6rem 1rem", background:"#e8f5ed", borderRadius:"4px", border:"1px solid #c3e6cb" }}>
-                <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#155c31", letterSpacing:"0.1em" }}>
-                  Certificate Number: <strong style={{ fontSize:"0.88rem" }}>
-                    {[form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/")}
-                  </strong>
-                </p>
+              <div style={{ marginTop:"1.25rem", padding:"0.75rem 1.25rem", background:"#e8f5ed", borderRadius:"6px", border:"1px solid #c3e6cb", display:"flex", alignItems:"center", gap:"1rem" }}>
+                <span style={{ fontSize:"0.68rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.12em", textTransform:"uppercase", color:"#6b7280" }}>Certificate Number</span>
+                <strong style={{ fontFamily:"'Cinzel',serif", fontSize:"1rem", color:"#155c31", letterSpacing:"0.08em" }}>
+                  {[form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join(" / ")}
+                </strong>
               </div>
             )}
           </div>

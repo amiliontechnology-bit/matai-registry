@@ -844,11 +844,14 @@ export default function Reports({ userRole }) {
                   return (
                     <div style={{...sStyle, marginBottom:"1rem"}}>
                       <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#1a5c35",textTransform:"uppercase",marginBottom:"0.75rem"}}>◈ Generate Savali PDF by Proclamation Month</p>
-                      <div style={{display:"flex",gap:"0.75rem",alignItems:"center",flexWrap:"wrap"}}>
+                      {/* Month picker + PDF buttons — grid layout */}
+                      <div style={{ display:"grid", gridTemplateColumns:"auto 1fr 1fr", gap:"1rem", alignItems:"end" }}>
+
+                        {/* Month selector */}
                         <div>
-                          <label style={{...labelStyle,marginBottom:"4px"}}>Select Month</label>
+                          <label style={{ display:"block", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.14em", textTransform:"uppercase", color:"#6b7280", marginBottom:"6px" }}>Select Month</label>
                           <select value={pdfMonth} onChange={e=>setPdfMonth(e.target.value)}
-                            style={{...inputStyle, minWidth:"160px"}}>
+                            style={{...inputStyle, minWidth:"220px", fontFamily:"'Cinzel',serif", fontSize:"0.78rem" }}>
                             {months.length === 0
                               ? <option value="">No proclaimed records</option>
                               : months.map(m => {
@@ -860,28 +863,52 @@ export default function Reports({ userRole }) {
                             }
                           </select>
                         </div>
-                        <div style={{display:"flex",gap:"0.5rem",alignItems:"flex-end",paddingBottom:"0"}}>
+
+                        {/* Upolu button */}
+                        <div>
+                          <label style={{ display:"block", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.14em", textTransform:"uppercase", color:"#6b7280", marginBottom:"6px" }}>Upolu</label>
                           {upolu.length > 0
-                            ? <button onClick={savaliPrintUpolu}
-                                style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #1a5c35",background:"#1a5c3512",color:"#1a5c35",cursor:"pointer"}}>
-                                📄 PDF Upolu ({upolu.length})
+                            ? <button onClick={savaliPrintUpolu} style={{
+                                width:"100%", padding:"0.55rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem",
+                                letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px",
+                                border:"1px solid #1a5c35", background:"#1a5c3512", color:"#1a5c35", cursor:"pointer",
+                                display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+                                <span>📄</span> PDF Upolu <span style={{ fontWeight:700 }}>({upolu.length})</span>
                               </button>
-                            : <button disabled style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #d1d5db",background:"transparent",color:"#bbb",cursor:"not-allowed"}}>
-                                📄 PDF Upolu (0)
-                              </button>
-                          }
-                          {savaii.length > 0
-                            ? <button onClick={savaliPrintSavaii}
-                                style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #b45309",background:"#b4530912",color:"#b45309",cursor:"pointer"}}>
-                                📄 PDF Savaii ({savaii.length})
-                              </button>
-                            : <button disabled style={{padding:"0.45rem 1rem",fontFamily:"'Cinzel',serif",fontSize:"0.62rem",letterSpacing:"0.08em",textTransform:"uppercase",borderRadius:"3px",border:"1px solid #d1d5db",background:"transparent",color:"#bbb",cursor:"not-allowed"}}>
-                                📄 PDF Savaii (0)
+                            : <button disabled style={{
+                                width:"100%", padding:"0.55rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem",
+                                letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px",
+                                border:"1px solid #e5e7eb", background:"#f9fafb", color:"#d1d5db", cursor:"not-allowed",
+                                display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+                                <span>📄</span> PDF Upolu <span>(0)</span>
                               </button>
                           }
                         </div>
-                        {total === 0 && pdfMonth && <p style={{fontSize:"0.75rem",color:"#9ca3af",fontStyle:"italic"}}>No records with proclamation date in this month.</p>}
+
+                        {/* Savaii button */}
+                        <div>
+                          <label style={{ display:"block", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.14em", textTransform:"uppercase", color:"#6b7280", marginBottom:"6px" }}>Savaii</label>
+                          {savaii.length > 0
+                            ? <button onClick={savaliPrintSavaii} style={{
+                                width:"100%", padding:"0.55rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem",
+                                letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px",
+                                border:"1px solid #b45309", background:"#b4530912", color:"#b45309", cursor:"pointer",
+                                display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+                                <span>📄</span> PDF Savaii <span style={{ fontWeight:700 }}>({savaii.length})</span>
+                              </button>
+                            : <button disabled style={{
+                                width:"100%", padding:"0.55rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem",
+                                letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:"4px",
+                                border:"1px solid #e5e7eb", background:"#f9fafb", color:"#d1d5db", cursor:"not-allowed",
+                                display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+                                <span>📄</span> PDF Savaii <span>(0)</span>
+                              </button>
+                          }
+                        </div>
                       </div>
+                      {total === 0 && pdfMonth && (
+                        <p style={{ fontSize:"0.75rem", color:"#9ca3af", fontStyle:"italic", marginTop:"0.75rem" }}>No records with proclamation date in this month.</p>
+                      )}
                     </div>
                   );
                 })()}
