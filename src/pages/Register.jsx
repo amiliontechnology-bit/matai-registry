@@ -636,7 +636,8 @@ export default function Register({ userRole }) {
     // Holder must be 21 or older
     const ageCheck = validateAge(form.dateBirth);
     if (!ageCheck.valid) {
-      setError(`Holder must be at least 21 years old to register a Matai title. Current age: ${ageCheck.age} year${ageCheck.age !== 1 ? "s" : ""}.`);
+      const yrStr = ageCheck.age !== 1 ? "s" : "";
+      setError("Holder must be at least 21 years old to register a Matai title. Current age: " + ageCheck.age + " year" + yrStr + ".");
       return;
     }
     // Block save if a cert number duplicate is detected

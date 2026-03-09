@@ -587,6 +587,8 @@ export default function Notifications({ userRole }) {
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
               {duplicateGroups.length > 0 && (
                 <TabBtn tab="duplicates"   label="⚠ Duplicates"          count={duplicateGroups.length}    color="#c0392b" />
+              )}
+              {incompleteRecords.length > 0 && (
                 <TabBtn tab="incomplete"  label="⚠ Incomplete Records"  count={incompleteRecords.length}  color="#7c3aed" />
               )}
             </div>
