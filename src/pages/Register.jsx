@@ -481,7 +481,11 @@ export default function Register({ userRole }) {
 
   const activeDistrictVillages = districtVillagesFS || DISTRICT_VILLAGES;
   const activeDistrictOptions = Object.keys(activeDistrictVillages).sort()
-    .map((name, i) => ({ num: i + 1, name }));
+    .map((name) => {
+      const entry = Object.entries(DISTRICT_NUM).find(([, n]) => n === name);
+      return { num: entry ? Number(entry[0]) : "", name };
+    })
+    .sort((a, b) => Number(a.num) - Number(b.num));
   const villages = form.district ? (activeDistrictVillages[form.district] || []) : [];
 
   useEffect(() => {
