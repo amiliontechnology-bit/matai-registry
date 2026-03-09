@@ -563,14 +563,24 @@ export default function Register({ userRole }) {
 
   const set = (field) => (e) => {
     const val = e.target.value;
-    setForm(prev => ({
-      ...prev,
-      [field]: val,
-      ...(field === "district" ? {
-        village: "",
-        certItumalo: districtNameToNum(val)
-      } : {})
-    }));
+    setForm(prev => {
+      const updates = { ...prev, [field]: val };
+      if (field === "district") {
+        // District changed — clear village, auto-set certItumalo
+        updates.village = "";
+        updates.certItumalo = districtNameToNum(val);
+      } else if (field === "village" && val) {
+        // Village changed — derive district and certItumalo from village
+        const derivedDistrict = VILLAGE_TO_DISTRICT[val.trim().toUpperCase()] || prev.district;
+        updates.district = derivedDistrict;
+        updates.certItumalo = districtNameToNum(derivedDistrict) || prev.certItumalo;
+      } else if (field === "certItumalo") {
+        // certItumalo changed manually — sync district
+        const derivedDistrict = DISTRICT_NUM[Number(val)] || prev.district;
+        updates.district = derivedDistrict;
+      }
+      return updates;
+    });
   };
 
   // Check for duplicate Matai title OR cert number
