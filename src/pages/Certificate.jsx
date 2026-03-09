@@ -714,7 +714,7 @@ export default function Certificate({ userRole }) {
                     <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"180px", fontWeight:"600", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                       {district || ""}
                     </span>
-                    <span>ma na resitara i le</span>
+                    <span>ma na resitalaina i le</span>
                   </div>
 
                   {/* Row 3 — registration date */}
@@ -745,10 +745,10 @@ export default function Certificate({ userRole }) {
                   <div style={{ textAlign:"center", minWidth:"220px" }}>
                     <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
-                      Resitara
+                      Resitalaina
                     </p>
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800" }}>
-                      Mo le: <strong>RESITARA</strong>
+                      Mo le: <strong>RESITALAINA</strong>
                     </p>
                   </div>
                 </div>

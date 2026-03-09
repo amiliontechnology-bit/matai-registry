@@ -420,14 +420,39 @@ export default function Register({ userRole }) {
     return result && result.isPast ? result.dateStr : "";
   };
 
-  // Age validation — holder must be 21+ as of today
-  const validateAge = (dob) => {
+  // Age validation — holder must be 21+ as of the conferred date
+  const validateAge = (dob, conferred) => {
     if (!dob) return { valid: false, missing: true };
     const birth = new Date(dob + "T00:00:00");
-    const today = new Date(); today.setHours(0,0,0,0);
-    const age = today.getFullYear() - birth.getFullYear() -
-      (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+    const refDate = conferred ? new Date(conferred + "T00:00:00") : new Date();
+    refDate.setHours(0,0,0,0);
+    const age = refDate.getFullYear() - birth.getFullYear() -
+      (refDate < new Date(refDate.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
     return { valid: age >= 21, age, missing: false };
+  };
+
+  // Date order validation helpers
+  const validatePublishedDate = (published, conferred) => {
+    if (!published || !conferred) return null;
+    const p = new Date(published + "T00:00:00");
+    const c = new Date(conferred + "T00:00:00");
+    if (p <= c) return "Savali Published Date must be after the Date of Conferral.";
+    return null;
+  };
+
+  const validateRegistrationDate = (regDate, published, conferred) => {
+    if (!regDate) return null;
+    const r = new Date(regDate + "T00:00:00");
+    if (conferred) {
+      const c = new Date(conferred + "T00:00:00");
+      if (r <= c) return "Registration Date must be after the Date of Conferral.";
+    }
+    if (published) {
+      const p = new Date(published + "T00:00:00");
+      const minReg = new Date(p.getFullYear(), p.getMonth() + 4, p.getDate());
+      if (r < minReg) return "Registration Date must be at least 4 months after the Savali Published Date.";
+    }
+    return null;
   };
 
   // Cert number mismatch warning — certItumalo should match selected district
@@ -681,16 +706,22 @@ export default function Register({ userRole }) {
     }
     // Date of birth is required
     if (!form.dateBirth) {
-      setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older.");
+      setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older at the date of conferral.");
       return;
     }
-    // Holder must be 21 or older
-    const ageCheck = validateAge(form.dateBirth);
+    // Holder must be 21 or older as of the conferred date
+    const ageCheck = validateAge(form.dateBirth, form.dateConferred);
     if (!ageCheck.valid) {
       const yrStr = ageCheck.age !== 1 ? "s" : "";
-      setError("Holder must be at least 21 years old to register a Matai title. Current age: " + ageCheck.age + " year" + yrStr + ".");
+      setError("Holder must be at least 21 years old as of the Date of Conferral. Age at conferral: " + ageCheck.age + " year" + yrStr + ".");
       return;
     }
+    // Published date must be after conferred date
+    const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
+    if (publishedErr) { setError(publishedErr); return; }
+    // Registration date order checks
+    const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
+    if (regErr) { setError(regErr); return; }
     // Block save if cert number mismatch
     if (certMismatch) {
       setError("Please correct the certificate Itumalo number — it does not match the selected district.");
@@ -985,37 +1016,56 @@ export default function Register({ userRole }) {
                 <input type="date" value={form.dateSavaliPublished} onChange={e => {
                   const val = e.target.value;
                   setForm(f => ({ ...f, dateSavaliPublished: val }));
-                }} />
+                }}
+                  style={{
+                    borderColor: form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) ? "#c0392b" : undefined,
+                    background:  form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) ? "#fff5f5" : undefined,
+                  }} />
+                {form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
+                    ✗ {validatePublishedDate(form.dateSavaliPublished, form.dateConferred)}
+                  </p>
+                )}
               </div>
               <div className="form-group">
                 <label>Aso na Resitala ai (Date of Registration)</label>
                 {(() => {
                   const calc = calcRegDate(form.dateSavaliPublished);
                   const isAuto = calc && form.dateRegistration === calc.dateStr;
-                  const hasManual = form.dateRegistration && !isAuto;
+                  const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
                   return (<>
                     <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")}
-                      style={{ borderColor: isAuto ? "#fcd34d" : undefined, background: isAuto ? "#fffbeb" : undefined }} />
+                      style={{
+                        borderColor: isAuto ? "#fcd34d" : (form.dateRegistration && regErr ? "#c0392b" : undefined),
+                        background:  isAuto ? "#fffbeb" : (form.dateRegistration && regErr ? "#fff5f5" : undefined),
+                      }} />
                     {isAuto && (
                       <p style={{ fontSize:"0.72rem", color:"#92400e", marginTop:"4px", fontStyle:"italic" }}>
                         ⚠ Auto-calculated — will not be saved until confirmed in Notifications
                       </p>
+                    )}
+                    {!isAuto && form.dateRegistration && regErr && (
+                      <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ {regErr}</p>
                     )}
                   </>);
                 })()}
               </div>
               <div className="form-group">
                 <label>Date Issued (Aso Tuuina Mai)</label>
-                <input type="date" value={form.dateIssued} onChange={set("dateIssued")} />
+                <input type="date" value={form.dateIssued} readOnly disabled
+                  style={{ background:"#f3f4f6", color:"#6b7280", cursor:"not-allowed", borderColor:"#e5e7eb" }} />
+                <p style={{ fontSize:"0.72rem", color:"#6b7280", marginTop:"4px", fontStyle:"italic" }}>
+                  ⓘ Auto-set to today's date — cannot be edited
+                </p>
               </div>
               <div className="form-group">
                 <label>Aso Fanau (Date of Birth) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <input type="date" value={form.dateBirth || ""} onChange={set("dateBirth")}
-                  style={{ borderColor: form.dateBirth ? (validateAge(form.dateBirth).valid ? undefined : "#c0392b") : "#c0392b",
-                           background: form.dateBirth ? (validateAge(form.dateBirth).valid ? undefined : "#fff5f5") : "#fff5f5" }} />
-                {form.dateBirth && !validateAge(form.dateBirth).valid && (
+                  style={{ borderColor: form.dateBirth ? (validateAge(form.dateBirth, form.dateConferred).valid ? undefined : "#c0392b") : "#c0392b",
+                           background: form.dateBirth ? (validateAge(form.dateBirth, form.dateConferred).valid ? undefined : "#fff5f5") : "#fff5f5" }} />
+                {form.dateBirth && !validateAge(form.dateBirth, form.dateConferred).valid && (
                   <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
-                    ✗ Holder is {validateAge(form.dateBirth).age} years old — must be 21 or older
+                    ✗ Holder is {validateAge(form.dateBirth, form.dateConferred).age} years old at conferral date — must be 21 or older
                   </p>
                 )}
                 {!form.dateBirth && (
