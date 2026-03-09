@@ -670,6 +670,9 @@ export default function Register({ userRole }) {
     if (!form.village)             missing.push("Village (Nu'u)");
     if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
                                    missing.push("Matai Certificate Number");
+    if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
+    if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
+    if (!form.faapogai?.trim())    missing.push("Faapogai");
     if (!form.dateConferred)       missing.push("Aso o le Saofai (Date of Conferral)");
     if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
     if (missing.length > 0) {
@@ -937,7 +940,7 @@ export default function Register({ userRole }) {
               {/* Laupepa */}
               <div className="form-group" style={{ margin:0 }}>
                 <label style={{ display:"block", marginBottom:"0.4rem" }}>
-                  Numera ole Laupepa
+                  Numera ole Laupepa <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
                 </label>
                 <input type="text" value={form.certLaupepa} onChange={set("certLaupepa")}
@@ -948,7 +951,7 @@ export default function Register({ userRole }) {
               {/* Registry Book */}
               <div className="form-group" style={{ margin:0 }}>
                 <label style={{ display:"block", marginBottom:"0.4rem" }}>
-                  Registry Book Numbers
+                  Registry Book Numbers <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
                 </label>
                 <input type="text" value={form.certRegBook} onChange={set("certRegBook")}
@@ -1034,7 +1037,7 @@ export default function Register({ userRole }) {
             {sectionHead("Faapogai & Notes")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
-                <label>Faapogai</label>
+                <label>Faapogai <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <input type="text" value={form.faapogai} onChange={set("faapogai")}
                   placeholder="e.g. SULI" />
               </div>
