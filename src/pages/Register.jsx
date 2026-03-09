@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -323,7 +324,7 @@ const EMPTY = {
   nuuMataiAi: "",       // Nuu o loo Matai ai
   // Dates
   dateConferred: "",    // Aso o le Saofai
-  dateProclamation: "", // Aso o le Faasalalauga
+  dateSavaliPublished: "", // Aso o le Faasalalauga
   dateRegistration: "", // Aso na Resitala ai
   dateIssued: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
   dateBirth: "",        // Aso Fanau
@@ -369,7 +370,7 @@ export default function Register({ userRole }) {
         const cached = cacheGet("registrations");
         if (cached) { setAllRecords(cached); return; }
         const snap = await getDocs(collection(db, "registrations"));
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
         data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
         cacheSet("registrations", data);
         setAllRecords(data);
@@ -392,7 +393,7 @@ export default function Register({ userRole }) {
   const prevRecord   = currentIndex > 0 ? navRecords[currentIndex - 1] : null;
   const nextRecord   = currentIndex >= 0 && currentIndex < navRecords.length - 1 ? navRecords[currentIndex + 1] : null;
 
-  // Auto-set dateRegistration when objection=no and dateProclamation is set
+  // Auto-set dateRegistration when objection=no and dateSavaliPublished is set
   // Registration date rule:
   // Proclamations go out on the 28th of each month.
   // After 4 months, if no objection, registration is on the 29th of that month.
@@ -526,7 +527,7 @@ export default function Register({ userRole }) {
 
           // ── 1. Normalise all date fields ──
           data.dateConferred    = toDateStr(data.dateConferred);
-          data.dateProclamation = toDateStr(data.dateProclamation);
+          data.dateSavaliPublished = toDateStr(data.dateSavaliPublished);
           data.dateRegistration = toDateStr(data.dateRegistration);
           data.dateIssued       = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
           data.dateBirth        = toDateStr(data.dateBirth);
@@ -617,7 +618,7 @@ export default function Register({ userRole }) {
       let allDocs = cacheGet("registrations");
       if (!allDocs) {
         const snap = await getDocs(collection(db, "registrations"));
-        allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allDocs = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
         cacheSet("registrations", allDocs);
       }
       const existing = allDocs.filter(d => d.id !== id && d.mataiTitle === title.trim());
@@ -639,7 +640,7 @@ export default function Register({ userRole }) {
       let allDocs = cacheGet("registrations");
       if (!allDocs) {
         const snap = await getDocs(collection(db, "registrations"));
-        allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allDocs = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
         cacheSet("registrations", allDocs);
       }
       const existing = allDocs.filter(d => {
@@ -711,7 +712,7 @@ export default function Register({ userRole }) {
         // Compose cert number from parts if all 3 set
       const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
       // Never save an auto-calculated dateRegistration — only save if staff manually entered it
-      const calcResult2 = calcRegDate(form.dateProclamation);
+      const calcResult2 = calcRegDate(form.dateSavaliPublished);
       const isAutoCalc2 = calcResult2 && form.dateRegistration === calcResult2.dateStr;
       const finalRegDate2 = isAutoCalc2 ? "" : form.dateRegistration;
       const regPassed2 = finalRegDate2 && new Date(finalRegDate2 + "T00:00:00") <= new Date();
@@ -730,7 +731,7 @@ export default function Register({ userRole }) {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         // Never save an auto-calculated dateRegistration — only save if staff manually entered it
         // Auto-calculated = matches the calcRegDate result; manual = staff typed something different
-        const calcResult = calcRegDate(form.dateProclamation);
+        const calcResult = calcRegDate(form.dateSavaliPublished);
         const isAutoCalc = calcResult && form.dateRegistration === calcResult.dateStr;
         const finalRegDate = isAutoCalc ? "" : form.dateRegistration;
         const regPassed = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
@@ -982,15 +983,15 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Aso o le Faasalalauga (Savali Published Date)</label>
-                <input type="date" value={form.dateProclamation} onChange={e => {
+                <input type="date" value={form.dateSavaliPublished} onChange={e => {
                   const val = e.target.value;
-                  setForm(f => ({ ...f, dateProclamation: val }));
+                  setForm(f => ({ ...f, dateSavaliPublished: val }));
                 }} />
               </div>
               <div className="form-group">
                 <label>Aso na Resitala ai (Date of Registration)</label>
                 {(() => {
-                  const calc = calcRegDate(form.dateProclamation);
+                  const calc = calcRegDate(form.dateSavaliPublished);
                   const isAuto = calc && form.dateRegistration === calc.dateStr;
                   const hasManual = form.dateRegistration && !isAuto;
                   return (<>
@@ -1092,7 +1093,7 @@ export default function Register({ userRole }) {
                 <label>Objection Filed?</label>
                 <select value={form.objection} onChange={e => {
                   const val = e.target.value;
-                  const autoReg = val === "no" ? autoRegDate(form.dateProclamation) : "";
+                  const autoReg = val === "no" ? autoRegDate(form.dateSavaliPublished) : "";
                   setForm(f => ({ ...f, objection: val, objectionDate: val === "yes" ? today : "", dateRegistration: f.dateRegistration !== "" ? f.dateRegistration : autoReg }));
                 }}>
                   <option value="no">No — No objection</option>
@@ -1113,8 +1114,8 @@ export default function Register({ userRole }) {
                 </p>
               </div>
             )}
-            {form.objection === "no" && form.dateProclamation && (() => {
-              const hint = regDateHint(form.dateProclamation);
+            {form.objection === "no" && form.dateSavaliPublished && (() => {
+              const hint = regDateHint(form.dateSavaliPublished);
               if (!hint) return null;
               return hint.isPast ? (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef3c7", border:"1px solid #fcd34d", borderRadius:"4px" }}>

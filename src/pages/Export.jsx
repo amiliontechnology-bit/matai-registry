@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -17,7 +18,7 @@ const ALL_FIELDS = [
   { key:"nuuMataiAi",       label:"Village of Other Title" },
   { key:"familyTitles",     label:"Other Matai Title" },
   { key:"dateConferred",    label:"Aso o le Saofai" },
-  { key:"dateProclamation", label:"Aso Faasalalauga" },
+  { key:"dateSavaliPublished", label:"Aso Faasalalauga" },
   { key:"dateRegistration", label:"Aso Resitala" },
   { key:"dateIssued",       label:"Date Issued" },
   { key:"dateBirth",        label:"Date of Birth" },
@@ -40,7 +41,7 @@ const fmtDate = (str) => {
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
 };
 
-const DATE_KEYS = new Set(["dateConferred","dateProclamation","dateRegistration","dateIssued","dateBirth","objectionDate"]);
+const DATE_KEYS = new Set(["dateConferred","dateSavaliPublished","dateRegistration","dateIssued","dateBirth","objectionDate"]);
 
 const OPERATORS = {
   text:   ["contains","equals","starts with","ends with","is empty","is not empty"],
@@ -50,7 +51,7 @@ const OPERATORS = {
 const FILTER_TYPES = {
   mataiCertNumber:"text", mataiTitle:"text", holderName:"text", gender:"select", mataiType:"select",
   village:"text", district:"select", familyTitles:"text", nuuMataiAi:"text", nuuFanau:"text",
-  dateConferred:"date", dateProclamation:"date", dateRegistration:"date", dateIssued:"date",
+  dateConferred:"date", dateSavaliPublished:"date", dateRegistration:"date", dateIssued:"date",
   dateBirth:"date", objectionDate:"date", faapogai:"text", notes:"text",
   photoIdType:"select", photoIdNumber:"text", objection:"select",
 };
@@ -94,7 +95,7 @@ export default function Export({ userRole }) {
       try {
         const list = await cachedFetch("registrations", async () => {
           const snap = await getDocs(collection(db, "registrations"));
-          const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
           data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
           return data;
         });

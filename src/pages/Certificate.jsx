@@ -590,7 +590,7 @@ export default function Certificate({ userRole }) {
               {sectionHead("Important Dates")}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
                 {readField("Aso o le Saofai (Date of Conferral)", formatDate(record.dateConferred))}
-                {readField("Aso o le Faasalalauga (Savali Published Date)", formatDate(record.dateProclamation))}
+                {readField("Aso o le Faasalalauga (Savali Published Date)", formatDate(record.dateSavaliPublished))}
                 {readField("Aso na Resitala ai (Date of Registration)", formatDate(record.dateRegistration))}
                 {readField("Date Issued (Aso Tuuina Mai)", formatDate(record.dateIssued))}
                 {readField("Aso Fanau (Date of Birth)", formatDate(record.dateBirth))}

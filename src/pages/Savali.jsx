@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { collection, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -53,10 +54,10 @@ export default function Savali({ userRole }) {
       let all = cacheGet("registrations");
       if (!all) {
         const snap = await getDocs(collection(db, "registrations"));
-        all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        all = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
         cacheSet("registrations", all);
       }
-      const noProclaim = all.filter(r => !r.dateProclamation || r.dateProclamation.trim() === "");
+      const noProclaim = all.filter(r => !r.dateSavaliPublished || r.dateSavaliPublished.trim() === "");
       setUnproclaimed(noProclaim);
       setSelected(new Set(noProclaim.map(r => r.id)));
     } catch (e) { console.error(e); }
@@ -99,7 +100,7 @@ export default function Savali({ userRole }) {
     const toSet = unproclaimed.filter(r => selected.has(r.id));
     try {
       const batch = writeBatch(db);
-      toSet.forEach(r => batch.update(doc(db, "registrations", r.id), { dateProclamation: proclamationDate }));
+      toSet.forEach(r => batch.update(doc(db, "registrations", r.id), { dateSavaliPublished: proclamationDate }));
       await batch.commit();
       cacheClear("registrations");
       await logAudit("SET_PROCLAMATION_DATE", { date: proclamationDate, count: toSet.length, recordIds: toSet.map(r => r.id) });

@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -48,7 +49,7 @@ function regDateIfPassed(proclamationStr) {
 function effectiveRegDate(r) {
   if (r.dateRegistration) return r.dateRegistration;
   if (r.objection === "yes") return null;
-  return regDateIfPassed(r.dateProclamation);
+  return regDateIfPassed(r.dateSavaliPublished);
 }
 
 function isMonthlyRunDay() {
@@ -119,7 +120,7 @@ export default function Notifications({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
       data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", data);
       setRecords(data);
@@ -162,14 +163,14 @@ export default function Notifications({ userRole }) {
   // Proclamation alerts: records within the filter window OR overdue (past reg date, not yet confirmed)
   // daysUntilReg = days from today until auto reg date (positive = still in period, negative = overdue/past)
   const daysUntilReg = (r) => {
-    const rd = autoRegDate(r.dateProclamation);
+    const rd = autoRegDate(r.dateSavaliPublished);
     if (!rd) return null;
     return Math.ceil((new Date(rd + "T00:00:00") - new Date()) / (1000*60*60*24));
   };
   const alertRecords = records.filter(r => {
     if (r.objection === "yes") return false;
     if (r.dateRegistration) return false;
-    if (!r.dateProclamation) return false;
+    if (!r.dateSavaliPublished) return false;
     // Include overdue records (period passed, not yet confirmed) — they show as red "Xd OVERDUE"
     // They also appear in Ready to Register for confirmation
     const days = daysUntilReg(r);
@@ -195,7 +196,7 @@ export default function Notifications({ userRole }) {
   });
 
   // Monthly — New Matai titles: entered but NO proclamation date yet (brand new entries)
-  const newMataiRecords = records.filter(r => !r.dateProclamation && !r.dateRegistration && r.objection !== "yes");
+  const newMataiRecords = records.filter(r => !r.dateSavaliPublished && !r.dateRegistration && r.objection !== "yes");
 
   // Incomplete records — missing date of birth (flagged after import or data entry)
   const incompleteRecords = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "");
@@ -205,7 +206,7 @@ export default function Notifications({ userRole }) {
     if (r.objection === "yes") return false;
     if (r.status === "completed") return false;
     if (r.dateRegistration) return false;
-    if (!r.dateProclamation) return false;
+    if (!r.dateSavaliPublished) return false;
     return !!effectiveRegDate(r);           // reg date has passed — period complete
   });
 
@@ -288,14 +289,14 @@ export default function Notifications({ userRole }) {
     const rows = alertRecords.map((r,i) => {
       const days = daysUntilReg(r);
       const col = days < 0 ? "#8b1a1a" : days <= 30 ? "#c0392b" : "#1e6b3c";
-      const regDate = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
+      const regDate = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
       return `<tr>
         <td>${i+1}</td>
         <td><strong>${r.mataiTitle||"—"}</strong></td>
         <td>${r.holderName||"—"}</td>
         <td>${r.village||"—"}</td>
         <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateProclamation)}</td>
+        <td>${fmtDate(r.dateSavaliPublished)}</td>
         <td style="color:${col};font-weight:600">${urgencyLabel(days)}</td>
         <td>${fmtDate(regDate)}</td>
       </tr>`;
@@ -319,7 +320,7 @@ export default function Notifications({ userRole }) {
       <td>${r.holderName||"—"}</td>
       <td>${r.village||"—"}</td>
       <td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateProclamation)}</td>
+      <td>${fmtDate(r.dateSavaliPublished)}</td>
       <td style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</td>
       <td style="color:#8b1a1a">Court proceedings required</td>
     </tr>`).join("");
@@ -362,14 +363,14 @@ export default function Notifications({ userRole }) {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = readyToRegister.map((r,i) => {
-      const regDate = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
+      const regDate = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
       return `<tr>
         <td>${i+1}</td>
         <td><strong>${r.mataiTitle||"—"}</strong></td>
         <td>${r.holderName||"—"}</td>
         <td>${r.village||"—"}</td>
         <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateProclamation)}</td>
+        <td>${fmtDate(r.dateSavaliPublished)}</td>
         <td style="color:#1a5c35;font-weight:600">${fmtDate(regDate)}</td>
       </tr>`;
     }).join("");
@@ -411,8 +412,8 @@ export default function Notifications({ userRole }) {
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.holderName||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.village||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.district||"—"}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateProclamation)}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#1a5c35;font-weight:600">${fmtDate(autoRegDate(r.dateProclamation))}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateSavaliPublished)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#1a5c35;font-weight:600">${fmtDate(autoRegDate(r.dateSavaliPublished))}</td>
     </tr>`).join("");
 
     const completedRows = registeredRecords.map((r,i)=>`<tr style="background:${i%2?"#f9f9f9":"#fff"}">
@@ -421,7 +422,7 @@ export default function Notifications({ userRole }) {
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.holderName||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.village||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.district||"—"}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateProclamation)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateSavaliPublished)}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</td>
     </tr>`).join("");
 
@@ -431,7 +432,7 @@ export default function Notifications({ userRole }) {
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.holderName||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.village||"—"}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee">${r.district||"—"}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateProclamation)}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #eee">${fmtDate(r.dateSavaliPublished)}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #eee;color:#8b1a1a">${fmtDate(r.objectionDate)}</td>
     </tr>`).join("");
 
@@ -549,8 +550,8 @@ export default function Notifications({ userRole }) {
           </div>
           <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
             <span>📍 {r.village}, {r.district}</span>
-            <span>🗓 Published: <strong style={{ color:"rgba(26,26,26,0.7)" }}>{fmtDate(r.dateProclamation)}</strong></span>
-            <span>📋 Reg. date: <strong style={{color:col}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
+            <span>🗓 Published: <strong style={{ color:"rgba(26,26,26,0.7)" }}>{fmtDate(r.dateSavaliPublished)}</strong></span>
+            <span>📋 Reg. date: <strong style={{color:col}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished))}</strong></span>
           </div>
         </div>
       </Link>
@@ -706,7 +707,7 @@ export default function Notifications({ userRole }) {
                         </div>
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
                           <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Published: {fmtDate(r.dateProclamation)}</span>
+                          <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
                           <span style={{ color:"#8b1a1a" }}>📋 Objection: {fmtDate(r.objectionDate)}</span>
                         </div>
                       </div>
@@ -802,7 +803,7 @@ export default function Notifications({ userRole }) {
                         </div>
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"6px" }}>
                           <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Published: {fmtDate(r.dateProclamation)}</span>
+                          <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
                           <span style={{ color:"#1a5c35", fontWeight:600 }}>📋 Reg. date: {fmtDate(regDate)}</span>
                         </div>
                       </div>

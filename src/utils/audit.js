@@ -22,7 +22,7 @@ export function diffRecords(oldRec, newRec) {
     mataiTitle: "Matai Title", holderName: "Holder Name", gender: "Gender",
     mataiType: "Title Type", familyName: "Family Name", village: "Village",
     district: "District", dateConferred: "Date of Conferral",
-    dateProclamation: "Savali Published Date", dateRegistration: "Date of Registration",
+    dateSavaliPublished: "Savali Published Date", dateRegistration: "Date of Registration",
     dateIssued: "Date Issued", refNumber: "Reference Number",
     faapogai: "Faapogai", notes: "Notes"
   };

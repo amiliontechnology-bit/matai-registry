@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -23,8 +24,8 @@ const fmtDate = (str) => {
 
 function effectiveRegDate(r) {
   if (r.dateRegistration) return r.dateRegistration;
-  if (r.objection === "yes" || !r.dateProclamation) return null;
-  const p = new Date(r.dateProclamation + "T00:00:00");
+  if (r.objection === "yes" || !r.dateSavaliPublished) return null;
+  const p = new Date(r.dateSavaliPublished + "T00:00:00");
   const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
   const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
   const reg = new Date(target.getFullYear(), target.getMonth(), Math.min(29, lastDay));
@@ -55,7 +56,7 @@ export default function Dashboard({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", list);
       setRecords(list);

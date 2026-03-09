@@ -405,7 +405,7 @@ function mapRow(row) {
     district:         districtName,
     nuuMataiAi:       g("Nuu o loo \nMatai ai","Nuu o loo Matai ai","nuuoloomataiai","nuoloomatai"),
     dateConferred:    parseDate(g("Aso o le Saofai","asoolesaofai")),
-    dateProclamation: parseDate(g("Aso o le \nFaasalalauga","Aso o le Faasalalauga","asoolefaasalalauga")),
+    dateSavaliPublished: parseDate(g("Aso o le \nFaasalalauga","Aso o le Faasalalauga","asoolefaasalalauga")),
     dateRegistration: parseDate(g("Aso na \nResitala ai","Aso na Resitala ai","asonaresitalaai")),
     dateIssued:       parseDate(g("dateIssued","dateisuued")) || today,
     dateBirth:        parseDate(g("Aso Fanau","asofanau")),

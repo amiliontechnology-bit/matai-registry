@@ -1,3 +1,4 @@
+import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { collection, getDocs, writeBatch, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -44,8 +45,8 @@ function autoRegDate(proc) {
 function effectiveRegDate(r) {
   if (r.dateRegistration) return r.dateRegistration;
   if (r.objection === "yes") return null;
-  if (!r.dateProclamation) return null;
-  const d = autoRegDate(r.dateProclamation);
+  if (!r.dateSavaliPublished) return null;
+  const d = autoRegDate(r.dateSavaliPublished);
   if (!d) return null;
   const reg = new Date(d + "T00:00:00");
   const today = new Date(); today.setHours(0,0,0,0);
@@ -145,11 +146,11 @@ export default function Reports({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
       data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", data);
       setRecords(data);
-      const noProc = data.filter(r => !r.dateProclamation || r.dateProclamation.trim() === "");
+      const noProc = data.filter(r => !r.dateSavaliPublished || r.dateSavaliPublished.trim() === "");
       setSavaliRecords(noProc);
       setSavaliSelected(new Set(noProc.map(r => r.id)));
       setLoading(false);
@@ -177,16 +178,16 @@ export default function Reports({ userRole }) {
   );
 
   const newAll = records.filter(r =>
-    !r.dateProclamation && !r.dateRegistration && r.objection !== "yes"
+    !r.dateSavaliPublished && !r.dateRegistration && r.objection !== "yes"
   );
 
   const objAll = records.filter(r => r.objection === "yes");
 
   const procAll = records.filter(r => {
-    if (r.objection === "yes" || r.dateRegistration || !r.dateProclamation) return false;
+    if (r.objection === "yes" || r.dateRegistration || !r.dateSavaliPublished) return false;
     if (effectiveRegDate(r)) return false; // reg date passed → goes to readyAll instead
     // Include all records actively within proclamation period (proclaimed but reg date not yet reached)
-    const procDate = new Date(r.dateProclamation + "T00:00:00");
+    const procDate = new Date(r.dateSavaliPublished + "T00:00:00");
     return procDate <= now; // proclaimed in the past, reg date not yet reached
   });
 
@@ -196,18 +197,18 @@ export default function Reports({ userRole }) {
 
   // Ready to Register: auto reg date falls in current month
   const readyMonth = readyAll.filter(r => {
-    const rd = effectiveRegDate(r) || autoRegDate(r.dateProclamation);
+    const rd = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
     return inMonth(rd, currentYM);
   });
 
   // Proclamation Report (monthly): proclamation date in current month
   const procMonth = records.filter(r => {
     if (r.objection === "yes" || r.dateRegistration) return false;
-    return inMonth(r.dateProclamation, currentYM);
+    return inMonth(r.dateSavaliPublished, currentYM);
   });
 
   // Objection Report (monthly): objection date in current month
-  const objMonth = objAll.filter(r => inMonth(r.objectionDate || r.dateProclamation, currentYM));
+  const objMonth = objAll.filter(r => inMonth(r.objectionDate || r.dateSavaliPublished, currentYM));
 
   // Registered this month (for full monthly report only)
   const regMonth = registeredAll.filter(r => inMonth(r.dateRegistration, currentYM));
@@ -228,11 +229,11 @@ export default function Reports({ userRole }) {
   };
 
   const fReady = (filterType==="all"||filterType==="ready")
-    ? applyRange(readyAll, "dateProclamation") : [];
+    ? applyRange(readyAll, "dateSavaliPublished") : [];
   const fNew   = (filterType==="all"||filterType==="new")
     ? applyRange(newAll, "dateConferred") : [];
   const fProc  = (filterType==="all"||filterType==="proclamation")
-    ? applyRange(procAll, "dateProclamation") : [];
+    ? applyRange(procAll, "dateSavaliPublished") : [];
   const fObj   = (filterType==="all"||filterType==="objections")
     ? applyRange(objAll, "objectionDate") : [];
 
@@ -256,11 +257,11 @@ export default function Reports({ userRole }) {
     `<h2 style="font-family:'Cinzel',serif;color:${color};font-size:0.9rem;margin:1.5rem 0 0.4rem;border-bottom:2px solid ${color};padding-bottom:4px;text-transform:uppercase;letter-spacing:0.1em">${title}</h2>
     ${mkTable(color, headers, rowsHtml)}`;
 
-  const rowReady  = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r)||autoRegDate(r.dateProclamation))}</span>`],i);
+  const rowReady  = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r)||autoRegDate(r.dateSavaliPublished))}</span>`],i);
   const rowNew    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)],i);
-  const rowProc   = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35">${fmtDate(autoRegDate(r.dateProclamation))}</span>`],i);
-  const rowObj    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i);
-  const rowReg    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i);
+  const rowProc   = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35">${fmtDate(autoRegDate(r.dateSavaliPublished))}</span>`],i);
+  const rowObj    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i);
+  const rowReg    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i);
 
   const HDR_READY = ["#","Matai Title","Holder","Village","District","Published Date","Reg. Date"];
   const HDR_NEW   = ["#","Matai Title","Holder","Type","Village","District","Date Conferred"];
@@ -329,9 +330,9 @@ export default function Reports({ userRole }) {
       await logAudit("EDIT_SAVALI_RECORD",{id:savaliEditRecord.id,changes:savaliEditForm});
       setSavaliEditRecord(null);
       const snap = await getDocs(collection(db,"registrations"));
-      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      const all = snap.docs.map(d=>normaliseRecord({id:d.id,...d.data()}));
       cacheSet("registrations",all);
-      const noProc = all.filter(r=>!r.dateProclamation||r.dateProclamation.trim()==="");
+      const noProc = all.filter(r=>!r.dateSavaliPublished||r.dateSavaliPublished.trim()==="");
       setSavaliRecords(noProc); setRecords(all);
     } catch(e) { alert("Error: "+e.message); }
     setSavaliSaving(false);
@@ -341,15 +342,15 @@ export default function Reports({ userRole }) {
     const toSet = savaliRecords.filter(r=>savaliSelected.has(r.id));
     try {
       const batch = writeBatch(db);
-      toSet.forEach(r => batch.update(doc(db,"registrations",r.id),{dateProclamation:savaliProcDate}));
+      toSet.forEach(r => batch.update(doc(db,"registrations",r.id),{dateSavaliPublished:savaliProcDate}));
       await batch.commit();
       cacheClear("registrations");
       await logAudit("SET_PROCLAMATION_DATE",{date:savaliProcDate,count:toSet.length,recordIds:toSet.map(r=>r.id)});
       setSavaliShowConfirm(false);
       const snap = await getDocs(collection(db,"registrations"));
-      const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+      const all = snap.docs.map(d=>normaliseRecord({id:d.id,...d.data()}));
       cacheSet("registrations",all);
-      const noProc = all.filter(r=>!r.dateProclamation||r.dateProclamation.trim()==="");
+      const noProc = all.filter(r=>!r.dateSavaliPublished||r.dateSavaliPublished.trim()==="");
       setSavaliRecords(noProc); setRecords(all);
       setSavaliSelected(new Set(noProc.map(r=>r.id)));
     } catch(e) { alert("Error: "+e.message); }
@@ -398,8 +399,8 @@ export default function Reports({ userRole }) {
   };
   // Records matching the selected PDF month (YYYY-MM) for PDF generation
   const savaliByProcDate = records.filter(r => {
-    if (!r.dateProclamation || r.objection === "yes") return false;
-    return r.dateProclamation.trim().startsWith(pdfMonth);
+    if (!r.dateSavaliPublished || r.objection === "yes") return false;
+    return r.dateSavaliPublished.trim().startsWith(pdfMonth);
   });
   const savaliPrintUpolu = () => {
     const {upolu} = savaliGrouped(savaliByProcDate);
@@ -482,9 +483,9 @@ export default function Reports({ userRole }) {
                           : h==="Type" ? (r.mataiType||"—")
                           : h==="Village" ? (r.village||"—")
                           : h==="District" ? (r.district||"—")
-                          : h==="Published Date" ? fmtDate(r.dateProclamation)
-                          : h==="Reg. Date" ? fmtDate(effectiveRegDate(r)||autoRegDate(r.dateProclamation))
-                          : h==="Auto Reg. Date" ? fmtDate(autoRegDate(r.dateProclamation))
+                          : h==="Published Date" ? fmtDate(r.dateSavaliPublished)
+                          : h==="Reg. Date" ? fmtDate(effectiveRegDate(r)||autoRegDate(r.dateSavaliPublished))
+                          : h==="Auto Reg. Date" ? fmtDate(autoRegDate(r.dateSavaliPublished))
                           : h==="Date Conferred" ? fmtDate(r.dateConferred)
                           : h==="Objection Date" ? fmtDate(r.objectionDate)
                           : h==="Registered" ? fmtDate(r.dateRegistration)
@@ -509,10 +510,10 @@ export default function Reports({ userRole }) {
   );
 
   const previewRows = [
-    ...fReady.map(r => ({ ...r, _type:"Ready to Register", _typeColor:"#1e6b3c", _date:r.dateProclamation })),
+    ...fReady.map(r => ({ ...r, _type:"Ready to Register", _typeColor:"#1e6b3c", _date:r.dateSavaliPublished })),
     ...fNew.map(r   => ({ ...r, _type:"New Matai Title",   _typeColor:"#7c3aed", _date:r.dateConferred })),
-    ...fProc.map(r  => ({ ...r, _type:"Published Date",      _typeColor:"#1a5c35", _date:r.dateProclamation })),
-    ...fObj.map(r   => ({ ...r, _type:"Objection",         _typeColor:"#8b1a1a", _date:r.objectionDate||r.dateProclamation })),
+    ...fProc.map(r  => ({ ...r, _type:"Published Date",      _typeColor:"#1a5c35", _date:r.dateSavaliPublished })),
+    ...fObj.map(r   => ({ ...r, _type:"Objection",         _typeColor:"#8b1a1a", _date:r.objectionDate||r.dateSavaliPublished })),
   ].sort((a,b) => (b._date||"").localeCompare(a._date||""));
 
   return (
@@ -624,7 +625,7 @@ export default function Reports({ userRole }) {
                           <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
                           <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
                           <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
-                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateSavaliPublished)}</td>
                           <td style={{ padding:"0.45rem 0.75rem", color:"#155c31", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
                         </tr>
                       ))}
@@ -661,7 +662,7 @@ export default function Reports({ userRole }) {
                           <td style={{ padding:"0.45rem 0.75rem" }}>{r.mataiType||"—"}</td>
                           <td style={{ padding:"0.45rem 0.75rem" }}>{r.village||"—"}</td>
                           <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
-                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateProclamation)}</td>
+                          <td style={{ padding:"0.45rem 0.75rem", fontSize:"0.78rem" }}>{fmtDate(r.dateSavaliPublished)}</td>
                           <td style={{ padding:"0.45rem 0.75rem", color:"#2d6a4f", fontWeight:600 }}>{fmtDate(r.dateRegistration)}</td>
                         </tr>
                       ))}
@@ -838,8 +839,8 @@ export default function Reports({ userRole }) {
                   const total = upolu.length + savaii.length;
                   // Build list of unique proclamation months from all records
                   const months = [...new Set(
-                    records.filter(r => r.dateProclamation && r.objection !== "yes")
-                      .map(r => r.dateProclamation.trim().substring(0,7))
+                    records.filter(r => r.dateSavaliPublished && r.objection !== "yes")
+                      .map(r => r.dateSavaliPublished.trim().substring(0,7))
                   )].sort().reverse();
                   return (
                     <div style={{...sStyle, marginBottom:"1rem"}}>
@@ -857,7 +858,7 @@ export default function Reports({ userRole }) {
                               : months.map(m => {
                                   const [y,mo] = m.split("-");
                                   const label = new Date(parseInt(y), parseInt(mo)-1, 1).toLocaleString("en",{month:"long",year:"numeric"});
-                                  const cnt = records.filter(r=>r.dateProclamation&&r.dateProclamation.startsWith(m)&&r.objection!=="yes").length;
+                                  const cnt = records.filter(r=>r.dateSavaliPublished&&r.dateSavaliPublished.startsWith(m)&&r.objection!=="yes").length;
                                   return <option key={m} value={m}>{label} ({cnt} records)</option>;
                                 })
                             }
