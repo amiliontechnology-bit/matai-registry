@@ -698,7 +698,7 @@ export default function Certificate({ userRole }) {
 
                   {/* Row 1 */}
                   <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
-                    <span>Ua tuuina atu lenei Tusi Faamaoni e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
+                    <span>Ua tuuina atu lenei Tusi Faamaonia e faailoa atu ai le avea o Oe o le nofo aloa'ia o le suafa</span>
                     <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"130px", fontWeight:"700", textAlign:"center", paddingBottom:"1px", display:"inline-block", textTransform:"uppercase" }}>
                       {record.mataiTitle || ""}
                     </span>
