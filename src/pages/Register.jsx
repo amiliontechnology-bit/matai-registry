@@ -536,9 +536,10 @@ export default function Register({ userRole }) {
             data.certLaupepa = parts[1] || "";
             data.certRegBook  = parts[2] || "";
           }
-          // Ensure laupepa and regBook are strings
-          data.certLaupepa = data.certLaupepa ? String(data.certLaupepa) : "";
-          data.certRegBook  = data.certRegBook  ? String(data.certRegBook)  : "";
+          // Ensure laupepa and regBook are strings; normalise certItumalo (strip leading zeros)
+          data.certItumalo  = data.certItumalo  ? String(Number(data.certItumalo))  : "";
+          data.certLaupepa  = data.certLaupepa  ? String(data.certLaupepa)          : "";
+          data.certRegBook  = data.certRegBook  ? String(data.certRegBook)           : "";
 
           // ── 4. District: only derive from certItumalo if district not already stored ──
           if (!data.district && data.certItumalo) {
@@ -581,23 +582,25 @@ export default function Register({ userRole }) {
     return entry ? String(entry[0]) : "";
   };
 
+  // Normalise certItumalo — strip leading zeros so "02" becomes "2"
+  const normItumalo = (val) => (val === "" || val === null || val === undefined) ? "" : String(Number(val)) === "NaN" ? val : String(Number(val));
+
   const set = (field) => (e) => {
     const val = e.target.value;
     setForm(prev => {
       const updates = { ...prev, [field]: val };
       if (field === "district") {
-        // District changed — clear village, auto-set certItumalo
+        // District changed — clear village, normalise certItumalo from district
         updates.village = "";
-        updates.certItumalo = districtNameToNum(val);
+        updates.certItumalo = normItumalo(districtNameToNum(val));
       } else if (field === "village" && val) {
-        // Village changed — derive district and certItumalo from village
+        // Village changed — derive district, normalise certItumalo
         const derivedDistrict = VILLAGE_TO_DISTRICT[val.trim().toUpperCase()] || prev.district;
         updates.district = derivedDistrict;
-        updates.certItumalo = districtNameToNum(derivedDistrict) || prev.certItumalo;
+        updates.certItumalo = normItumalo(districtNameToNum(derivedDistrict)) || prev.certItumalo;
       } else if (field === "certItumalo") {
-        // certItumalo changed manually — sync district
-        const derivedDistrict = DISTRICT_NUM[Number(val)] || prev.district;
-        updates.district = derivedDistrict;
+        // certItumalo typed manually — normalise and keep district in sync
+        updates.certItumalo = normItumalo(val);
       }
       return updates;
     });
