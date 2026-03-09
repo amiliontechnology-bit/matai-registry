@@ -981,7 +981,7 @@ export default function Register({ userRole }) {
                 <input type="date" value={form.dateConferred} onChange={set("dateConferred")} />
               </div>
               <div className="form-group">
-                <label>Aso o le Faasalalauga (Date of Proclamation)</label>
+                <label>Aso o le Faasalalauga (Savali Published Date)</label>
                 <input type="date" value={form.dateProclamation} onChange={e => {
                   const val = e.target.value;
                   setForm(f => ({ ...f, dateProclamation: val }));
