@@ -355,6 +355,7 @@ export default function Register({ userRole }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [dupWarning, setDupWarning] = useState("");
+  const [certMismatch, setCertMismatch] = useState("");
   const [districtVillagesFS, setDistrictVillagesFS] = useState(null);
   const [allRecords, setAllRecords] = useState([]);
   const isEdit = !!id;
@@ -427,6 +428,21 @@ export default function Register({ userRole }) {
       (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
     return { valid: age >= 21, age, missing: false };
   };
+
+  // Cert number mismatch warning — certItumalo should match selected district
+  useEffect(() => {
+    if (!form.certItumalo || !form.district) { setCertMismatch(""); return; }
+    const expectedNum = districtNameToNum(form.district);
+    if (expectedNum && String(form.certItumalo) !== String(expectedNum)) {
+      const expectedDistrict = DISTRICT_NUM[Number(form.certItumalo)] || "unknown district";
+      setCertMismatch(
+        "⚠ Certificate Itumalo number (" + form.certItumalo + ") does not match the selected district (" +
+        form.district + "). Number " + form.certItumalo + " corresponds to " + expectedDistrict + ". Please correct before saving."
+      );
+    } else {
+      setCertMismatch("");
+    }
+  }, [form.certItumalo, form.district]);
 
   const fmtDateDMY = (dateStr) => {
     if (!dateStr) return "";
@@ -634,8 +650,20 @@ export default function Register({ userRole }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
-    if (!form.mataiTitle.trim() || !form.holderName.trim()) {
-      setError("Matai Title (Suafa Matai) and Untitled Name (Suafa Taulealea) are required.");
+    // Required fields validation
+    const missing = [];
+    if (!form.mataiTitle.trim())   missing.push("Matai Title (Suafa Matai)");
+    if (!form.holderName.trim())   missing.push("Untitled Name (Igoa Taulealea)");
+    if (!form.gender)              missing.push("Gender (Tane/Tamaitai)");
+    if (!form.mataiType)           missing.push("Title Type (Ituaiga Suafa)");
+    if (!form.district)            missing.push("District (Itumalo)");
+    if (!form.village)             missing.push("Village (Nu'u)");
+    if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
+                                   missing.push("Matai Certificate Number");
+    if (!form.dateConferred)       missing.push("Aso o le Saofai (Date of Conferral)");
+    if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
+    if (missing.length > 0) {
+      setError("The following required fields are missing: " + missing.join(", ") + ".");
       return;
     }
     // Date of birth is required
@@ -648,6 +676,11 @@ export default function Register({ userRole }) {
     if (!ageCheck.valid) {
       const yrStr = ageCheck.age !== 1 ? "s" : "";
       setError("Holder must be at least 21 years old to register a Matai title. Current age: " + ageCheck.age + " year" + yrStr + ".");
+      return;
+    }
+    // Block save if cert number mismatch
+    if (certMismatch) {
+      setError("Please correct the certificate Itumalo number — it does not match the selected district.");
       return;
     }
     // Block save if a cert number duplicate is detected
@@ -803,7 +836,7 @@ export default function Register({ userRole }) {
                   placeholder="Full name of person receiving the title" />
               </div>
               <div className="form-group">
-                <label>Gender (Tane/Tamaitai)</label>
+                <label>Gender (Tane/Tamaitai) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <select value={form.gender} onChange={set("gender")}>
                   <option value="">— Select —</option>
                   <option value="Tane">Tane (Male)</option>
@@ -812,7 +845,7 @@ export default function Register({ userRole }) {
                 </select>
               </div>
               <div className="form-group">
-                <label>Title Type (Ituaiga Suafa)</label>
+                <label>Title Type (Ituaiga Suafa) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <select value={form.mataiType} onChange={set("mataiType")}>
                   {MATAI_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
@@ -825,7 +858,7 @@ export default function Register({ userRole }) {
             {sectionHead("Village & District (of New Title)")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
-                <label>District (Itūmālō)</label>
+                <label>District (Itūmālō) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <select value={form.district} onChange={set("district")}>
                   <option value="">— Select District —</option>
                   {activeDistrictOptions.map(({ num, name }) => (
@@ -834,7 +867,7 @@ export default function Register({ userRole }) {
                 </select>
               </div>
               <div className="form-group">
-                <label>Village (Nu'u e Patino iai le Suafa Matai)</label>
+                <label>Village (Nu'u e Patino iai le Suafa Matai) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <select value={form.village} onChange={set("village")} disabled={!form.district}>
                   <option value="">— Select Village —</option>
                   {villages.map(v => <option key={v}>{v}</option>)}
@@ -870,13 +903,17 @@ export default function Register({ userRole }) {
             {sectionHead("Certificate Numbers")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
-                <label>Numera o le Itumalo</label>
+                <label>Numera o le Itumalo <span style={{ color:"#c0392b", fontWeight:700 }}>*</span> <span style={{ fontSize:"0.7rem", color:"#6b7280", fontWeight:400 }}>(auto-set from District)</span></label>
                 <input type="number" min="1" max="41" value={form.certItumalo} onChange={set("certItumalo")}
-                  placeholder="1–41" />
+                  placeholder="1–41"
+                  style={{ borderColor: certMismatch ? "#c0392b" : undefined, background: certMismatch ? "#fff5f5" : undefined }} />
                 {form.certItumalo && DISTRICT_NUM[Number(form.certItumalo)] && (
-                  <p style={{ fontSize:"0.75rem", color:"#155c31", marginTop:"4px", fontStyle:"italic" }}>
+                  <p style={{ fontSize:"0.75rem", color: certMismatch ? "#c0392b" : "#155c31", marginTop:"4px", fontStyle:"italic" }}>
                     {DISTRICT_NUM[Number(form.certItumalo)]}
                   </p>
+                )}
+                {certMismatch && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px", lineHeight:1.4 }}>{certMismatch}</p>
                 )}
               </div>
               <div className="form-group">
@@ -907,7 +944,7 @@ export default function Register({ userRole }) {
             {sectionHead("Important Dates")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
-                <label>Aso o le Saofai (Date of Conferral)</label>
+                <label>Aso o le Saofai (Date of Conferral) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <input type="date" value={form.dateConferred} onChange={set("dateConferred")} />
               </div>
               <div className="form-group">
@@ -955,7 +992,7 @@ export default function Register({ userRole }) {
                 )}
               </div>
               <div className="form-group">
-                <label>Nuu na Fanau ai (Village of Birth)</label>
+                <label>Nuu na Fanau ai (Village of Birth) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <input type="text" value={form.nuuFanau || ""} onChange={set("nuuFanau")}
                   placeholder="Village where holder was born" />
               </div>
