@@ -433,7 +433,7 @@ export default function Register({ userRole }) {
   useEffect(() => {
     if (!form.certItumalo || !form.district) { setCertMismatch(""); return; }
     const expectedNum = districtNameToNum(form.district);
-    if (expectedNum && String(form.certItumalo) !== String(expectedNum)) {
+    if (expectedNum && Number(form.certItumalo) !== Number(expectedNum)) {
       const expectedDistrict = DISTRICT_NUM[Number(form.certItumalo)] || "unknown district";
       setCertMismatch(
         "⚠ Certificate Itumalo number (" + form.certItumalo + ") does not match the selected district (" +
