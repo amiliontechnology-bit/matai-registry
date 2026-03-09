@@ -361,7 +361,7 @@ export default function Certificate({ userRole }) {
   const formatDate = (str) => {
     const p = parseDateParts(str);
     if (!p) return str || "—";
-    return `${String(p.d).padStart(2,"0")}/${String(p.m+1).padStart(2,"0")}/${p.y}`;
+    return `${String(p.d).padStart(2,"0")}-${String(p.m+1).padStart(2,"0")}-${p.y}`;
   };
 
   const perms = getPermissions(userRole);

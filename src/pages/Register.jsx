@@ -451,7 +451,7 @@ export default function Register({ userRole }) {
     if (parts.length !== 3 || parts[0].length !== 4) return dateStr;
     const d = parseInt(parts[2],10), m = parseInt(parts[1],10), y = parseInt(parts[0],10);
     if (isNaN(d) || isNaN(m) || isNaN(y)) return "";
-    return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
+    return `${String(d).padStart(2,"0")}-${String(m).padStart(2,"0")}-${y}`;
   };
 
   const regDateHint = (proclamation) => {

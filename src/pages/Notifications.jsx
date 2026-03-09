@@ -13,7 +13,7 @@ const fmtDate = (str) => {
   if (!str) return "—";
   const parts = String(str).split("T")[0].split("-");
   if (parts.length === 3 && parts[0].length === 4)
-    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
+    return `${parts[2].padStart(2,"0")}-${parts[1].padStart(2,"0")}-${parts[0]}`;
   const d = new Date(str);
   if (isNaN(d)) return str;
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;

@@ -13,7 +13,7 @@ const fmtDate = (str) => {
   // Parse YYYY-MM-DD directly to avoid timezone shifting
   const parts = String(str).split("T")[0].split("-");
   if (parts.length === 3 && parts[0].length === 4) {
-    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
+    return `${parts[2].padStart(2,"0")}-${parts[1].padStart(2,"0")}-${parts[0]}`;
   }
   // Fallback for any other format
   const d = new Date(str);
