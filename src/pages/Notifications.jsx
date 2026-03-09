@@ -1,4 +1,3 @@
-import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -120,7 +119,7 @@ export default function Notifications({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => { id: d.id, ...d.data() });
       data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", data);
       setRecords(data);

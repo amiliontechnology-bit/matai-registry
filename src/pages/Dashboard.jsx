@@ -1,4 +1,3 @@
-import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -56,7 +55,7 @@ export default function Dashboard({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const list = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+      const list = snap.docs.map(d => { id: d.id, ...d.data() });
       list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", list);
       setRecords(list);

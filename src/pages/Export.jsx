@@ -1,4 +1,3 @@
-import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -95,7 +94,7 @@ export default function Export({ userRole }) {
       try {
         const list = await cachedFetch("registrations", async () => {
           const snap = await getDocs(collection(db, "registrations"));
-          const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+          const data = snap.docs.map(d => { id: d.id, ...d.data() });
           data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
           return data;
         });

@@ -1,4 +1,3 @@
-import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
@@ -370,7 +369,7 @@ export default function Register({ userRole }) {
         const cached = cacheGet("registrations");
         if (cached) { setAllRecords(cached); return; }
         const snap = await getDocs(collection(db, "registrations"));
-        const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+        const data = snap.docs.map(d => { id: d.id, ...d.data() });
         data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
         cacheSet("registrations", data);
         setAllRecords(data);
@@ -618,7 +617,7 @@ export default function Register({ userRole }) {
       let allDocs = cacheGet("registrations");
       if (!allDocs) {
         const snap = await getDocs(collection(db, "registrations"));
-        allDocs = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+        allDocs = snap.docs.map(d => { id: d.id, ...d.data() });
         cacheSet("registrations", allDocs);
       }
       const existing = allDocs.filter(d => d.id !== id && d.mataiTitle === title.trim());
@@ -640,7 +639,7 @@ export default function Register({ userRole }) {
       let allDocs = cacheGet("registrations");
       if (!allDocs) {
         const snap = await getDocs(collection(db, "registrations"));
-        allDocs = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+        allDocs = snap.docs.map(d => { id: d.id, ...d.data() });
         cacheSet("registrations", allDocs);
       }
       const existing = allDocs.filter(d => {

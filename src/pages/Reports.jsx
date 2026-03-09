@@ -1,4 +1,3 @@
-import { normaliseRecord } from '../utils/cache';
 import { useState, useEffect } from "react";
 import { collection, getDocs, writeBatch, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -146,7 +145,7 @@ export default function Reports({ userRole }) {
   useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
-      const data = snap.docs.map(d => normaliseRecord({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => { id: d.id, ...d.data() });
       data.sort((a,b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       cacheSet("registrations", data);
       setRecords(data);
@@ -330,7 +329,7 @@ export default function Reports({ userRole }) {
       await logAudit("EDIT_SAVALI_RECORD",{id:savaliEditRecord.id,changes:savaliEditForm});
       setSavaliEditRecord(null);
       const snap = await getDocs(collection(db,"registrations"));
-      const all = snap.docs.map(d=>normaliseRecord({id:d.id,...d.data()}));
+      const all = snap.docs.map(d=>{id:d.id,...d.data()});
       cacheSet("registrations",all);
       const noProc = all.filter(r=>!r.dateSavaliPublished||r.dateSavaliPublished.trim()==="");
       setSavaliRecords(noProc); setRecords(all);
@@ -348,7 +347,7 @@ export default function Reports({ userRole }) {
       await logAudit("SET_PROCLAMATION_DATE",{date:savaliProcDate,count:toSet.length,recordIds:toSet.map(r=>r.id)});
       setSavaliShowConfirm(false);
       const snap = await getDocs(collection(db,"registrations"));
-      const all = snap.docs.map(d=>normaliseRecord({id:d.id,...d.data()}));
+      const all = snap.docs.map(d=>{id:d.id,...d.data()});
       cacheSet("registrations",all);
       const noProc = all.filter(r=>!r.dateSavaliPublished||r.dateSavaliPublished.trim()==="");
       setSavaliRecords(noProc); setRecords(all);

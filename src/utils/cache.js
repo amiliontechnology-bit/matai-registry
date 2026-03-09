@@ -60,21 +60,6 @@ export function cacheClear(key) {
   else { Object.keys(MEM).forEach(k => delete MEM[k]); ssDel(); }
 }
 
-// ── Field migration shim ───────────────────────────────────
-//  Firestore records created before the rename still use
-//  the old field name "dateProclamation". This function maps
-//  it to the new name "dateSavaliPublished" transparently so
-//  both old and new records work during the migration window.
-//  Once all Firestore documents are migrated, this shim and
-//  the dateProclamation references below can be removed.
-export function normaliseRecord(data) {
-  if (data.dateProclamation !== undefined && data.dateSavaliPublished === undefined) {
-    data.dateSavaliPublished = data.dateProclamation;
-    delete data.dateProclamation;
-  }
-  return data;
-}
-
 // ── Deduplicate in-flight requests ────────────────────────
 //  Prevents multiple components mounting at the same time
 //  from firing duplicate Firestore reads simultaneously.
