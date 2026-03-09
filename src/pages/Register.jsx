@@ -685,7 +685,7 @@ export default function Register({ userRole }) {
         cacheClear("registrations");
         setSuccess("Title registered successfully.");
         // Never navigate to certificate on new entry — must be confirmed via Notifications
-        setTimeout(() => navigate(\`/dashboard\`), 1200);
+        setTimeout(() => navigate("/dashboard"), 1200);
       }
     } catch (err) {
       setError("Failed to save. Please try again.");
