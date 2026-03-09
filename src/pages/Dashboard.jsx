@@ -127,6 +127,7 @@ export default function Dashboard({ userRole }) {
     certMap.set(key, (certMap.get(key) || 0) + 1);
   });
   const duplicateCertCount = [...certMap.values()].filter(v => v > 1).length;
+  const incompleteDobCount = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "").length;
 
   const handleSeed = async () => {
     if (!window.confirm("This will clear all existing records and load test data. Continue?")) return;
@@ -212,6 +213,30 @@ export default function Dashboard({ userRole }) {
                 </div>
               </div>
               <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#c0392b", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+                View in Notifications →
+              </span>
+            </div>
+          </Link>
+        )}
+
+        {/* ── Incomplete records warning (missing date of birth) ── */}
+        {incompleteDobCount > 0 && (
+          <Link to="/notifications" state={{ tab:"incomplete" }} style={{ textDecoration:"none" }}>
+            <div style={{ background:"#faf5ff", border:"1px solid #c4b5fd", borderLeft:"4px solid #7c3aed", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background="#f3e8ff"}
+              onMouseLeave={e => e.currentTarget.style.background="#faf5ff"}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+                <span style={{ fontSize:"1.1rem" }}>📋</span>
+                <div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", fontWeight:700, color:"#7c3aed", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                    Incomplete Records — Missing Date of Birth
+                  </p>
+                  <p style={{ fontSize:"0.8rem", color:"#4c1d95", marginTop:"2px" }}>
+                    {incompleteDobCount} record{incompleteDobCount !== 1 ? "s are" : " is"} missing a date of birth — please complete before registration can proceed.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#7c3aed", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
                 View in Notifications →
               </span>
             </div>

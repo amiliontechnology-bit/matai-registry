@@ -418,6 +418,16 @@ export default function Register({ userRole }) {
     return result && result.isPast ? result.dateStr : "";
   };
 
+  // Age validation — holder must be 21+ as of today
+  const validateAge = (dob) => {
+    if (!dob) return { valid: false, missing: true };
+    const birth = new Date(dob + "T00:00:00");
+    const today = new Date(); today.setHours(0,0,0,0);
+    const age = today.getFullYear() - birth.getFullYear() -
+      (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+    return { valid: age >= 21, age, missing: false };
+  };
+
   const fmtDateDMY = (dateStr) => {
     if (!dateStr) return "";
     const parts = dateStr.split("-");
@@ -618,6 +628,17 @@ export default function Register({ userRole }) {
       setError("Matai Title (Suafa Matai) and Untitled Name (Suafa Taulealea) are required.");
       return;
     }
+    // Date of birth is required
+    if (!form.dateBirth) {
+      setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older.");
+      return;
+    }
+    // Holder must be 21 or older
+    const ageCheck = validateAge(form.dateBirth);
+    if (!ageCheck.valid) {
+      setError(`Holder must be at least 21 years old to register a Matai title. Current age: ${ageCheck.age} year${ageCheck.age !== 1 ? "s" : ""}.`);
+      return;
+    }
     // Block save if a cert number duplicate is detected
     if (dupWarning) {
       setError("Please resolve the duplicate certificate number warning before saving.");
@@ -632,10 +653,13 @@ export default function Register({ userRole }) {
         const changes = diffRecords(oldRec, form);
         // Compose cert number from parts if all 3 set
       const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-      // Only mark completed if dateRegistration is set AND the 4-month period has actually passed
-      const regPassed = form.dateRegistration && new Date(form.dateRegistration + "T00:00:00") <= new Date();
-      const autoStatus = regPassed ? "completed" : "pending";
-      const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
+      // Never save an auto-calculated dateRegistration — only save if staff manually entered it
+      const calcResult2 = calcRegDate(form.dateProclamation);
+      const isAutoCalc2 = calcResult2 && form.dateRegistration === calcResult2.dateStr;
+      const finalRegDate2 = isAutoCalc2 ? "" : form.dateRegistration;
+      const regPassed2 = finalRegDate2 && new Date(finalRegDate2 + "T00:00:00") <= new Date();
+      const autoStatus = (regPassed2 && finalRegDate2) ? "completed" : "pending";
+      const saveForm = { ...form, dateRegistration: finalRegDate2, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
         await logAudit("UPDATE", {
           mataiTitle: form.mataiTitle,
@@ -647,20 +671,20 @@ export default function Register({ userRole }) {
         setSuccess("Registration updated successfully.");
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
-        // Only mark completed if dateRegistration is set AND the 4-month period has actually passed
-        const regPassed = form.dateRegistration && new Date(form.dateRegistration + "T00:00:00") <= new Date();
-        const autoStatus = regPassed ? "completed" : "pending";
-        const saveForm = { ...form, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
+        // Never save an auto-calculated dateRegistration — only save if staff manually entered it
+        // Auto-calculated = matches the calcRegDate result; manual = staff typed something different
+        const calcResult = calcRegDate(form.dateProclamation);
+        const isAutoCalc = calcResult && form.dateRegistration === calcResult.dateStr;
+        const finalRegDate = isAutoCalc ? "" : form.dateRegistration;
+        const regPassed = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
+        const autoStatus = (regPassed && finalRegDate) ? "completed" : "pending";
+        const saveForm = { ...form, dateRegistration: finalRegDate, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
         cacheClear("registrations");
         setSuccess("Title registered successfully.");
-        // Only navigate to certificate if a registration date is set
-        if (form.dateRegistration) {
-          setTimeout(() => navigate(`/certificate/${docRef.id}`), 1200);
-        } else {
-          setTimeout(() => navigate(`/dashboard`), 1200);
-        }
+        // Never navigate to certificate on new entry — must be confirmed via Notifications
+        setTimeout(() => navigate(\`/dashboard\`), 1200);
       }
     } catch (err) {
       setError("Failed to save. Please try again.");
@@ -879,24 +903,45 @@ export default function Register({ userRole }) {
                 <label>Aso o le Faasalalauga (Date of Proclamation)</label>
                 <input type="date" value={form.dateProclamation} onChange={e => {
                   const val = e.target.value;
-                  setForm(f => ({
-                    ...f,
-                    dateProclamation: val,
-                    dateRegistration: f.objection === "no" ? autoRegDate(val) : f.dateRegistration
-                  }));
+                  setForm(f => ({ ...f, dateProclamation: val }));
                 }} />
               </div>
               <div className="form-group">
                 <label>Aso na Resitala ai (Date of Registration)</label>
-                <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")} />
+                {(() => {
+                  const calc = calcRegDate(form.dateProclamation);
+                  const isAuto = calc && form.dateRegistration === calc.dateStr;
+                  const hasManual = form.dateRegistration && !isAuto;
+                  return (<>
+                    <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")}
+                      style={{ borderColor: isAuto ? "#fcd34d" : undefined, background: isAuto ? "#fffbeb" : undefined }} />
+                    {isAuto && (
+                      <p style={{ fontSize:"0.72rem", color:"#92400e", marginTop:"4px", fontStyle:"italic" }}>
+                        ⚠ Auto-calculated — will not be saved until confirmed in Notifications
+                      </p>
+                    )}
+                  </>);
+                })()}
               </div>
               <div className="form-group">
                 <label>Date Issued (Aso Tuuina Mai)</label>
                 <input type="date" value={form.dateIssued} onChange={set("dateIssued")} />
               </div>
               <div className="form-group">
-                <label>Aso Fanau (Date of Birth)</label>
-                <input type="date" value={form.dateBirth || ""} onChange={set("dateBirth")} />
+                <label>Aso Fanau (Date of Birth) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
+                <input type="date" value={form.dateBirth || ""} onChange={set("dateBirth")}
+                  style={{ borderColor: form.dateBirth ? (validateAge(form.dateBirth).valid ? undefined : "#c0392b") : "#c0392b",
+                           background: form.dateBirth ? (validateAge(form.dateBirth).valid ? undefined : "#fff5f5") : "#fff5f5" }} />
+                {form.dateBirth && !validateAge(form.dateBirth).valid && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
+                    ✗ Holder is {validateAge(form.dateBirth).age} years old — must be 21 or older
+                  </p>
+                )}
+                {!form.dateBirth && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
+                    ✗ Date of birth is required
+                  </p>
+                )}
               </div>
               <div className="form-group">
                 <label>Nuu na Fanau ai (Village of Birth)</label>

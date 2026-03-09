@@ -197,6 +197,9 @@ export default function Notifications({ userRole }) {
   // Monthly — New Matai titles: entered but NO proclamation date yet (brand new entries)
   const newMataiRecords = records.filter(r => !r.dateProclamation && !r.dateRegistration && r.objection !== "yes");
 
+  // Incomplete records — missing date of birth (flagged after import or data entry)
+  const incompleteRecords = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "");
+
   // Monthly — Ready to register: 4 months past proclamation, no objection, not yet registered
   const readyToRegister = records.filter(r => {
     if (r.objection === "yes") return false;
@@ -583,7 +586,8 @@ export default function Notifications({ userRole }) {
               <TabBtn tab="monthly"      label="Monthly Notifications" count={readyToRegister.length + newMataiRecords.length} />
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
               {duplicateGroups.length > 0 && (
-                <TabBtn tab="duplicates" label="⚠ Duplicates" count={duplicateGroups.length} color="#c0392b" />
+                <TabBtn tab="duplicates"   label="⚠ Duplicates"          count={duplicateGroups.length}    color="#c0392b" />
+                <TabBtn tab="incomplete"  label="⚠ Incomplete Records"  count={incompleteRecords.length}  color="#7c3aed" />
               )}
             </div>
 
@@ -622,6 +626,56 @@ export default function Notifications({ userRole }) {
             </>)}
 
             {/* ── Objection tab ── */}
+            {/* ── Incomplete Records tab ── */}
+            {activeTab === "incomplete" && (
+              <div style={sStyle}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
+                  <div>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#7c3aed", textTransform:"uppercase", marginBottom:"4px" }}>◈ Incomplete Records — Missing Date of Birth</p>
+                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>These records are missing a date of birth. Please edit each record to complete the information.</p>
+                  </div>
+                </div>
+                {loading
+                  ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
+                  : incompleteRecords.length === 0
+                    ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ All records have a date of birth recorded.</div>
+                    : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                        <thead>
+                          <tr style={{ borderBottom:"2px solid rgba(124,58,237,0.2)" }}>
+                            {["Matai Title","Holder","Village","District","Status","Action"].map(h => (
+                              <th key={h} style={{ padding:"0.5rem 0.75rem", textAlign:"left", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#7c3aed" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {incompleteRecords.map((r,i) => (
+                            <tr key={r.id} style={{ borderBottom:"1px solid rgba(26,26,26,0.06)", background: i%2===0 ? "#faf5ff" : "#fff" }}>
+                              <td style={{ padding:"0.5rem 0.75rem", fontFamily:"'Cinzel',serif", fontWeight:700, color:"#1e2a1e" }}>{r.mataiTitle||"—"}</td>
+                              <td style={{ padding:"0.5rem 0.75rem" }}>{r.holderName||"—"}</td>
+                              <td style={{ padding:"0.5rem 0.75rem" }}>{r.village||"—"}</td>
+                              <td style={{ padding:"0.5rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
+                              <td style={{ padding:"0.5rem 0.75rem" }}>
+                                <span style={{ fontSize:"0.68rem", fontFamily:"'Cinzel',serif", padding:"2px 8px", borderRadius:"3px",
+                                  background: r.status==="completed" ? "#e8f5ed" : "#fef3c7",
+                                  color: r.status==="completed" ? "#1a5c35" : "#92400e", fontWeight:600 }}>
+                                  {r.status==="completed" ? "Registered" : "Pending"}
+                                </span>
+                              </td>
+                              <td style={{ padding:"0.5rem 0.75rem" }}>
+                                <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
+                                  <button style={{ padding:"0.25rem 0.65rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#7c3aed15", border:"1px solid #7c3aed40", borderRadius:"3px", color:"#7c3aed", cursor:"pointer" }}>
+                                    ✏ Edit
+                                  </button>
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                }
+              </div>
+            )}
+
             {activeTab === "objection" && (
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
