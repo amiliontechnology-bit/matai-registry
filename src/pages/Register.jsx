@@ -399,8 +399,9 @@ export default function Register({ userRole }) {
   // Exception: if the 4th month is February, use 28th (or 29th in a leap year).
   // i.e. always the 29th, clamped to the last day of the target month.
   const calcRegDate = (proclamation) => {
-    if (!proclamation) return null;
+    if (!proclamation || !proclamation.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(proclamation.trim())) return null;
     const p = new Date(proclamation + "T00:00:00");
+    if (isNaN(p.getTime())) return null;
     // Move to 1st of the month, add 4 months, then set day to 29 (clamped)
     const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
     const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
@@ -445,10 +446,12 @@ export default function Register({ userRole }) {
   }, [form.certItumalo, form.district]);
 
   const fmtDateDMY = (dateStr) => {
-    if (!dateStr) return "";
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) return dateStr;
-    return `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}`;
+    if (!dateStr || !dateStr.trim()) return "";
+    const parts = dateStr.trim().split("-");
+    if (parts.length !== 3 || parts[0].length !== 4) return dateStr;
+    const d = parseInt(parts[2],10), m = parseInt(parts[1],10), y = parseInt(parts[0],10);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return "";
+    return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
   };
 
   const regDateHint = (proclamation) => {
