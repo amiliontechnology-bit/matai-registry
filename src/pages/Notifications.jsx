@@ -260,12 +260,12 @@ export default function Notifications({ userRole }) {
   };
 
   // ── Urgency helpers ────────────────────────────────────
-  // days = days until REGISTRATION DATE (positive = still in proclamation period, negative = overdue/past)
+  // days = days until REGISTRATION DATE (positive = still in Savali publication period, negative = overdue/past)
   const urgencyColor = (days) => {
     if (days === null) return "rgba(26,26,26,0.4)";
     if (days < 0)     return "#c0392b";   // overdue — reg date passed, not yet confirmed
     if (days <= 30)   return "#d68910";   // < 30 days to reg — approaching
-    return "#1e6b3c";                     // still in proclamation period — ok
+    return "#1e6b3c";                     // still in Savali publication period — ok
   };
   const urgencyBg = (days) => {
     if (days === null) return "#fafafa";
@@ -300,13 +300,13 @@ export default function Notifications({ userRole }) {
         <td>${fmtDate(regDate)}</td>
       </tr>`;
     }).join("");
-    const filterDesc = filterWindow >= 365 ? "All active proclamations — not yet registered"
+    const filterDesc = filterWindow >= 365 ? "All active Savali published dates — not yet registered"
       : `Records with registration date within ${filterWindow} days — not yet registered`;
-    const html = reportHeader(`Proclamation Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`, filterDesc, alertRecords.length, genBy2)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
+    const html = reportHeader(`Savali Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`, filterDesc, alertRecords.length, genBy2)
+      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       </body></html>`;
-    openPDF("Proclamation Alerts Report", html);
+    openPDF("Savali Alerts Report", html);
     logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
   };
 
@@ -327,7 +327,7 @@ export default function Notifications({ userRole }) {
         "Objections Report — All Records",
         "All titles with objection recorded — cannot be registered until resolved through court",
         objectionRecords.length, genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Objection Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Objection Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       </body></html>`;
     openPDF("Objections Report", html);
@@ -349,7 +349,7 @@ export default function Notifications({ userRole }) {
     </tr>`).join("");
     const html = reportHeader(
         "New Matai Titles — All Records",
-        "All titles entered and awaiting proclamation period",
+        "All titles entered and awaiting Savali publication period",
         newMataiRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Type</th><th>Date Conferred</th><th>Date Entered</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
@@ -375,9 +375,9 @@ export default function Notifications({ userRole }) {
     }).join("");
     const html = reportHeader(
         "Ready to Register — All Records",
-        "All titles where proclamation period is complete — awaiting registration confirmation",
+        "All titles where Savali publication period is complete — awaiting registration confirmation",
         readyToRegister.length, genBy)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Proclaimed</th><th>Registration Date</th></tr></thead><tbody>${rows}</tbody></table>
+      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Registration Date</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
       </body></html>`;
     openPDF("Ready to Register — All Records", html);
@@ -456,10 +456,10 @@ export default function Notifications({ userRole }) {
           </div>`
         ).join("")}
       </div>
-      ${fmtSection("New Matai Titles (Not Yet Proclaimed)","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)}
-      ${fmtSection("Ready to Register","#1a5c35",["#","Title","Holder","Village","District","Proclaimed","Reg. Date"],readyRows)}
-      ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Proclaimed","Registered"],completedRows)}
-      ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Proclaimed","Objection Date"],objRows)}
+      ${fmtSection("New Matai Titles (Not Yet Published)","#7c3aed",["#","Title","Holder","Village","District","Date Conferred"],newRows)}
+      ${fmtSection("Ready to Register","#1a5c35",["#","Title","Holder","Village","District","Published Date","Reg. Date"],readyRows)}
+      ${fmtSection("Registered Titles","#155c31",["#","Title","Holder","Village","District","Published Date","Registered"],completedRows)}
+      ${fmtSection("Active Objections","#8b1a1a",["#","Title","Holder","Village","District","Published Date","Objection Date"],objRows)}
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential — ${monthLabel}</div>
       </body></html>`;
     openPDF("Monthly Report", html);
@@ -549,7 +549,7 @@ export default function Notifications({ userRole }) {
           </div>
           <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
             <span>📍 {r.village}, {r.district}</span>
-            <span>🗓 Proclaimed: <strong style={{ color:"rgba(26,26,26,0.7)" }}>{fmtDate(r.dateProclamation)}</strong></span>
+            <span>🗓 Published: <strong style={{ color:"rgba(26,26,26,0.7)" }}>{fmtDate(r.dateProclamation)}</strong></span>
             <span>📋 Reg. date: <strong style={{color:col}}>{fmtDate(effectiveRegDate(r) || autoRegDate(r.dateProclamation))}</strong></span>
           </div>
         </div>
@@ -582,7 +582,7 @@ export default function Notifications({ userRole }) {
           <div>
             {/* Tabs */}
             <div style={{ display:"flex", gap:"0.5rem", marginBottom:"1.25rem", flexWrap:"wrap" }}>
-              <TabBtn tab="proclamation" label="Proclamation Alerts" count={alertRecords.length} />
+              <TabBtn tab="proclamation" label="Savali Alerts" count={alertRecords.length} />
               <TabBtn tab="monthly"      label="Monthly Notifications" count={readyToRegister.length + newMataiRecords.length} />
               <TabBtn tab="objection"    label="Objections"          count={objectionRecords.length} color="#8b1a1a" />
               {duplicateGroups.length > 0 && (
@@ -608,7 +608,7 @@ export default function Notifications({ userRole }) {
                   ))}
                 </div>
                 <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
-                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today (4 months after proclamation). Overdue records appear in Ready to Register.
+                  Records whose <strong>registration date falls within {filterWindow} days</strong> from today (4 months after Savali published date). Overdue records appear in Ready to Register.
                 </p>
               </div>
               <div style={sStyle}>
@@ -706,7 +706,7 @@ export default function Notifications({ userRole }) {
                         </div>
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
                           <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
+                          <span>🗓 Published: {fmtDate(r.dateProclamation)}</span>
                           <span style={{ color:"#8b1a1a" }}>📋 Objection: {fmtDate(r.objectionDate)}</span>
                         </div>
                       </div>
@@ -728,7 +728,7 @@ export default function Notifications({ userRole }) {
                       ◈ New Matai Titles — {newMataiRecords.length} Record{newMataiRecords.length!==1?"s":""}
                     </p>
                     <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
-                      Entered but not yet proclaimed — awaiting 4-month proclamation period
+                      Entered but not yet proclaimed — awaiting 4-month Savali publication period
                     </p>
                   </div>
 
@@ -766,7 +766,7 @@ export default function Notifications({ userRole }) {
                       ◈ Ready to Register — {readyToRegister.length} Record{readyToRegister.length!==1?"s":""}
                     </p>
                     <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
-                      4-month proclamation complete, no objection — click Confirm to register
+                      4-month Savali publication complete, no objection — click Confirm to register
                     </p>
                   </div>
 
@@ -802,7 +802,7 @@ export default function Notifications({ userRole }) {
                         </div>
                         <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginTop:"6px" }}>
                           <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Proclaimed: {fmtDate(r.dateProclamation)}</span>
+                          <span>🗓 Published: {fmtDate(r.dateProclamation)}</span>
                           <span style={{ color:"#1a5c35", fontWeight:600 }}>📋 Reg. date: {fmtDate(regDate)}</span>
                         </div>
                       </div>
@@ -883,7 +883,7 @@ export default function Notifications({ userRole }) {
             <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem" }}>
               {[
                 { label:"New Matai Titles",    count: newMataiRecords.length,   color:"#5b21b6", bg:"#f5f3ff", border:"#c4b5fd", icon:"🆕", onClick: printNewMataiReport },
-                { label:"Proclamation Alerts", count: alertRecords.length,      color:"#1e6b3c", bg:"#f0faf4", border:"#a7d7b8", icon:"📋", onClick: printProclamationReport },
+                { label:"Savali Alerts", count: alertRecords.length,      color:"#1e6b3c", bg:"#f0faf4", border:"#a7d7b8", icon:"📋", onClick: printProclamationReport },
                 { label:"Ready to Register",   count: readyToRegister.length,   color:"#1e6b3c", bg:"#f0faf4", border:"#a7d7b8", icon:"✅", onClick: printReadyReport },
                 { label:"Objections Report",   count: objectionRecords.length,  color:"#8b1a1a", bg:"#fff5f5", border:"#fca5a5", icon:"⚠️", onClick: printObjectionReport },
                 ...(duplicateGroups.length > 0 ? [{ label:"Duplicate Cert Nos.", count: duplicateGroups.reduce((n,g)=>n+g.records.length,0), color:"#c0392b", bg:"#fff5f5", border:"#fca5a5", icon:"🔁", onClick: printDuplicatesReport }] : []),

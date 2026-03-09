@@ -426,7 +426,7 @@ export default function Certificate({ userRole }) {
           <p style={{ color:"rgba(26,26,26,0.55)", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
             {record.dateRegistration
               ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed and the registration is confirmed in Notifications.</>
-              : <>This record does not have a registration date yet. Once the 4-month proclamation period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
+              : <>This record does not have a registration date yet. Once the 4-month Savali publication period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
             }
           </p>
           <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
@@ -590,7 +590,7 @@ export default function Certificate({ userRole }) {
               {sectionHead("Important Dates")}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
                 {readField("Aso o le Saofai (Date of Conferral)", formatDate(record.dateConferred))}
-                {readField("Aso o le Faasalalauga (Date of Proclamation)", formatDate(record.dateProclamation))}
+                {readField("Aso o le Faasalalauga (Savali Published Date)", formatDate(record.dateProclamation))}
                 {readField("Aso na Resitala ai (Date of Registration)", formatDate(record.dateRegistration))}
                 {readField("Date Issued (Aso Tuuina Mai)", formatDate(record.dateIssued))}
                 {readField("Aso Fanau (Date of Birth)", formatDate(record.dateBirth))}

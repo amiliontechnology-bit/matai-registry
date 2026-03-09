@@ -68,7 +68,7 @@ export function diffRecords(oldRec, newRec) {
     village:          "Village",
     district:         "District",
     dateConferred:    "Date of Conferral",
-    dateProclamation: "Date of Proclamation",
+    dateProclamation: "Savali Published Date",
     dateRegistration: "Date of Registration",
     dateIssued:       "Date Issued",
     mataiCertNumber:  "Matai Certificate Number",

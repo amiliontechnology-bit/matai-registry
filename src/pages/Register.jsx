@@ -416,7 +416,7 @@ export default function Register({ userRole }) {
   const autoRegDate = (proclamation) => {
     const result = calcRegDate(proclamation);
     // Only auto-fill dateRegistration if the 4-month period has already passed
-    // If still within proclamation period, leave blank — staff must confirm via Notifications
+    // If still within Savali publication period, leave blank — staff must confirm via Notifications
     return result && result.isPast ? result.dateStr : "";
   };
 
@@ -1086,7 +1086,7 @@ export default function Register({ userRole }) {
 
           {/* ── Objection ── */}
           <div className="card fade-in-delay-3">
-            {sectionHead("Objection (Proclamation Period)")}
+            {sectionHead("Objection (Savali Publication Period)")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>Objection Filed?</label>
@@ -1119,13 +1119,13 @@ export default function Register({ userRole }) {
               return hint.isPast ? (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef3c7", border:"1px solid #fcd34d", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#92400e" }}>
-                    ⚠ Proclamation period has passed — expected registration date was <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> as overdue and must be confirmed before the certificate is available.
+                    ⚠ Savali publication period has passed — expected registration date was <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> as overdue and must be confirmed before the certificate is available.
                   </p>
                 </div>
               ) : (
                 <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
                   <p style={{ fontSize:"0.85rem", color:"#7a5c00" }}>
-                    ⏳ Proclamation period not yet complete — expected registration date is <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> once that date has passed for staff to confirm.
+                    ⏳ Savali publication period not yet complete — expected registration date is <strong>{hint.display}</strong>. This record will appear in <strong>Notifications → Ready to Register</strong> once that date has passed for staff to confirm.
                   </p>
                 </div>
               );

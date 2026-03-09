@@ -233,7 +233,7 @@ export default function AuditLog({ userRole }) {
                         }
                         // ── REPORT_PDF ──
                         if (action === "REPORT_PDF") {
-                          const typeLabels = { monthly_full:"Monthly Full Report", monthly_ready:"Ready to Register", monthly_proc:"Proclamation Report", monthly_obj:"Objections Report", monthly_new:"New Matai Titles", full_ready:"Full Ready Report", full_obj:"Full Objections", full_proc:"Full Proclamation", registered_month:`Registered — ${d.month||""}`, registered_all:"All Registered", filtered:"Filtered Report", proclamation:"Proclamation Alerts", ready:"Ready to Register", new_matai:"New Matai Titles", objections:"Objections Report" };
+                          const typeLabels = { monthly_full:"Monthly Full Report", monthly_ready:"Ready to Register", monthly_proc:"Savali Published Date Report", monthly_obj:"Objections Report", monthly_new:"New Matai Titles", full_ready:"Full Ready Report", full_obj:"Full Objections", full_proc:"Full Savali Published Date Report", registered_month:`Registered — ${d.month||""}`, registered_all:"All Registered", filtered:"Filtered Report", proclamation:"Savali Alerts", ready:"Ready to Register", new_matai:"New Matai Titles", objections:"Objections Report" };
                           return <span>PDF generated: <strong>{typeLabels[d.type] || d.type}</strong>{d.count !== undefined ? ` (${d.count} records)` : ""}</span>;
                         }
                         // ── DUPLICATE_WARNING ──

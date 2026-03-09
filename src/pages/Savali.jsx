@@ -260,7 +260,7 @@ export default function Savali({ userRole }) {
       ) : unproclaimed.length === 0 ? (
         <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✅</div>
-          <p style={{ fontSize: "1.05rem" }}>All records have proclamation dates set.</p>
+          <p style={{ fontSize: "1.05rem" }}>All records have Savali published dates set.</p>
         </div>
       ) : (
         <>
@@ -283,12 +283,12 @@ export default function Savali({ userRole }) {
       {showConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "10px", padding: "2rem", maxWidth: "420px", width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ marginTop: 0, color: "#155c31" }}>Set Proclamation Date</h3>
+            <h3 style={{ marginTop: 0, color: "#155c31" }}>Set Savali Published Date</h3>
             <p style={{ color: "#374151", fontSize: "0.93rem" }}>
               Setting date for <strong>{selected.size} selected record{selected.size !== 1 ? "s" : ""}</strong>.
             </p>
             <div style={{ marginBottom: "1.25rem" }}>
-              <label style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", fontSize: "0.88rem" }}>Proclamation Date</label>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", fontSize: "0.88rem" }}>Savali Published Date</label>
               <input type="date" value={proclamationDate} onChange={e => setProclamationDate(e.target.value)}
                 style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.95rem", boxSizing: "border-box" }} />
               <p style={{ fontSize: "0.82rem", color: "#6b7280", marginTop: "0.4rem" }}>

@@ -262,20 +262,20 @@ export default function Reports({ userRole }) {
   const rowObj    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i);
   const rowReg    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateProclamation),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i);
 
-  const HDR_READY = ["#","Matai Title","Holder","Village","District","Proclaimed","Reg. Date"];
+  const HDR_READY = ["#","Matai Title","Holder","Village","District","Published Date","Reg. Date"];
   const HDR_NEW   = ["#","Matai Title","Holder","Type","Village","District","Date Conferred"];
-  const HDR_PROC  = ["#","Matai Title","Holder","Village","District","Proclaimed","Auto Reg. Date"];
-  const HDR_OBJ   = ["#","Matai Title","Holder","Village","District","Proclaimed","Objection Date"];
-  const HDR_REG   = ["#","Matai Title","Holder","Type","Village","District","Proclaimed","Registered"];
+  const HDR_PROC  = ["#","Matai Title","Holder","Village","District","Published Date","Auto Reg. Date"];
+  const HDR_OBJ   = ["#","Matai Title","Holder","Village","District","Published Date","Objection Date"];
+  const HDR_REG   = ["#","Matai Title","Holder","Type","Village","District","Published Date","Registered"];
 
   // Monthly PDFs
   const printMonthlyFull = () => {
-    const stats = [["Total",records.length,"#1a5c35"],["Registered",regMonth.length,"#155c31"],["New",newMonth.length,"#7c3aed"],["Ready",readyMonth.length,"#1e6b3c"],["Proclaimed",procMonth.length,"#1a5c35"],["Objections",objMonth.length,"#8b1a1a"]];
+    const stats = [["Total",records.length,"#1a5c35"],["Registered",regMonth.length,"#155c31"],["New",newMonth.length,"#7c3aed"],["Ready",readyMonth.length,"#1e6b3c"],["Published Date",procMonth.length,"#1a5c35"],["Objections",objMonth.length,"#8b1a1a"]];
     const html = reportHeader(`Monthly Report — ${monthLabel}`,`All matai title activity for ${monthLabel}`,records.length,genBy)
       + `<div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">${stats.map(([l,n,c])=>`<div style="border:1px solid ${c}30;border-radius:4px;padding:0.5rem 1rem;text-align:center;min-width:80px"><div style="font-size:1.6rem;font-weight:bold;color:${c}">${n}</div><div style="font-size:0.6rem;text-transform:uppercase;color:${c};letter-spacing:0.05em;font-family:'Cinzel',serif">${l}</div></div>`).join("")}</div>`
       + mkSection("New Matai Titles","#7c3aed",HDR_NEW,newMonth.map(rowNew).join(""))
       + mkSection("Ready to Register","#1e6b3c",HDR_READY,readyMonth.map(rowReady).join(""))
-      + mkSection("Proclamation Report","#1a5c35",HDR_PROC,procMonth.map(rowProc).join(""))
+      + mkSection("Savali Published Date Report","#1a5c35",HDR_PROC,procMonth.map(rowProc).join(""))
       + mkSection("Objections Report","#8b1a1a",HDR_OBJ,objMonth.map(rowObj).join(""))
       + mkSection("Registered This Month","#155c31",HDR_REG,regMonth.map(rowReg).join(""))
       + footer;
@@ -285,13 +285,13 @@ export default function Reports({ userRole }) {
 
   const printMonthlyNew      = () => { openPDF("New Matai Titles",    reportHeader(`New Matai Titles — ${monthLabel}`,`Titles entered or imported in ${monthLabel}`,newMonth.length,genBy)   + mkTable("#7c3aed",HDR_NEW,  newMonth.map(rowNew).join(""))   + footer); logAudit("REPORT_PDF",{type:"monthly_new"}); };
   const printMonthlyReady    = () => { openPDF("Ready to Register",   reportHeader(`Ready to Register — ${monthLabel}`,`Reg. date falls in ${monthLabel}, awaiting confirmation`,readyMonth.length,genBy) + mkTable("#1e6b3c",HDR_READY,readyMonth.map(rowReady).join("")) + footer); logAudit("REPORT_PDF",{type:"monthly_ready"}); };
-  const printMonthlyProc     = () => { openPDF("Proclamation Report", reportHeader(`Proclamation Report — ${monthLabel}`,`Active proclamations in ${monthLabel}`,procMonth.length,genBy)      + mkTable("#1a5c35",HDR_PROC, procMonth.map(rowProc).join(""))  + footer); logAudit("REPORT_PDF",{type:"monthly_proc"}); };
+  const printMonthlyProc     = () => { openPDF("Savali Published Date Report", reportHeader(`Savali Published Date Report — ${monthLabel}`,`Savali published dates in ${monthLabel}`,procMonth.length,genBy)      + mkTable("#1a5c35",HDR_PROC, procMonth.map(rowProc).join(""))  + footer); logAudit("REPORT_PDF",{type:"monthly_proc"}); };
   const printMonthlyObj      = () => { openPDF("Objections Report",   reportHeader(`Objections Report — ${monthLabel}`,`Objections filed in ${monthLabel}`,objMonth.length,genBy)            + mkTable("#8b1a1a",HDR_OBJ,  objMonth.map(rowObj).join(""))   + footer); logAudit("REPORT_PDF",{type:"monthly_obj"}); };
 
   // Full PDFs (all up to today)
   const printFullNew    = () => { openPDF("New Matai Titles",    reportHeader("New Matai Titles","All titles entered — not yet proclaimed, up to today",newAll.length,genBy)         + mkTable("#7c3aed",HDR_NEW,  newAll.map(rowNew).join(""))   + footer); logAudit("REPORT_PDF",{type:"full_new"}); };
-  const printFullReady  = () => { openPDF("Ready to Register",   reportHeader("Ready to Register","All titles where proclamation period is complete — up to today",readyAll.length,genBy) + mkTable("#1e6b3c",HDR_READY,readyAll.map(rowReady).join("")) + footer); logAudit("REPORT_PDF",{type:"full_ready"}); };
-  const printFullProc   = () => { openPDF("Proclamation Report", reportHeader("Proclamation Report","All active proclamations up to today",procAll.length,genBy)                     + mkTable("#1a5c35",HDR_PROC, procAll.map(rowProc).join(""))  + footer); logAudit("REPORT_PDF",{type:"full_proc"}); };
+  const printFullReady  = () => { openPDF("Ready to Register",   reportHeader("Ready to Register","All titles where Savali publication period is complete — up to today",readyAll.length,genBy) + mkTable("#1e6b3c",HDR_READY,readyAll.map(rowReady).join("")) + footer); logAudit("REPORT_PDF",{type:"full_ready"}); };
+  const printFullProc   = () => { openPDF("Savali Published Date Report", reportHeader("Savali Published Date Report","All active Savali published dates up to today",procAll.length,genBy)                     + mkTable("#1a5c35",HDR_PROC, procAll.map(rowProc).join(""))  + footer); logAudit("REPORT_PDF",{type:"full_proc"}); };
   const printFullObj    = () => { openPDF("Objections Report",   reportHeader("Objections Report","All titles with active objections — up to today",objAll.length,genBy)             + mkTable("#8b1a1a",HDR_OBJ,  objAll.map(rowObj).join(""))   + footer); logAudit("REPORT_PDF",{type:"full_obj"}); };
 
   // Registered PDFs
@@ -300,11 +300,11 @@ export default function Reports({ userRole }) {
 
   // Filtered PDF
   const printFiltered = () => {
-    const typeLabel = { all:"All Types", ready:"Ready to Register", new:"New Matai Titles", proclamation:"Proclamation Report", objections:"Objections Report" }[filterType];
+    const typeLabel = { all:"All Types", ready:"Ready to Register", new:"New Matai Titles", proclamation:"Savali Published Date Report", objections:"Objections Report" }[filterType];
     const html = reportHeader(`Filtered Report — ${typeLabel}`,dateRangeLabel,filteredTotal,genBy,`Period: ${dateRangeLabel}`)
       + mkSection("Ready to Register","#1e6b3c",HDR_READY,fReady.map(rowReady).join(""))
       + mkSection("New Matai Titles","#7c3aed",HDR_NEW,fNew.map(rowNew).join(""))
-      + mkSection("Proclamation Report","#1a5c35",HDR_PROC,fProc.map(rowProc).join(""))
+      + mkSection("Savali Published Date Report","#1a5c35",HDR_PROC,fProc.map(rowProc).join(""))
       + mkSection("Objections Report","#8b1a1a",HDR_OBJ,fObj.map(rowObj).join(""))
       + footer;
     openPDF("Filtered Report", html);
@@ -482,7 +482,7 @@ export default function Reports({ userRole }) {
                           : h==="Type" ? (r.mataiType||"—")
                           : h==="Village" ? (r.village||"—")
                           : h==="District" ? (r.district||"—")
-                          : h==="Proclaimed" ? fmtDate(r.dateProclamation)
+                          : h==="Published Date" ? fmtDate(r.dateProclamation)
                           : h==="Reg. Date" ? fmtDate(effectiveRegDate(r)||autoRegDate(r.dateProclamation))
                           : h==="Auto Reg. Date" ? fmtDate(autoRegDate(r.dateProclamation))
                           : h==="Date Conferred" ? fmtDate(r.dateConferred)
@@ -511,7 +511,7 @@ export default function Reports({ userRole }) {
   const previewRows = [
     ...fReady.map(r => ({ ...r, _type:"Ready to Register", _typeColor:"#1e6b3c", _date:r.dateProclamation })),
     ...fNew.map(r   => ({ ...r, _type:"New Matai Title",   _typeColor:"#7c3aed", _date:r.dateConferred })),
-    ...fProc.map(r  => ({ ...r, _type:"Proclamation",      _typeColor:"#1a5c35", _date:r.dateProclamation })),
+    ...fProc.map(r  => ({ ...r, _type:"Published Date",      _typeColor:"#1a5c35", _date:r.dateProclamation })),
     ...fObj.map(r   => ({ ...r, _type:"Objection",         _typeColor:"#8b1a1a", _date:r.objectionDate||r.dateProclamation })),
   ].sort((a,b) => (b._date||"").localeCompare(a._date||""));
 
@@ -540,10 +540,10 @@ export default function Reports({ userRole }) {
             <div style={sStyle}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>◈ Monthly Reports — {monthLabel}</p>
               <p style={{ fontSize:"0.74rem", color:"rgba(26,26,26,0.4)", marginBottom:"1.1rem" }}>All data filtered to the current month only.</p>
-              <ReportRow title="Full Monthly Report" desc={`All activity summary for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} data={records} headers={["#","Matai Title","Holder","Type","Village","District","Proclaimed"]} />
+              <ReportRow title="Full Monthly Report" desc={`All activity summary for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} data={records} headers={["#","Matai Title","Holder","Type","Village","District","Published Date"]} />
               <ReportRow title="New Matai Titles" desc={`Titles entered or imported in ${monthLabel}`} onClick={printMonthlyNew} count={newMonth.length} color="#7c3aed" data={newMonth} headers={HDR_NEW} />
               <ReportRow title="Ready to Register" desc={`Registration date falls in ${monthLabel} — awaiting confirmation`} onClick={printMonthlyReady} count={readyMonth.length} data={readyMonth} headers={HDR_READY} />
-              <ReportRow title="Proclamation Report" desc={`Proclamations active in ${monthLabel}`} onClick={printMonthlyProc} count={procMonth.length} data={procMonth} headers={HDR_PROC} />
+              <ReportRow title="Savali Published Date Report" desc={`Savali published dates active in ${monthLabel}`} onClick={printMonthlyProc} count={procMonth.length} data={procMonth} headers={HDR_PROC} />
               <ReportRow title="Objections Report" desc={`Objections filed in ${monthLabel}`} onClick={printMonthlyObj} count={objMonth.length} color="#8b1a1a" data={objMonth} headers={HDR_OBJ} />
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
@@ -551,7 +551,7 @@ export default function Reports({ userRole }) {
               <SummaryRow label="Total Records"      count={records.length}    color="#1a5c35" />
               <SummaryRow label="New Matai Titles"   count={newMonth.length}   color="#7c3aed" />
               <SummaryRow label="Ready to Register"  count={readyMonth.length} color="#1e6b3c" />
-              <SummaryRow label="Proclamations"      count={procMonth.length}  color="#1a5c35" />
+              <SummaryRow label="Published Dates"      count={procMonth.length}  color="#1a5c35" />
               <SummaryRow label="Objections"         count={objMonth.length}   color="#8b1a1a" />
               <SummaryRow label="Registered"         count={regMonth.length}   color="#155c31" />
             </div>
@@ -565,15 +565,15 @@ export default function Reports({ userRole }) {
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>◈ Full Reports — All Records Up To Today</p>
               <p style={{ fontSize:"0.74rem", color:"rgba(26,26,26,0.4)", marginBottom:"1.1rem" }}>Includes every record across all months, not limited to the current month.</p>
               <ReportRow title="New Matai Titles"   desc="All titles entered but not yet proclaimed — across all dates"  onClick={printFullNew}   count={newAll.length}   color="#7c3aed" data={newAll}   headers={HDR_NEW} />
-              <ReportRow title="Ready to Register"  desc="All titles where the 4-month proclamation period is complete"  onClick={printFullReady} count={readyAll.length} data={readyAll} headers={HDR_READY} />
-              <ReportRow title="Proclamation Report" desc="All active proclamations within 120-day window"               onClick={printFullProc}  count={procAll.length} data={procAll}  headers={HDR_PROC} />
+              <ReportRow title="Ready to Register"  desc="All titles where the 4-month Savali publication period is complete"  onClick={printFullReady} count={readyAll.length} data={readyAll} headers={HDR_READY} />
+              <ReportRow title="Savali Published Date Report" desc="All active Savali published dates within 120-day window"               onClick={printFullProc}  count={procAll.length} data={procAll}  headers={HDR_PROC} />
               <ReportRow title="Objections Report"  desc="All titles with active objections — across all dates"          onClick={printFullObj}   count={objAll.length}  color="#8b1a1a" data={objAll} headers={HDR_OBJ} />
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ All-Time Overview</p>
               <SummaryRow label="New Matai Titles"   count={newAll.length}   color="#7c3aed" />
               <SummaryRow label="Ready to Register"  count={readyAll.length} color="#1e6b3c" />
-              <SummaryRow label="Proclamation Alerts" count={procAll.length} color="#1a5c35" />
+              <SummaryRow label="Savali Alerts" count={procAll.length} color="#1a5c35" />
               <SummaryRow label="Objections"          count={objAll.length}  color="#8b1a1a" />
             </div>
           </div>
@@ -611,7 +611,7 @@ export default function Reports({ userRole }) {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
                     <thead>
                       <tr style={{ background:"#155c31" }}>
-                        {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
+                        {["Matai Title","Holder","Type","Village","District","Published Date","Registered"].map(h => (
                           <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -648,7 +648,7 @@ export default function Reports({ userRole }) {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
                     <thead>
                       <tr style={{ background:"#2d6a4f" }}>
-                        {["Matai Title","Holder","Type","Village","District","Proclaimed","Registered"].map(h => (
+                        {["Matai Title","Holder","Type","Village","District","Published Date","Registered"].map(h => (
                           <th key={h} style={{ padding:"0.5rem 0.75rem", color:"#fff", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -692,7 +692,7 @@ export default function Reports({ userRole }) {
                       <option value="all">All Types</option>
                       <option value="ready">Ready to Register</option>
                       <option value="new">New Matai Titles</option>
-                      <option value="proclamation">Proclamation Report</option>
+                      <option value="proclamation">Savali Published Date Report</option>
                       <option value="objections">Objections Report</option>
                     </select>
                   </div>
@@ -707,10 +707,10 @@ export default function Reports({ userRole }) {
                 </div>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <p style={{ fontSize:"0.68rem", color:"rgba(30,107,60,0.5)", fontStyle:"italic" }}>
-                    {filterType === "ready" || filterType === "proclamation" ? "📅 Filtering by proclamation date" :
+                    {filterType === "ready" || filterType === "proclamation" ? "📅 Filtering by Savali published date" :
                      filterType === "new" ? "📅 Filtering by date conferred" :
                      filterType === "objections" ? "📅 Filtering by objection date" :
-                     "📅 Date filter applies across proclamation, conferred & objection dates"}
+                     "📅 Date filter applies across Savali published, conferred & objection dates"}
                   </p>
                   <div style={{ display:"flex", gap:"0.5rem" }}>
                     <button onClick={() => { setFilterFrom(""); setFilterTo(""); setFilterType("all"); }}
@@ -771,7 +771,7 @@ export default function Reports({ userRole }) {
               </div>
               <SummaryRow label="Ready to Register" count={fReady.length} color="#1e6b3c" />
               <SummaryRow label="New Matai Titles"  count={fNew.length}   color="#7c3aed" />
-              <SummaryRow label="Proclamation"      count={fProc.length}  color="#1a5c35" />
+              <SummaryRow label="Published Date"      count={fProc.length}  color="#1a5c35" />
               <SummaryRow label="Objections"        count={fObj.length}   color="#8b1a1a" />
               <div style={{ marginTop:"0.75rem", paddingTop:"0.75rem", borderTop:"2px solid rgba(30,107,60,0.15)", display:"flex", justifyContent:"space-between" }}>
                 <span style={{ fontSize:"0.78rem", fontFamily:"'Cinzel',serif", color:"#1a5c35", textTransform:"uppercase", letterSpacing:"0.06em" }}>Total</span>
@@ -822,7 +822,7 @@ export default function Reports({ userRole }) {
                 <div style={{...sStyle,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.75rem",marginBottom:"1rem"}}>
                   <div>
                     <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#b45309",textTransform:"uppercase",marginBottom:"2px"}}>◈ Savali Report</p>
-                    <p style={{fontSize:"0.73rem",color:"rgba(26,26,26,0.45)"}}>Records pending proclamation date. Select records then set date to publish.</p>
+                    <p style={{fontSize:"0.73rem",color:"rgba(26,26,26,0.45)"}}>Records pending Savali published date. Select records then set date to publish.</p>
                   </div>
                   <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
                     {perms.canEdit && <button onClick={()=>setSavaliShowConfirm(true)} disabled={savaliSelected.size===0}
@@ -843,7 +843,7 @@ export default function Reports({ userRole }) {
                   )].sort().reverse();
                   return (
                     <div style={{...sStyle, marginBottom:"1rem"}}>
-                      <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#1a5c35",textTransform:"uppercase",marginBottom:"0.75rem"}}>◈ Generate Savali PDF by Proclamation Month</p>
+                      <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#1a5c35",textTransform:"uppercase",marginBottom:"0.75rem"}}>◈ Generate Savali PDF by Published Month</p>
                       {/* Month picker + PDF buttons — grid layout */}
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr 1fr", gap:"1rem", alignItems:"end" }}>
 
@@ -907,7 +907,7 @@ export default function Reports({ userRole }) {
                         </div>
                       </div>
                       {total === 0 && pdfMonth && (
-                        <p style={{ fontSize:"0.75rem", color:"#9ca3af", fontStyle:"italic", marginTop:"0.75rem" }}>No records with proclamation date in this month.</p>
+                        <p style={{ fontSize:"0.75rem", color:"#9ca3af", fontStyle:"italic", marginTop:"0.75rem" }}>No records with Savali published date in this month.</p>
                       )}
                     </div>
                   );
@@ -917,7 +917,7 @@ export default function Reports({ userRole }) {
                 : savaliRecords.length===0
                 ? <div style={{textAlign:"center",padding:"3rem",color:"rgba(26,26,26,0.35)"}}>
                     <p style={{fontSize:"2rem",marginBottom:"0.5rem"}}>✅</p>
-                    <p style={{fontStyle:"italic"}}>All records have proclamation dates set.</p>
+                    <p style={{fontStyle:"italic"}}>All records have Savali published dates set.</p>
                   </div>
                 : <>
                     {svUpolu.length>0 && <>
@@ -935,7 +935,7 @@ export default function Reports({ userRole }) {
               <div style={{...sStyle,position:"sticky",top:"2rem"}}>
                 <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.65rem",letterSpacing:"0.15em",color:"#b45309",textTransform:"uppercase",marginBottom:"1rem"}}>◈ Savali Summary</p>
                 <div style={{marginBottom:"1rem"}}>
-                  <p style={{fontSize:"0.65rem",fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",color:"rgba(26,26,26,0.45)",textTransform:"uppercase",marginBottom:"3px"}}>Proclamation Date</p>
+                  <p style={{fontSize:"0.65rem",fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",color:"rgba(26,26,26,0.45)",textTransform:"uppercase",marginBottom:"3px"}}>Savali Published Date</p>
                   <input type="date" value={savaliProcDate} onChange={e=>setSavaliProcDate(e.target.value)}
                     style={{width:"100%",padding:"0.4rem 0.65rem",border:"1px solid rgba(180,83,9,0.4)",borderRadius:"3px",fontSize:"0.78rem",color:"#b45309",fontFamily:"'Cinzel',serif",background:"#fff",boxSizing:"border-box"}}/>
                   <p style={{fontSize:"0.68rem",color:"rgba(26,26,26,0.4)",marginTop:"4px",fontStyle:"italic"}}>
@@ -957,7 +957,7 @@ export default function Reports({ userRole }) {
               {savaliShowConfirm && (
                 <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
                   <div style={{background:"#fff",borderRadius:"8px",padding:"2rem",maxWidth:"400px",width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
-                    <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.8rem",letterSpacing:"0.1em",color:"#1a5c35",marginBottom:"0.75rem",textTransform:"uppercase"}}>Set Proclamation Date</p>
+                    <p style={{fontFamily:"'Cinzel',serif",fontSize:"0.8rem",letterSpacing:"0.1em",color:"#1a5c35",marginBottom:"0.75rem",textTransform:"uppercase"}}>Set Savali Published Date</p>
                     <p style={{fontSize:"0.88rem",color:"#374151",marginBottom:"1rem"}}>Setting date for <strong>{savaliSelected.size}</strong> record{savaliSelected.size!==1?"s":""}.</p>
                     <input type="date" value={savaliProcDate} onChange={e=>setSavaliProcDate(e.target.value)}
                       style={{width:"100%",padding:"0.5rem",border:"1px solid #d1d5db",borderRadius:"4px",fontSize:"0.9rem",marginBottom:"0.5rem",boxSizing:"border-box"}}/>

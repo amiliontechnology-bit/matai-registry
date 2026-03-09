@@ -665,7 +665,7 @@ export default function Import({ userRole }) {
                   ["Tane/Tamaitai",                  "Gender",              false],
                   ["Ituaiga Suafa",                  "Title Type",          false],
                   ["Aso o le Saofai",                "Date of Saofai",      false],
-                  ["Aso o le Faasalalauga",          "Date of Proclamation",false],
+                  ["Aso o le Faasalalauga",          "Savali Published Date",false],
                   ["Aso na Resitala ai",             "Date Registered",     false],
                   ["Aso Fanau",                      "Date of Birth",       false],
                   ["Nuu na Fanau ai",                "Village of Birth",    false],
