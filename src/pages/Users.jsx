@@ -21,9 +21,9 @@ const ROLE_DESC = {
     "Print & view certificates",
     "View all notifications & confirm registrations",
     "Generate all PDF reports",
-    "Manage users & roles",
+    "Manage users, roles & set passwords",
     "View full audit log",
-    "Access data management",
+    "Access data management (bulk operations)",
   ],
   standard_admin: [
     "Add, edit & delete records",
@@ -32,19 +32,18 @@ const ROLE_DESC = {
     "Print & view certificates",
     "View all notifications & confirm registrations",
     "Generate all PDF reports",
-    "Cannot manage users, audit log or data management",
+    "Cannot manage users, set passwords, audit log or data management",
   ],
   data_entry: [
-    "Add & edit records",
+    "Add & edit records (cannot delete)",
     "Import records from Excel",
     "View certificates (cannot print)",
     "View notifications — see & fix duplicate alerts",
     "View reports (cannot print PDFs)",
-    "Cannot delete records",
     "Cannot manage users, audit log or data management",
   ],
   view: [
-    "View all registry records",
+    "View all registry records (read-only)",
     "View notifications (cannot confirm or edit)",
     "View reports (cannot print PDFs)",
     "Cannot add, edit or delete records",
@@ -464,11 +463,13 @@ export default function Users({ userRole }) {
                           <div style={{ display:"flex", gap:"0.4rem", alignItems:"center", flexWrap:"wrap" }}>
                             <button className="btn-ghost" onClick={() => openEdit(u)} title="Edit user"
                               style={{ fontSize:"0.82rem" }}>✎ Edit</button>
+                            {perms.canSetPassword && (
                             <button className="btn-ghost" onClick={() => openSetPassword(u)}
                               title="Set a new password for this user"
                               style={{ fontSize:"0.82rem", color:"#1e40af", borderColor:"rgba(30,64,175,0.3)" }}>
                               🔑 Set Password
                             </button>
+                            )}
                             {u.id !== currentUser?.uid && (
                               <button className="btn-ghost" onClick={() => setConfirmDelete(u)}
                                 style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)", fontSize:"0.82rem" }}

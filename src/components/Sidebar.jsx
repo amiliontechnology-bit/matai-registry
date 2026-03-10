@@ -78,7 +78,7 @@ export default function Sidebar({ userRole, userEmail }) {
           {perms.canViewNotifications && navItem("/notifications","🔔",  "Notifications")}
           {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
           {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}
-          {perms.canViewAudit && navItem("/data-manage",  "🗄️",  "Data Manage")}
+          {perms.canDataManage && navItem("/data-manage",  "🗄️",  "Data Manage")}
         </nav>
 
         {/* ── Sign out ── */}

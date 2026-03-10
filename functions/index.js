@@ -71,7 +71,7 @@ exports.setUserPassword = functions
       .get();
 
     const callerRole = callerDoc.exists ? callerDoc.data().role : null;
-    if (!["admin", "standard_admin"].includes(callerRole)) {
+    if (callerRole !== "admin") {
       throw new functions.https.HttpsError("permission-denied", "Only admins can set passwords.");
     }
 

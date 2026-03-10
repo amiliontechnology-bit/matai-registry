@@ -55,7 +55,7 @@ const DEFAULT_DISTRICT_VILLAGES = {
 export default function DataManage({ userRole }) {
   const perms = getPermissions(userRole);
   if (userRole === null) return null;
-  if (!perms.canDelete) return <Navigate to="/dashboard" />;
+  if (!perms.canDataManage) return <Navigate to="/dashboard" />;
 
   const [records,       setRecords]       = useState([]);
   const [imports,       setImports]       = useState([]);

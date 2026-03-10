@@ -5,24 +5,28 @@ export const ROLES = {
     canAdd: true, canEdit: true, canDelete: true, canDeleteDuplicate: true,
     canPrint: true, canViewUsers: true, canViewAudit: true,
     canViewNotifications: true, canViewReports: true,
+    canDataManage: true, canSetPassword: true,
   },
   standard_admin: {
     label: "Standard Admin",
     canAdd: true, canEdit: true, canDelete: true, canDeleteDuplicate: true,
     canPrint: true, canViewUsers: false, canViewAudit: false,
     canViewNotifications: true, canViewReports: true,
+    canDataManage: false, canSetPassword: false,
   },
   data_entry: {
     label: "Data Entry",
     canAdd: true, canEdit: true, canDelete: false, canDeleteDuplicate: true,
     canPrint: false, canViewUsers: false, canViewAudit: false,
     canViewNotifications: true, canViewReports: true,
+    canDataManage: false, canSetPassword: false,
   },
   view: {
     label: "View Only",
     canAdd: false, canEdit: false, canDelete: false, canDeleteDuplicate: false,
     canPrint: false, canViewUsers: false, canViewAudit: false,
     canViewNotifications: true, canViewReports: true,
+    canDataManage: false, canSetPassword: false,
   },
 };
 
