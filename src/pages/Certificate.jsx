@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, getDocs, collection } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -366,8 +366,37 @@ export default function Certificate({ userRole }) {
 
   const perms = getPermissions(userRole);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!record) return;
+    // Generate tamper-evident hash of the certificate data
+    try {
+      const certData = JSON.stringify({
+        recordId:    id,
+        mataiTitle:  record.mataiTitle,
+        holderName:  record.holderName,
+        village:     record.village,
+        district:    record.district,
+        dateConferred:      record.dateConferred,
+        dateRegistration:   record.dateRegistration,
+        dateSavaliPublished: record.dateSavaliPublished,
+        certLaupepa: record.certLaupepa,
+        certRegBook: record.certRegBook,
+        generatedAt: new Date().toISOString(),
+        generatedBy: auth.currentUser?.email,
+      });
+      const msgBuffer  = new TextEncoder().encode(certData);
+      const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgBuffer);
+      const hashHex    = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,"0")).join("");
+      await addDoc(collection(db, "documentHashes"), {
+        recordId:    id,
+        mataiTitle:  record.mataiTitle,
+        hash:        hashHex,
+        generatedBy: auth.currentUser?.email || "unknown",
+        generatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Hash generation failed:", err);
+    }
     logAudit("PRINT", { mataiTitle: record.mataiTitle, recordId: id });
     window.print();
   };

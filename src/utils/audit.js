@@ -1,14 +1,30 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
+// Cache IP for the session to avoid repeated lookups
+let _cachedIp = null;
+async function getClientIp() {
+  if (_cachedIp) return _cachedIp;
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    _cachedIp = data.ip || "unknown";
+  } catch {
+    _cachedIp = "unknown";
+  }
+  return _cachedIp;
+}
+
 export async function logAudit(action, details = {}) {
   try {
     const user = auth.currentUser;
+    const ipAddress = await getClientIp();
     await addDoc(collection(db, "auditLog"), {
       action,
       details,
       userEmail: user?.email || "unknown",
-      userId: user?.uid || "unknown",
+      userId:    user?.uid   || "unknown",
+      ipAddress,
       timestamp: serverTimestamp()
     });
   } catch (err) {

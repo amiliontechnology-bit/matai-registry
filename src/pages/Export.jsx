@@ -5,6 +5,7 @@ import { logAudit } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import Sidebar from "../components/Sidebar";
 import { cachedFetch, cacheClear } from "../utils/cache";
+import { Navigate } from "react-router-dom";
 
 const ALL_FIELDS = [
   { key:"mataiCertNumber",  label:"Matai Certificate Number" },
@@ -79,6 +80,7 @@ function applyFilter(records, filters) {
 }
 
 export default function Export({ userRole }) {
+  const perms = getPermissions(userRole);
   const [records, setRecords]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [selectedFields, setSelectedFields] = useState([
@@ -87,6 +89,7 @@ export default function Export({ userRole }) {
   const [filters, setFilters] = useState([{ field:"", op:"contains", value:"", value2:"" }]);
   const [showResults, setShowResults] = useState(false);
   const user = auth.currentUser;
+  if (userRole !== null && !perms.canExport) return <Navigate to="/dashboard" />;
   const tableRef = useRef(null);
 
   useEffect(() => {

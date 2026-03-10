@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { logAudit } from "./utils/audit";
@@ -21,6 +21,36 @@ export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
+  const idleTimer    = useRef(null);
+  const warningTimer = useRef(null);
+  const IDLE_TIMEOUT    = 30 * 60 * 1000; // 30 minutes
+  const WARNING_BEFORE  =  2 * 60 * 1000; //  2 minute warning before sign-out
+
+  const resetIdleTimer = useCallback(() => {
+    clearTimeout(idleTimer.current);
+    clearTimeout(warningTimer.current);
+    setShowIdleWarning(false);
+    warningTimer.current = setTimeout(() => setShowIdleWarning(true), IDLE_TIMEOUT - WARNING_BEFORE);
+    idleTimer.current = setTimeout(async () => {
+      await logAudit("SESSION_TIMEOUT", {});
+      await signOut(auth);
+    }, IDLE_TIMEOUT);
+  }, []);
+
+  // Start/stop idle timer based on auth state
+  useEffect(() => {
+    if (user) {
+      const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
+      events.forEach(e => window.addEventListener(e, resetIdleTimer));
+      resetIdleTimer();
+      return () => {
+        events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+        clearTimeout(idleTimer.current);
+        clearTimeout(warningTimer.current);
+      };
+    }
+  }, [user, resetIdleTimer]);
 
   // PWA install prompt — disabled until domain is finalised
   // useEffect(() => {
@@ -77,6 +107,15 @@ export default function App() {
       {process.env.REACT_APP_ENV === "development" && (
         <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:99999, background:"#b45309", color:"#fff", textAlign:"center", padding:"5px 0", fontSize:"0.72rem", fontFamily:"Arial,sans-serif", letterSpacing:"0.08em", fontWeight:700 }}>
           ⚠ DEVELOPMENT / TESTING ENVIRONMENT — Not production data
+        </div>
+      )}
+      {/* Idle session warning */}
+      {showIdleWarning && user && (
+        <div style={{ position:"fixed", bottom:"1.5rem", left:"50%", transform:"translateX(-50%)", background:"#7f1d1d", color:"#fff", borderRadius:"8px", padding:"1rem 1.5rem", zIndex:99998, boxShadow:"0 4px 20px rgba(0,0,0,0.5)", display:"flex", alignItems:"center", gap:"1rem", fontFamily:"Arial,sans-serif", fontSize:"0.85rem" }}>
+          <span>⏱ Your session will expire in 2 minutes due to inactivity.</span>
+          <button onClick={resetIdleTimer} style={{ background:"#fff", color:"#7f1d1d", border:"none", padding:"0.4rem 1rem", borderRadius:"4px", cursor:"pointer", fontWeight:700, fontSize:"0.8rem" }}>
+            Stay Logged In
+          </button>
         </div>
       )}
       {/* PWA Install Banner */}
