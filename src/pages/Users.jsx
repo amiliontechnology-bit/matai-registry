@@ -133,7 +133,7 @@ export default function Users({ userRole }) {
 
   const handleSetPassword = async () => {
     if (!setPwValue) { setSetPwMsg({ text:"Please enter a new password.", ok:false }); return; }
-    if (setPwValue.length < 6) { setSetPwMsg({ text:"Password must be at least 6 characters.", ok:false }); return; }
+    if (setPwValue.length < 8) { setSetPwMsg({ text:"Password must be at least 8 characters.", ok:false }); return; }
     if (setPwValue !== setPwConfirm) { setSetPwMsg({ text:"Passwords do not match.", ok:false }); return; }
     setSetPwSaving(true);
     setSetPwMsg({ text:"", ok:false });
@@ -607,7 +607,7 @@ export default function Users({ userRole }) {
                 {setPwConfirm && setPwConfirm !== setPwValue && (
                   <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Passwords do not match</p>
                 )}
-                {setPwConfirm && setPwConfirm === setPwValue && setPwValue.length >= 6 && (
+                {setPwConfirm && setPwConfirm === setPwValue && setPwValue.length >= 8 && (
                   <p style={{ fontSize:"0.72rem", color:"#155c31", marginTop:"4px" }}>✓ Passwords match</p>
                 )}
               </div>

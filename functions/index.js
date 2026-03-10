@@ -227,15 +227,24 @@ exports.setUserPassword = functions
     if (!uid || !newPassword) {
       throw new functions.https.HttpsError("invalid-argument", "uid and newPassword are required.");
     }
-    if (newPassword.length < 6) {
-      throw new functions.https.HttpsError("invalid-argument", "Password must be at least 6 characters.");
+    if (newPassword.length < 8) {
+      throw new functions.https.HttpsError("invalid-argument", "Password must be at least 8 characters.");
     }
 
     // Get the target user's email for audit log
-    const targetUser = await admin.auth().getUser(uid);
+    let targetUser;
+    try {
+      targetUser = await admin.auth().getUser(uid);
+    } catch (err) {
+      throw new functions.https.HttpsError("not-found", `User not found: ${err.message}`);
+    }
 
     // Update the password via Admin SDK
-    await admin.auth().updateUser(uid, { password: newPassword });
+    try {
+      await admin.auth().updateUser(uid, { password: newPassword });
+    } catch (err) {
+      throw new functions.https.HttpsError("invalid-argument", err.message || "Failed to update password.");
+    }
 
     // Audit log
     await admin.firestore().collection("auditLog").add({
