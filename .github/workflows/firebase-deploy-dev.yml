@@ -1,9 +1,10 @@
-name: Deploy to Firebase — Development
+name: Deploy to Firebase — Development (Staging)
 
 on:
   push:
     branches:
       - dev
+      - staging
 
 permissions:
   contents: read
@@ -24,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build for Firebase Dev (root URL)
+      - name: Build for Firebase Dev
         env:
           REACT_APP_FIREBASE_API_KEY:             ${{ secrets.DEV_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN:         ${{ secrets.DEV_FIREBASE_AUTH_DOMAIN }}
