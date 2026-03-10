@@ -304,11 +304,13 @@ export default function Users({ userRole }) {
               <button className="btn-primary" onClick={() => { resetForm(); setMode("add"); }}>
                 ＋ Add User
               </button>
-              <button onClick={handleSeedUsers} disabled={seedingUsers}
-                style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seedingUsers ? 0.6 : 1 }}>
-                {seedingUsers ? "Creating…" : "🧪 Create Test Users"}
-              </button>
-              {seedUserMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedUserMsg}</span>}
+              {process.env.REACT_APP_ENV === "development" && (
+                <button onClick={handleSeedUsers} disabled={seedingUsers}
+                  style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seedingUsers ? 0.6 : 1 }}>
+                  {seedingUsers ? "Creating…" : "🧪 Create Test Users"}
+                </button>
+              )}
+              {process.env.REACT_APP_ENV === "development" && seedUserMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedUserMsg}</span>}
             </div>
           )}
           {mode !== "list" && (

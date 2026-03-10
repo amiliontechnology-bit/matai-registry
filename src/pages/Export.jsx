@@ -121,13 +121,21 @@ export default function Export({ userRole }) {
 
   const runReport = () => setShowResults(true);
 
+  // Sanitise values before injecting into HTML to prevent XSS
+  const esc = (val) => String(val ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
   const exportPDF = () => {
     const win = window.open("", "_blank");
     const emblemUrl = window.location.origin + "/matai-registry/emblem.png";
-    const headers = selectedFields.map(k => ALL_FIELDS.find(f => f.key === k)?.label || k);
-    const rows = filtered.map(r => selectedFields.map(k => DATE_KEYS.has(k) ? fmtDate(r[k]) : (r[k] || "—")));
+    const headers = selectedFields.map(k => esc(ALL_FIELDS.find(f => f.key === k)?.label || k));
+    const rows = filtered.map(r => selectedFields.map(k => esc(DATE_KEYS.has(k) ? fmtDate(r[k]) : (r[k] || "—"))));
     const today = (() => { const d = new Date(); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`; })();
-    const userName = user?.displayName || user?.email || "Unknown User";
+    const userName = esc(user?.displayName || user?.email || "Unknown User");
     win.document.write(`<!DOCTYPE html><html><head>
       <title>Matai Registry Report</title>
       <style>

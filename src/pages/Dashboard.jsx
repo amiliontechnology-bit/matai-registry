@@ -168,13 +168,13 @@ export default function Dashboard({ userRole }) {
             {perms.canAdd && (
               <Link to="/register">
                 <button className="btn-primary">＋ Register Title</button>
-                {getPermissions(userRole).canDelete && (
+                {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
                   <button onClick={handleSeed} disabled={seeding}
                     style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seeding ? 0.6 : 1 }}>
                     {seeding ? "Adding…" : "🧪 Add Test Data"}
                   </button>
                 )}
-                {seedMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedMsg}</span>}
+                {process.env.REACT_APP_ENV === "development" && seedMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedMsg}</span>}
               </Link>
             )}
           </div>

@@ -1,8 +1,12 @@
 const functions = require("firebase-functions");
+const { defineSecret } = require("firebase-functions/params");
 const admin     = require("firebase-admin");
 const { Resend } = require("resend");
 
 admin.initializeApp();
+
+// Securely store Resend API key as a Firebase secret (not hardcoded)
+const resendApiKey = defineSecret("RESEND_API_KEY");
 
 const MAX_FAILED_ATTEMPTS = 5;
 
@@ -108,10 +112,11 @@ exports.unlockUser = functions
     return { success: true };
   });
 
-const RESEND_API_KEY = "re_3cGfE5e2_51g9J53xGUzKeKwzhtsb273U";
+
 
 exports.sendNotification = functions
   .region("australia-southeast1")
+  .runWith({ secrets: ["RESEND_API_KEY"] })
   .https.onCall(async (data, context) => {
 
     if (!context.auth) {
@@ -130,7 +135,7 @@ exports.sendNotification = functions
       );
     }
 
-    const resend = new Resend(RESEND_API_KEY);
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     try {
       const result = await resend.emails.send({
