@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+
+// Suppress console.error in production builds
+if (process.env.NODE_ENV === 'production') {
+  console.error = () => {};
+  console.warn  = () => {};
+}
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { logAudit } from "./utils/audit";
