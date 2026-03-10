@@ -208,6 +208,7 @@ exports.setUserPassword = functions
     try {
       targetUser = await admin.auth().getUser(uid);
     } catch (err) {
+      console.error("getUser error:", err.code, err.message);
       throw new functions.https.HttpsError("not-found", `User not found: ${err.message}`);
     }
 
@@ -219,13 +220,18 @@ exports.setUserPassword = functions
       throw new functions.https.HttpsError("invalid-argument", msg);
     }
 
-    await admin.firestore().collection("auditLog").add({
-      action:      "PASSWORD_SET_BY_ADMIN",
-      targetUid:   uid,
-      targetEmail: targetUser.email,
-      setBy:       context.auth.token.email || context.auth.uid,
-      timestamp:   admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // Audit log — wrapped so a failure here does not break the response
+    try {
+      await admin.firestore().collection("auditLog").add({
+        action:      "PASSWORD_SET_BY_ADMIN",
+        targetUid:   uid,
+        targetEmail: targetUser.email,
+        setBy:       context.auth.token.email || context.auth.uid,
+        timestamp:   admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("auditLog write failed:", err.message);
+    }
 
     return { success: true };
   });
