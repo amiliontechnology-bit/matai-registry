@@ -145,7 +145,9 @@ export default function Users({ userRole }) {
       await logAudit("PASSWORD_SET_BY_ADMIN", { targetEmail: setPwModal.email });
       setTimeout(() => { setSetPwModal(null); }, 2000);
     } catch (err) {
-      setSetPwMsg({ text:`✗ ${err.message}`, ok:false });
+      // Firebase callable errors nest the real message in err.details or err.message
+      const msg = err?.details?.message || err?.message || "Unknown error";
+      setSetPwMsg({ text:`✗ ${msg}`, ok:false });
     } finally {
       setSetPwSaving(false);
     }
