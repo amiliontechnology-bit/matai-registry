@@ -528,8 +528,6 @@ export default function Users({ userRole }) {
                                 {unlocking === u.id ? "…" : "🔓 Unlock"}
                               </button>
                             )}
-                              </button>
-                            )}
                             {u.id !== currentUser?.uid && (
                               <button className="btn-ghost" onClick={() => setConfirmDelete(u)}
                                 style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)", fontSize:"0.82rem" }}
