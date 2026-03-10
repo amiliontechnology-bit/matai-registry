@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
-import { createUserWithEmailAndPassword, updatePassword, sendPasswordResetEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { auth, db, secondaryAuth } from "../firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
@@ -77,20 +78,42 @@ export default function Users({ userRole }) {
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [resetMsg, setResetMsg]           = useState({ id: null, msg: "", ok: false });
   const [seedingUsers, setSeedingUsers] = useState(false);
   const [seedUserMsg, setSeedUserMsg]   = useState("");
 
-  const handleResetPassword = async (email, userId) => {
-    setResetMsg({ id: userId, msg: "Sending…", ok: false });
+  const [setPwModal, setSetPwModal] = useState(null); // { id, email } | null
+  const [setPwValue, setSetPwValue] = useState("");
+  const [setPwConfirm, setSetPwConfirm] = useState("");
+  const [setPwShow, setSetPwShow]   = useState(false);
+  const [setPwMsg, setSetPwMsg]     = useState({ text:"", ok:false });
+  const [setPwSaving, setSetPwSaving] = useState(false);
+
+  const openSetPassword = (u) => {
+    setSetPwModal(u);
+    setSetPwValue("");
+    setSetPwConfirm("");
+    setSetPwShow(false);
+    setSetPwMsg({ text:"", ok:false });
+  };
+
+  const handleSetPassword = async () => {
+    if (!setPwValue) { setSetPwMsg({ text:"Please enter a new password.", ok:false }); return; }
+    if (setPwValue.length < 6) { setSetPwMsg({ text:"Password must be at least 6 characters.", ok:false }); return; }
+    if (setPwValue !== setPwConfirm) { setSetPwMsg({ text:"Passwords do not match.", ok:false }); return; }
+    setSetPwSaving(true);
+    setSetPwMsg({ text:"", ok:false });
     try {
-      await sendPasswordResetEmail(auth, email);
-      setResetMsg({ id: userId, msg: `✓ Reset email sent to ${email}`, ok: true });
-      await logAudit("PASSWORD_RESET_SENT", { email });
+      const functions = getFunctions(undefined, "australia-southeast1");
+      const setUserPassword = httpsCallable(functions, "setUserPassword");
+      await setUserPassword({ uid: setPwModal.id, newPassword: setPwValue });
+      setSetPwMsg({ text:`✓ Password updated for ${setPwModal.email}`, ok:true });
+      await logAudit("PASSWORD_SET_BY_ADMIN", { targetEmail: setPwModal.email });
+      setTimeout(() => { setSetPwModal(null); }, 2000);
     } catch (err) {
-      setResetMsg({ id: userId, msg: `✗ Failed: ${err.message}`, ok: false });
+      setSetPwMsg({ text:`✗ ${err.message}`, ok:false });
+    } finally {
+      setSetPwSaving(false);
     }
-    setTimeout(() => setResetMsg({ id: null, msg: "", ok: false }), 4000);
   };
   const perms       = getPermissions(userRole);
   const currentUser = auth.currentUser;
@@ -441,20 +464,15 @@ export default function Users({ userRole }) {
                           <div style={{ display:"flex", gap:"0.4rem", alignItems:"center", flexWrap:"wrap" }}>
                             <button className="btn-ghost" onClick={() => openEdit(u)} title="Edit user"
                               style={{ fontSize:"0.82rem" }}>✎ Edit</button>
-                            <button className="btn-ghost" onClick={() => handleResetPassword(u.email, u.id)}
-                              title="Send password reset email"
+                            <button className="btn-ghost" onClick={() => openSetPassword(u)}
+                              title="Set a new password for this user"
                               style={{ fontSize:"0.82rem", color:"#1e40af", borderColor:"rgba(30,64,175,0.3)" }}>
-                              🔑 Reset PW
+                              🔑 Set Password
                             </button>
                             {u.id !== currentUser?.uid && (
                               <button className="btn-ghost" onClick={() => setConfirmDelete(u)}
                                 style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)", fontSize:"0.82rem" }}
                                 title="Delete user">✕ Delete</button>
-                            )}
-                            {resetMsg.id === u.id && (
-                              <span style={{ fontSize:"0.72rem", color: resetMsg.ok ? "#155c31" : "#991b1b", fontStyle:"italic" }}>
-                                {resetMsg.msg}
-                              </span>
                             )}
                           </div>
                         </td>
@@ -483,6 +501,74 @@ export default function Users({ userRole }) {
             </div>
           </>
         )}
+        {/* ── SET PASSWORD MODAL ── */}
+        {setPwModal && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ background:"#fff", borderRadius:"8px", padding:"2rem", width:"100%", maxWidth:"420px", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+              <h3 style={{ fontFamily:"'Cinzel',serif", fontSize:"0.85rem", letterSpacing:"0.12em", textTransform:"uppercase", color:"#1e6b3c", marginBottom:"0.25rem" }}>
+                🔑 Set New Password
+              </h3>
+              <p style={{ fontSize:"0.82rem", color:"#6b7280", marginBottom:"1.5rem" }}>
+                Setting password for <strong>{setPwModal.email}</strong>
+              </p>
+
+              <div className="form-group" style={{ marginBottom:"1rem" }}>
+                <label style={{ fontSize:"0.8rem" }}>New Password <span style={{ color:"#c0392b" }}>*</span></label>
+                <div style={{ position:"relative" }}>
+                  <input
+                    type={setPwShow ? "text" : "password"}
+                    value={setPwValue}
+                    onChange={e => setSetPwValue(e.target.value)}
+                    placeholder="Minimum 6 characters"
+                    style={{ width:"100%", boxSizing:"border-box", paddingRight:"3rem" }}
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => setSetPwShow(s => !s)}
+                    style={{ position:"absolute", right:"0.5rem", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:"1rem", color:"#6b7280" }}>
+                    {setPwShow ? "🙈" : "👁"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom:"1.25rem" }}>
+                <label style={{ fontSize:"0.8rem" }}>Confirm Password <span style={{ color:"#c0392b" }}>*</span></label>
+                <input
+                  type={setPwShow ? "text" : "password"}
+                  value={setPwConfirm}
+                  onChange={e => setSetPwConfirm(e.target.value)}
+                  placeholder="Re-enter new password"
+                  style={{ width:"100%", boxSizing:"border-box",
+                    ...(setPwConfirm && setPwConfirm !== setPwValue ? { borderColor:"#c0392b", background:"#fff5f5" } : {}),
+                    ...(setPwConfirm && setPwConfirm === setPwValue ? { borderColor:"#155c31", background:"#f0fdf4" } : {})
+                  }}
+                  onKeyDown={e => { if (e.key === "Enter") handleSetPassword(); }}
+                />
+                {setPwConfirm && setPwConfirm !== setPwValue && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Passwords do not match</p>
+                )}
+                {setPwConfirm && setPwConfirm === setPwValue && setPwValue.length >= 6 && (
+                  <p style={{ fontSize:"0.72rem", color:"#155c31", marginTop:"4px" }}>✓ Passwords match</p>
+                )}
+              </div>
+
+              {setPwMsg.text && (
+                <p style={{ fontSize:"0.82rem", color: setPwMsg.ok ? "#155c31" : "#c0392b", marginBottom:"1rem", fontWeight:600 }}>
+                  {setPwMsg.text}
+                </p>
+              )}
+
+              <div style={{ display:"flex", gap:"0.75rem", justifyContent:"flex-end" }}>
+                <button className="btn-secondary" onClick={() => setSetPwModal(null)} disabled={setPwSaving}
+                  style={{ fontSize:"0.78rem" }}>Cancel</button>
+                <button className="btn-primary" onClick={handleSetPassword} disabled={setPwSaving || !setPwValue || !setPwConfirm}
+                  style={{ fontSize:"0.78rem", ...(setPwSaving || !setPwValue || !setPwConfirm ? { opacity:0.5, cursor:"not-allowed" } : {}) }}>
+                  {setPwSaving ? "Saving…" : "Set Password"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

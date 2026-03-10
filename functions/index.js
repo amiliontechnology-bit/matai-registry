@@ -53,3 +53,52 @@ exports.sendNotification = functions
       throw new functions.https.HttpsError("internal", err.message || "Failed to send email.");
     }
   });
+
+// ── Admin: Set a user's password directly ──────────────────────────────────
+exports.setUserPassword = functions
+  .region("australia-southeast1")
+  .https.onCall(async (data, context) => {
+
+    // Must be authenticated
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    }
+
+    // Caller must be admin or standard_admin in Firestore
+    const callerDoc = await admin.firestore()
+      .collection("users")
+      .doc(context.auth.uid)
+      .get();
+
+    const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+    if (!["admin", "standard_admin"].includes(callerRole)) {
+      throw new functions.https.HttpsError("permission-denied", "Only admins can set passwords.");
+    }
+
+    const { uid, newPassword } = data;
+
+    if (!uid || !newPassword) {
+      throw new functions.https.HttpsError("invalid-argument", "uid and newPassword are required.");
+    }
+    if (newPassword.length < 6) {
+      throw new functions.https.HttpsError("invalid-argument", "Password must be at least 6 characters.");
+    }
+
+    // Get the target user's email for audit log
+    const targetUser = await admin.auth().getUser(uid);
+
+    // Update the password via Admin SDK
+    await admin.auth().updateUser(uid, { password: newPassword });
+
+    // Audit log
+    await admin.firestore().collection("auditLog").add({
+      action:     "PASSWORD_SET_BY_ADMIN",
+      targetUid:  uid,
+      targetEmail: targetUser.email,
+      setBy:      context.auth.token.email || context.auth.uid,
+      timestamp:  admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  });
+

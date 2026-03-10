@@ -43,4 +43,5 @@ jobs:
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
-          firebase deploy --only hosting --project resitalaina-o-matai --non-interactive
+          cd functions && npm install && cd ..
+          firebase deploy --only hosting,functions --project resitalaina-o-matai --non-interactive
