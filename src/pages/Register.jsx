@@ -1022,7 +1022,11 @@ export default function Register({ userRole }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>Aso o le Saofai (Date of Conferral) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
-                <input type="date" value={form.dateConferred} onChange={set("dateConferred")} />
+                <input type="date" value={form.dateConferred} onChange={set("dateConferred")}
+                  style={!form.dateConferred ? errStyle : {}} />
+                {!form.dateConferred && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Date of Conferral is required</p>
+                )}
               </div>
               <div className="form-group">
                 <label>Aso o le Faasalalauga (Savali Published Date)</label>
@@ -1182,27 +1186,35 @@ export default function Register({ userRole }) {
             })()}
           </div>
 
-          <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+          <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", flexWrap: "wrap", alignItems: "center" }}>
             {isDupMode
               ? <button type="button" className="btn-secondary" onClick={() => navigate(backTo, { state: { tab: backTab } })}>← Back to Duplicates</button>
               : <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
             }
-            {!viewOnly && (
-              {(() => {
+            {!viewOnly && (() => {
                 const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
                 const _regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
                 const _ageRes = validateAge(form.dateBirth, form.dateConferred);
-                const _hasDateErrors = !!(_pubErr || _regErr || (form.dateBirth && !_ageRes.valid));
+                const _ageErr = form.dateBirth && !_ageRes.valid
+                  ? `Holder is ${_ageRes.age} year${_ageRes.age !== 1 ? "s" : ""} old at conferral — must be 21+`
+                  : null;
+                const _hasDateErrors = !!(_pubErr || _regErr || _ageErr);
                 return (
-                  <button type="submit" className="btn-primary"
-                    disabled={loading || _hasDateErrors}
-                    title={_hasDateErrors ? "Fix date errors in Important Dates section before saving" : ""}
-                    style={_hasDateErrors ? { opacity:0.5, cursor:"not-allowed" } : {}}>
-                    {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
-                  </button>
+                  <>
+                    {_hasDateErrors && (
+                      <p style={{ fontSize:"0.78rem", color:"#c0392b", margin:0, fontStyle:"italic" }}>
+                        ⚠ Fix date errors before saving
+                      </p>
+                    )}
+                    <button type="submit" className="btn-primary"
+                      disabled={loading || _hasDateErrors}
+                      title={_hasDateErrors ? "Fix date errors in the Important Dates section before saving" : ""}
+                      style={_hasDateErrors ? { opacity:0.5, cursor:"not-allowed" } : {}}>
+                      {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
+                    </button>
+                  </>
                 );
               })()}
-            )}
           </div>
           </fieldset>
         </form>
