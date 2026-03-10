@@ -1,15 +1,15 @@
-name: Deploy to Firebase — Production
+name: Deploy to Firebase — Development
 
 on:
   push:
     branches:
-      - main
+      - dev
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  deploy-dev:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,15 +24,15 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build for Firebase (root URL)
+      - name: Build for Firebase Dev (root URL)
         env:
-          REACT_APP_FIREBASE_API_KEY:            ${{ secrets.PROD_FIREBASE_API_KEY }}
-          REACT_APP_FIREBASE_AUTH_DOMAIN:        ${{ secrets.PROD_FIREBASE_AUTH_DOMAIN }}
-          REACT_APP_FIREBASE_PROJECT_ID:         ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
-          REACT_APP_FIREBASE_STORAGE_BUCKET:     ${{ secrets.PROD_FIREBASE_STORAGE_BUCKET }}
-          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_FIREBASE_MESSAGING_SENDER_ID }}
-          REACT_APP_FIREBASE_APP_ID:             ${{ secrets.PROD_FIREBASE_APP_ID }}
-          REACT_APP_ENV:                         production
+          REACT_APP_FIREBASE_API_KEY:             ${{ secrets.DEV_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN:         ${{ secrets.DEV_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID:          ${{ secrets.DEV_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET:      ${{ secrets.DEV_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.DEV_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID:              ${{ secrets.DEV_FIREBASE_APP_ID }}
+          REACT_APP_ENV:                          development
         run: |
           node -e "
             const fs = require('fs');
@@ -45,11 +45,11 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Deploy to Firebase Hosting + Functions
+      - name: Deploy to Firebase Dev Hosting + Functions
         env:
-          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
           cd functions && npm install && cd ..
-          firebase deploy --only hosting,functions --project resitalaina-o-matai --non-interactive
+          firebase deploy --only hosting,functions --project ${{ secrets.DEV_FIREBASE_PROJECT_ID }} --non-interactive

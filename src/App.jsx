@@ -73,6 +73,12 @@ export default function App() {
 
   return (
     <HashRouter>
+      {/* Dev environment banner */}
+      {process.env.REACT_APP_ENV === "development" && (
+        <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:99999, background:"#b45309", color:"#fff", textAlign:"center", padding:"5px 0", fontSize:"0.72rem", fontFamily:"Arial,sans-serif", letterSpacing:"0.08em", fontWeight:700 }}>
+          ⚠ DEVELOPMENT / TESTING ENVIRONMENT — Not production data
+        </div>
+      )}
       {/* PWA Install Banner */}
       {showInstallBanner && (
         <div style={{
