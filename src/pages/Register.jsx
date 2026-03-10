@@ -1004,6 +1004,19 @@ export default function Register({ userRole }) {
           </div>
 
           {/* ── Important Dates ── */}
+          {(() => {
+            const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
+            const regErr       = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
+            const ageResult    = validateAge(form.dateBirth, form.dateConferred);
+            const ageErr       = form.dateBirth && !ageResult.valid
+              ? `Holder is ${ageResult.age} year${ageResult.age !== 1 ? "s" : ""} old at conferral date — must be 21 or older`
+              : null;
+            const hasDateErrors = !!(publishedErr || regErr || ageErr);
+            const calc   = calcRegDate(form.dateSavaliPublished);
+            const isAuto = calc && form.dateRegistration === calc.dateStr;
+            const errStyle  = { borderColor:"#c0392b", background:"#fff5f5" };
+            const autoStyle = { borderColor:"#fcd34d", background:"#fffbeb" };
+            return (
           <div className="card fade-in-delay-2">
             {sectionHead("Important Dates")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
@@ -1013,42 +1026,25 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Aso o le Faasalalauga (Savali Published Date)</label>
-                <input type="date" value={form.dateSavaliPublished} onChange={e => {
-                  const val = e.target.value;
-                  setForm(f => ({ ...f, dateSavaliPublished: val }));
-                }}
-                  style={{
-                    borderColor: form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) ? "#c0392b" : undefined,
-                    background:  form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) ? "#fff5f5" : undefined,
-                  }} />
-                {form.dateSavaliPublished && form.dateConferred && validatePublishedDate(form.dateSavaliPublished, form.dateConferred) && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
-                    ✗ {validatePublishedDate(form.dateSavaliPublished, form.dateConferred)}
-                  </p>
+                <input type="date" value={form.dateSavaliPublished}
+                  onChange={e => setForm(f => ({ ...f, dateSavaliPublished: e.target.value }))}
+                  style={publishedErr ? errStyle : {}} />
+                {publishedErr && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ {publishedErr}</p>
                 )}
               </div>
               <div className="form-group">
                 <label>Aso na Resitala ai (Date of Registration)</label>
-                {(() => {
-                  const calc = calcRegDate(form.dateSavaliPublished);
-                  const isAuto = calc && form.dateRegistration === calc.dateStr;
-                  const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
-                  return (<>
-                    <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")}
-                      style={{
-                        borderColor: isAuto ? "#fcd34d" : (form.dateRegistration && regErr ? "#c0392b" : undefined),
-                        background:  isAuto ? "#fffbeb" : (form.dateRegistration && regErr ? "#fff5f5" : undefined),
-                      }} />
-                    {isAuto && (
-                      <p style={{ fontSize:"0.72rem", color:"#92400e", marginTop:"4px", fontStyle:"italic" }}>
-                        ⚠ Auto-calculated — will not be saved until confirmed in Notifications
-                      </p>
-                    )}
-                    {!isAuto && form.dateRegistration && regErr && (
-                      <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ {regErr}</p>
-                    )}
-                  </>);
-                })()}
+                <input type="date" value={form.dateRegistration} onChange={set("dateRegistration")}
+                  style={isAuto ? autoStyle : (regErr ? errStyle : {})} />
+                {isAuto && (
+                  <p style={{ fontSize:"0.72rem", color:"#92400e", marginTop:"4px", fontStyle:"italic" }}>
+                    ⚠ Auto-calculated — will not be saved until confirmed in Notifications
+                  </p>
+                )}
+                {!isAuto && regErr && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ {regErr}</p>
+                )}
               </div>
               <div className="form-group">
                 <label>Date Issued (Aso Tuuina Mai)</label>
@@ -1061,17 +1057,12 @@ export default function Register({ userRole }) {
               <div className="form-group">
                 <label>Aso Fanau (Date of Birth) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
                 <input type="date" value={form.dateBirth || ""} onChange={set("dateBirth")}
-                  style={{ borderColor: form.dateBirth ? (validateAge(form.dateBirth, form.dateConferred).valid ? undefined : "#c0392b") : "#c0392b",
-                           background: form.dateBirth ? (validateAge(form.dateBirth, form.dateConferred).valid ? undefined : "#fff5f5") : "#fff5f5" }} />
-                {form.dateBirth && !validateAge(form.dateBirth, form.dateConferred).valid && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
-                    ✗ Holder is {validateAge(form.dateBirth, form.dateConferred).age} years old at conferral date — must be 21 or older
-                  </p>
+                  style={!form.dateBirth || ageErr ? errStyle : {}} />
+                {ageErr && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ {ageErr}</p>
                 )}
                 {!form.dateBirth && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>
-                    ✗ Date of birth is required
-                  </p>
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Date of birth is required</p>
                 )}
               </div>
               <div className="form-group">
@@ -1080,7 +1071,16 @@ export default function Register({ userRole }) {
                   placeholder="Village where holder was born" />
               </div>
             </div>
+            {hasDateErrors && (
+              <div style={{ marginTop:"1rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:600 }}>
+                  ⚠ Please fix the date errors above before saving.
+                </p>
+              </div>
+            )}
           </div>
+            );
+          })()}
 
           {/* ── Faapogai & Notes ── */}
           <div className="card fade-in-delay-3">
@@ -1188,9 +1188,20 @@ export default function Register({ userRole }) {
               : <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
             }
             {!viewOnly && (
-              <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
-              </button>
+              {(() => {
+                const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
+                const _regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
+                const _ageRes = validateAge(form.dateBirth, form.dateConferred);
+                const _hasDateErrors = !!(_pubErr || _regErr || (form.dateBirth && !_ageRes.valid));
+                return (
+                  <button type="submit" className="btn-primary"
+                    disabled={loading || _hasDateErrors}
+                    title={_hasDateErrors ? "Fix date errors in Important Dates section before saving" : ""}
+                    style={_hasDateErrors ? { opacity:0.5, cursor:"not-allowed" } : {}}>
+                    {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
+                  </button>
+                );
+              })()}
             )}
           </div>
           </fieldset>
