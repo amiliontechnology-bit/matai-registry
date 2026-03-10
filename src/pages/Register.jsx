@@ -974,13 +974,16 @@ export default function Register({ userRole }) {
                   Numera ole Laupepa <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
                 </label>
-                <input type="number" min="1" step="1" value={form.certLaupepa}
+                <input type="text" inputMode="numeric" value={form.certLaupepa}
+                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
                   onChange={e => setForm(f => ({ ...f, certLaupepa: e.target.value.replace(/[^0-9]/g,"") }))}
                   placeholder="e.g. 12"
                   style={{ width:"100%", boxSizing:"border-box", ...(!form.certLaupepa ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
-                {!form.certLaupepa && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
-                )}
+                {!form.certLaupepa
+                  ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
+                  : !/^\d+$/.test(String(form.certLaupepa))
+                    ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
+                    : null}
               </div>
 
               {/* Registry Book */}
@@ -989,14 +992,17 @@ export default function Register({ userRole }) {
                   Registry Book Numbers <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
                 </label>
-                <input type="number" min="1" step="1" value={form.certRegBook}
+                <input type="text" inputMode="numeric" value={form.certRegBook}
+                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
                   onChange={e => setForm(f => ({ ...f, certRegBook: e.target.value.replace(/[^0-9]/g,"") }))}
                   onBlur={checkCertDuplicate}
                   placeholder="e.g. 1234"
                   style={{ width:"100%", boxSizing:"border-box", ...(!form.certRegBook ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
-                {!form.certRegBook && (
-                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
-                )}
+                {!form.certRegBook
+                  ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
+                  : !/^\d+$/.test(String(form.certRegBook))
+                    ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
+                    : null}
               </div>
             </div>
 
