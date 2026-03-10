@@ -41,16 +41,16 @@ service cloud.firestore {
     match /auditLog/{logId} {
       allow read:   if isAdmin();
       allow create: if isStaff();
-      allow update: never;
-      allow delete: never;
+      allow update: if false;
+      allow delete: if false;
     }
 
     // ── Document hashes — write once, read by staff ───────────────────────
     match /documentHashes/{hashId} {
       allow read:   if isStaff();
       allow create: if isStaff();
-      allow update: never;
-      allow delete: never;
+      allow update: if false;
+      allow delete: if false;
     }
 
     // ── Notifications ─────────────────────────────────────────────────────
