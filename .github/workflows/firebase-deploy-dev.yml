@@ -56,5 +56,5 @@ jobs:
           echo "RESEND_API_KEY=$RESEND_API_KEY_VALUE" > functions/.env
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
           cd functions && npm install && cd ..
-          firebase functions:artifacts:setpolicy --project ${{ secrets.DEV_FIREBASE_PROJECT_ID }} --force 2>/dev/null || true
+          firebase functions:artifacts:setpolicy --project ${{ secrets.DEV_FIREBASE_PROJECT_ID }} --location australia-southeast1 --force 2>/dev/null || true
           firebase deploy --only hosting:resitalaina-o-matai-test,functions,firestore:rules --project ${{ secrets.DEV_FIREBASE_PROJECT_ID }} --non-interactive --force

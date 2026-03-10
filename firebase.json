@@ -1,7 +1,8 @@
 {
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20"
+    "runtime": "nodejs20",
+    "location": "australia-southeast1"
   },
   "hosting": {
     "public": "build",
