@@ -94,7 +94,7 @@ export default function Export({ userRole }) {
       try {
         const list = await cachedFetch("registrations", async () => {
           const snap = await getDocs(collection(db, "registrations"));
-          const data = snap.docs.map(d => { id: d.id, ...d.data() });
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
           return data;
         });

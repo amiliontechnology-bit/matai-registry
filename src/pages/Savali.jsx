@@ -53,7 +53,7 @@ export default function Savali({ userRole }) {
       let all = cacheGet("registrations");
       if (!all) {
         const snap = await getDocs(collection(db, "registrations"));
-        all = snap.docs.map(d => { id: d.id, ...d.data() });
+        all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         cacheSet("registrations", all);
       }
       const noProclaim = all.filter(r => !r.dateSavaliPublished || r.dateSavaliPublished.trim() === "");
