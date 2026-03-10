@@ -214,7 +214,9 @@ exports.setUserPassword = functions
     try {
       await admin.auth().updateUser(uid, { password: newPassword });
     } catch (err) {
-      throw new functions.https.HttpsError("invalid-argument", err.message || "Failed to update password.");
+      console.error("updateUser error:", JSON.stringify({ code: err.code, message: err.message, errorInfo: err.errorInfo }));
+      const msg = err?.errorInfo?.message || err?.message || "Failed to update password.";
+      throw new functions.https.HttpsError("invalid-argument", msg);
     }
 
     await admin.firestore().collection("auditLog").add({
