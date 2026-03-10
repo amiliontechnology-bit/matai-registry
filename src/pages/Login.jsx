@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 export default function Login() {
   const [email, setEmail]       = useState("");
@@ -15,10 +16,27 @@ export default function Login() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (err) {
-      // Show specific error to help diagnose
       const code = err.code || "";
-      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setError("Invalid email or password. Please try again.");
+      // Account locked — blocked by beforeSignIn function
+      if (code === "auth/blocking-cloud-function-returned-errors" ||
+          (err.message && err.message.includes("ACCOUNT_LOCKED"))) {
+        setError("Your account has been locked after too many failed attempts. Please contact your System Administrator to unlock your account.");
+      } else if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        // Record the failed attempt
+        try {
+          const fns = getFunctions(undefined, "australia-southeast1");
+          const recordFailed = httpsCallable(fns, "recordFailedLogin");
+          const result = await recordFailed({ email: email.trim() });
+          if (result.data?.lockedOut) {
+            setError("Your account has been locked after too many failed attempts. Please contact your System Administrator to unlock your account.");
+          } else if (result.data?.attemptsRemaining > 0) {
+            setError(`Invalid email or password. ${result.data.attemptsRemaining} attempt${result.data.attemptsRemaining === 1 ? "" : "s"} remaining before your account is locked.`);
+          } else {
+            setError("Invalid email or password. Please try again.");
+          }
+        } catch {
+          setError("Invalid email or password. Please try again.");
+        }
       } else if (code === "auth/too-many-requests") {
         setError("Too many failed attempts. Please wait a few minutes before trying again.");
       } else if (code === "auth/network-request-failed") {
@@ -26,7 +44,6 @@ export default function Login() {
       } else if (code === "auth/invalid-email") {
         setError("Invalid email format. Please check your email address.");
       } else {
-        // Show the raw error code so we can diagnose
         setError(`Sign-in failed: ${err.code || err.message}`);
       }
     } finally {

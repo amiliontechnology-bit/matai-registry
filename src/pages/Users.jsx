@@ -81,6 +81,7 @@ export default function Users({ userRole }) {
   const [seedUserMsg, setSeedUserMsg]   = useState("");
 
   const [togglingDisabled, setTogglingDisabled] = useState(null); // uid being toggled
+  const [unlocking, setUnlocking] = useState(null); // uid being unlocked
 
   const handleToggleDisabled = async (u) => {
     const action = u.disabled ? "enable" : "disable";
@@ -96,6 +97,22 @@ export default function Users({ userRole }) {
       setError(`✗ ${err.message}`);
     } finally {
       setTogglingDisabled(null);
+    }
+  };
+
+  const handleUnlockUser = async (u) => {
+    if (!window.confirm(`Unlock account for ${u.email}? This will reset their failed login counter.`)) return;
+    setUnlocking(u.id);
+    try {
+      const functions = getFunctions(undefined, "australia-southeast1");
+      const unlockUser = httpsCallable(functions, "unlockUser");
+      await unlockUser({ uid: u.id });
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, lockedOut: false, failedLogins: 0 } : x));
+      setSuccess(`✓ Account for ${u.email} has been unlocked.`);
+    } catch (err) {
+      setError(`✗ ${err.message}`);
+    } finally {
+      setUnlocking(null);
     }
   };
 
@@ -468,6 +485,9 @@ export default function Users({ userRole }) {
                             {u.disabled && (
                               <span style={{ background:"#fef3c7", color:"#92400e", fontSize:"0.6rem", fontFamily:"'Cinzel',serif", padding:"1px 6px", borderRadius:"8px", letterSpacing:"0.06em" }}>DISABLED</span>
                             )}
+                            {u.lockedOut && (
+                              <span style={{ background:"#fee2e2", color:"#7f1d1d", fontSize:"0.6rem", fontFamily:"'Cinzel',serif", padding:"1px 6px", borderRadius:"8px", letterSpacing:"0.06em" }}>LOCKED</span>
+                            )}
                           </div>
                         </td>
                         <td style={{ ...td, color:"#6b7280", fontSize:"0.83rem" }}>{u.department || "—"}</td>
@@ -498,6 +518,16 @@ export default function Users({ userRole }) {
                                 style={{ fontSize:"0.82rem", color: u.disabled ? "#155c31" : "#92400e", borderColor: u.disabled ? "rgba(21,92,49,0.3)" : "rgba(146,64,14,0.3)" }}
                                 title={u.disabled ? "Enable this user" : "Disable this user"}>
                                 {togglingDisabled === u.id ? "…" : u.disabled ? "✓ Enable" : "⊘ Disable"}
+                              </button>
+                            )}
+                            {u.lockedOut && perms.canSetPassword && (
+                              <button className="btn-ghost" onClick={() => handleUnlockUser(u)}
+                                disabled={unlocking === u.id}
+                                style={{ fontSize:"0.82rem", color:"#7f1d1d", borderColor:"rgba(127,29,29,0.3)" }}
+                                title="Unlock this account — locked due to too many failed login attempts">
+                                {unlocking === u.id ? "…" : "🔓 Unlock"}
+                              </button>
+                            )}
                               </button>
                             )}
                             {u.id !== currentUser?.uid && (
