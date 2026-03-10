@@ -51,8 +51,7 @@ jobs:
           RESEND_API_KEY_VALUE: ${{ secrets.RESEND_API_KEY }}
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/service-account.json
-          echo -n "$RESEND_API_KEY_VALUE" > /tmp/resend-key.txt
+          echo "RESEND_API_KEY=$RESEND_API_KEY_VALUE" > functions/.env
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
           cd functions && npm install && cd ..
-          firebase functions:secrets:set RESEND_API_KEY --data-file /tmp/resend-key.txt --project resitalaina-o-matai || true
           firebase deploy --only hosting:resitalaina-o-matai,functions,firestore:rules --project resitalaina-o-matai --non-interactive --force

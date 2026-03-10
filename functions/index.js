@@ -1,6 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { beforeUserSignedIn } = require("firebase-functions/v2/identity");
-const { defineSecret } = require("firebase-functions/params");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
@@ -9,9 +8,6 @@ admin.initializeApp();
 
 // Set default region for all v2 functions
 setGlobalOptions({ region: "australia-southeast1" });
-
-// Securely store Resend API key as a Firebase secret
-const resendApiKey = defineSecret("RESEND_API_KEY");
 
 const MAX_FAILED_ATTEMPTS = 5;
 
@@ -113,7 +109,7 @@ exports.unlockUser = onCall(async (request) => {
 
 
 
-exports.sendNotification = onCall({ secrets: [resendApiKey] }, async (request) => {
+exports.sendNotification = onCall(async (request) => {
   const { data, auth } = request;
 
     if (!auth) {
