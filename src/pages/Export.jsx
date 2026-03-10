@@ -187,28 +187,176 @@ export default function Export({ userRole }) {
   };
 
   const exportExcel = () => {
-    const doExport = (XLSX) => {
-      const today = new Date();
-      const todayStr = `${String(today.getDate()).padStart(2,"0")}_${String(today.getMonth()+1).padStart(2,"0")}_${today.getFullYear()}`;
-      const headers = selectedFields.map(k => ALL_FIELDS.find(f => f.key === k)?.label || k);
-      const dataRows = filtered.map(r =>
-        selectedFields.map(k => DATE_KEYS.has(k) ? fmtDate(r[k]) : (r[k] || ""))
-      );
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-      ws["!cols"] = headers.map(() => ({ wch: 22 }));
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Matai Registry");
-      XLSX.writeFile(wb, `Matai_Registry_Export_${todayStr}.xlsx`);
-      logAudit("EXPORT", { format: "excel", count: filtered.length });
-    };
-    if (window.XLSX) {
-      doExport(window.XLSX);
-    } else {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-      script.onload = () => doExport(window.XLSX);
-      document.head.appendChild(script);
-    }
+    const today = new Date();
+    const todayDisplay = `${String(today.getDate()).padStart(2,"0")}/${String(today.getMonth()+1).padStart(2,"0")}/${today.getFullYear()}`;
+    const todayFile   = `${String(today.getDate()).padStart(2,"0")}_${String(today.getMonth()+1).padStart(2,"0")}_${today.getFullYear()}`;
+    const userName    = user?.displayName || user?.email || "Unknown User";
+    const headers     = selectedFields.map(k => ALL_FIELDS.find(f => f.key === k)?.label || k);
+    const dataRows    = filtered.map(r =>
+      selectedFields.map(k => DATE_KEYS.has(k) ? fmtDate(r[k]) : (r[k] || ""))
+    );
+
+    const colSpan = headers.length || 1;
+
+    const metaRow = (label, value) =>
+      `<tr>
+        <td colspan="${colSpan}" style="font-family:Georgia,serif;font-size:11pt;padding:3px 8px;
+          background:#f5faf7;border:1px solid #c3e6cb;color:#444;">
+          <b style="color:#1a5c35;">${label}</b>&nbsp;&nbsp;${value}
+        </td>
+      </tr>`;
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:x="urn:schemas-microsoft-com:office:excel"
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8">
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+            <x:Name>Matai Registry</x:Name>
+            <x:WorksheetOptions>
+              <x:FreezePanes/>
+              <x:FrozenNoSplit/>
+              <x:SplitHorizontal>8</x:SplitHorizontal>
+              <x:TopRowBottomPane>8</x:TopRowBottomPane>
+              <x:ActivePane>2</x:ActivePane>
+              <x:ProtectContents>True</x:ProtectContents>
+              <x:ProtectObjects>False</x:ProtectObjects>
+              <x:ProtectScenarios>False</x:ProtectScenarios>
+            </x:WorksheetOptions>
+          </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: Georgia, serif; font-size: 10pt; }
+          table { border-collapse: collapse; width: 100%; }
+          .title-row td {
+            background: #1a5c35;
+            color: #ffffff;
+            font-family: Georgia, serif;
+            font-size: 16pt;
+            font-weight: bold;
+            padding: 10px 12px;
+            letter-spacing: 1px;
+          }
+          .sub-row td {
+            background: #1a5c35;
+            color: #a8d5b5;
+            font-family: Georgia, serif;
+            font-size: 9pt;
+            font-style: italic;
+            padding: 2px 12px 8px 12px;
+          }
+          .ministry-row td {
+            background: #0f2e1a;
+            color: #c8e6c9;
+            font-family: Georgia, serif;
+            font-size: 8pt;
+            padding: 5px 12px;
+            letter-spacing: 0.5px;
+          }
+          .divider-row td {
+            background: #1a5c35;
+            height: 3px;
+            padding: 0;
+            font-size: 1pt;
+          }
+          .meta-label { color: #1a5c35; font-weight: bold; }
+          .col-header {
+            background: #1a5c35;
+            color: #ffffff;
+            font-family: Georgia, serif;
+            font-size: 9pt;
+            font-weight: bold;
+            padding: 7px 10px;
+            border: 1px solid #0f3d25;
+            text-align: left;
+            white-space: nowrap;
+          }
+          .data-even {
+            background: #ffffff;
+            font-family: Georgia, serif;
+            font-size: 9.5pt;
+            padding: 5px 10px;
+            border: 1px solid #e5e7eb;
+            vertical-align: top;
+          }
+          .data-odd {
+            background: #f0faf4;
+            font-family: Georgia, serif;
+            font-size: 9.5pt;
+            padding: 5px 10px;
+            border: 1px solid #e5e7eb;
+            vertical-align: top;
+          }
+          .footer-row td {
+            background: #f9f9f9;
+            color: #888;
+            font-family: Georgia, serif;
+            font-size: 8pt;
+            font-style: italic;
+            padding: 6px 10px;
+            border-top: 2px solid #1a5c35;
+          }
+          .spacer td { padding: 4px; background: #fff; font-size: 6pt; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <!-- Header banner -->
+          <tr class="title-row">
+            <td colspan="${colSpan}">SAMOA MATAI REGISTRY &nbsp;|&nbsp; RESITALAINA O MATAI</td>
+          </tr>
+          <tr class="sub-row">
+            <td colspan="${colSpan}">Registry Data Export — Official Record</td>
+          </tr>
+          <tr class="ministry-row">
+            <td colspan="${colSpan}">Ministry of Justice, Courts &amp; Administration &nbsp;|&nbsp; Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga</td>
+          </tr>
+          <tr class="divider-row"><td colspan="${colSpan}"></td></tr>
+
+          <!-- Metadata -->
+          ${metaRow("Generated:", todayDisplay)}
+          ${metaRow("Exported by:", userName)}
+          ${metaRow("Total records:", `${filtered.length} record${filtered.length !== 1 ? "s" : ""}`)}
+          ${metaRow("Columns:", `${headers.length} field${headers.length !== 1 ? "s" : ""} selected`)}
+          ${metaRow("Classification:", "CONFIDENTIAL — Handle in accordance with the Privacy &amp; Data Handling Policy")}
+
+          <tr class="spacer"><td colspan="${colSpan}">&nbsp;</td></tr>
+
+          <!-- Column headers -->
+          <tr>
+            ${headers.map(h => `<td class="col-header">${h}</td>`).join("")}
+          </tr>
+
+          <!-- Data rows -->
+          ${dataRows.map((row, i) =>
+            `<tr>${row.map(v =>
+              `<td class="${i % 2 === 0 ? "data-even" : "data-odd"}">${v || ""}</td>`
+            ).join("")}</tr>`
+          ).join("")}
+
+          <tr class="spacer"><td colspan="${colSpan}">&nbsp;</td></tr>
+
+          <!-- Footer -->
+          <tr class="footer-row">
+            <td colspan="${Math.ceil(colSpan / 2)}">MATAI REGISTRY — RESITALAINA O MATAI &nbsp;|&nbsp; CONFIDENTIAL</td>
+            <td colspan="${Math.floor(colSpan / 2)}" style="text-align:right;">Generated: ${todayDisplay} by ${userName}</td>
+          </tr>
+        </table>
+      </body>
+      </html>`;
+
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `Matai_Registry_Export_${todayFile}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+    logAudit("EXPORT", { format: "excel", count: filtered.length });
   };
 
   const sStyle = { background:"#ffffff", border:"1px solid rgba(30,107,60,0.2)", borderRadius:"4px", padding:"1.5rem", marginBottom:"1.5rem", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" };
