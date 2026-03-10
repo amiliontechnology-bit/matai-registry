@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: is the caller authenticated? ──────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Helper: fetch the caller's role from Firestore ────────────────────
+    function callerRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuth() && callerRole() == "admin";
+    }
+
+    function isStaff() {
+      return isAuth() && callerRole() in ["admin", "standard_admin", "data_entry", "view"];
+    }
+
+    // ── Matai registry records ────────────────────────────────────────────
+    match /mataiRecords/{docId} {
+      allow read:   if isStaff();
+      allow create: if isAuth() && callerRole() in ["admin", "standard_admin", "data_entry"];
+      allow update: if isAuth() && callerRole() in ["admin", "standard_admin", "data_entry"];
+      allow delete: if isAuth() && callerRole() in ["admin", "standard_admin"];
+    }
+
+    // ── Users collection ──────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isStaff();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // ── AUDIT LOG — write-only, no edits or deletes ever ─────────────────
+    // Staff can create entries; nobody can update or delete
+    match /auditLog/{logId} {
+      allow read:   if isAdmin();
+      allow create: if isStaff();
+      allow update: never;
+      allow delete: never;
+    }
+
+    // ── Document hashes — write once, read by staff ───────────────────────
+    match /documentHashes/{hashId} {
+      allow read:   if isStaff();
+      allow create: if isStaff();
+      allow update: never;
+      allow delete: never;
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read:   if isStaff();
+      allow create: if isStaff();
+      allow update: if isAuth() && callerRole() in ["admin", "standard_admin"];
+      allow delete: if isAdmin();
+    }
+
+    // ── Deny everything else ──────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
