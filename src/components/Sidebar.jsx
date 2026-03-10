@@ -80,6 +80,7 @@ export default function Sidebar({ userRole, userEmail }) {
           {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
           {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}
           {perms.canDataManage && navItem("/data-manage",  "🗄️",  "Data Manage")}
+          {navItem("/mfa-setup",          "🔐",  "MFA Setup")}
         </nav>
 
         {/* ── Sign out ── */}

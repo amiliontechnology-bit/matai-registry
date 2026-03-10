@@ -21,6 +21,7 @@ import Export from "./pages/Export";
 import Notifications from "./pages/Notifications";
 import DataManage from "./pages/DataManage";
 import Reports from "./pages/Reports";
+import MFASetup from "./pages/MFASetup";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -164,6 +165,7 @@ export default function App() {
         <Route path="/reports" element={authed(<Reports userRole={userRole} />)} />
         <Route path="/notifications" element={authed(<Notifications userRole={userRole} />)} />
         <Route path="/data-manage" element={authed(<DataManage userRole={userRole} />)} />
+        <Route path="/mfa-setup" element={authed(<MFASetup userRole={userRole} />)} />
       </Routes>
     </HashRouter>
   );

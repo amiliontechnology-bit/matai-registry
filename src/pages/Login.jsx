@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, getMultiFactorResolver, TotpMultiFactorGenerator } from "firebase/auth";
 import { app, auth } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 export default function Login() {
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
+  // MFA challenge state
+  const [mfaResolver, setMfaResolver] = useState(null);
+  const [mfaCode, setMfaCode]         = useState("");
+  const [mfaLoading, setMfaLoading]   = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -17,6 +21,13 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (err) {
       const code = err.code || "";
+      // MFA required — show second factor prompt
+      if (code === "auth/multi-factor-auth-required") {
+        const resolver = getMultiFactorResolver(auth, err);
+        setMfaResolver(resolver);
+        setLoading(false);
+        return;
+      }
       // Account locked — blocked by beforeSignIn function
       if (code === "auth/blocking-cloud-function-returned-errors" ||
           (err.message && err.message.includes("ACCOUNT_LOCKED"))) {
@@ -48,6 +59,28 @@ export default function Login() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (e) => {
+    e.preventDefault();
+    if (mfaCode.length !== 6 || !/^\d{6}$/.test(mfaCode)) {
+      setError("Please enter the 6-digit code from your authenticator app.");
+      return;
+    }
+    setError(""); setMfaLoading(true);
+    try {
+      const hint      = mfaResolver.hints[0];
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, mfaCode);
+      await mfaResolver.resolveSignIn(assertion);
+    } catch (err) {
+      if (err.code === "auth/invalid-verification-code") {
+        setError("Incorrect code. Please check your authenticator app and try again.");
+      } else {
+        setError(`Verification failed: ${err.message}`);
+      }
+    } finally {
+      setMfaLoading(false);
     }
   };
 
@@ -103,28 +136,56 @@ export default function Login() {
             <div className="alert alert-error" style={{ marginBottom:"1.5rem" }}>{error}</div>
           )}
 
-          <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
-                id="email" type="email" required autoComplete="email"
-                value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="administrator@example.com"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password" type="password" required autoComplete="current-password"
-                value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-              />
-            </div>
-            <button type="submit" className="btn-primary" disabled={loading}
-              style={{ marginTop:"0.5rem", width:"100%", padding:"0.85rem" }}>
-              {loading ? "Authenticating…" : "Sign In to Registry"}
-            </button>
-          </form>
+          {mfaResolver ? (
+            /* ── MFA Challenge ── */
+            <form onSubmit={handleMfaVerify} style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
+              <div style={{ background:"#f0faf4", border:"1px solid #c3e6cb", borderRadius:"4px", padding:"0.9rem 1rem", fontSize:"0.82rem", color:"#1a5c35" }}>
+                <strong>🔐 Second factor required</strong><br />
+                Open your authenticator app and enter the 6-digit code for <strong>Samoa Matai Registry</strong>.
+              </div>
+              <div className="form-group">
+                <label htmlFor="mfaCode">Authenticator Code</label>
+                <input
+                  id="mfaCode" type="text" inputMode="numeric" maxLength={6}
+                  value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000" autoFocus autoComplete="one-time-code"
+                  style={{ letterSpacing:"0.4em", textAlign:"center", fontSize:"1.3rem", fontFamily:"monospace" }}
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={mfaLoading || mfaCode.length !== 6}
+                style={{ marginTop:"0.5rem", width:"100%", padding:"0.85rem" }}>
+                {mfaLoading ? "Verifying…" : "✓ Verify & Sign In"}
+              </button>
+              <button type="button" onClick={() => { setMfaResolver(null); setMfaCode(""); setError(""); }}
+                style={{ background:"transparent", border:"none", color:"#9ca3af", cursor:"pointer", fontSize:"0.8rem" }}>
+                ← Back to sign in
+              </button>
+            </form>
+          ) : (
+            /* ── Standard Login ── */
+            <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:"1.25rem" }}>
+              <div className="form-group">
+                <label htmlFor="email">Email Address</label>
+                <input
+                  id="email" type="email" required autoComplete="email"
+                  value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="administrator@example.com"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password" type="password" required autoComplete="current-password"
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={loading}
+                style={{ marginTop:"0.5rem", width:"100%", padding:"0.85rem" }}>
+                {loading ? "Authenticating…" : "Sign In to Registry"}
+              </button>
+            </form>
+          )}
         </div>
 
         <p style={{ textAlign:"center", marginTop:"1.5rem", fontSize:"0.75rem", color:"#9ca3af", fontStyle:"italic" }}>
