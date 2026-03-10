@@ -21,7 +21,7 @@ service cloud.firestore {
     }
 
     // ── Matai registry records ────────────────────────────────────────────
-    match /mataiRecords/{docId} {
+    match /registrations/{docId} {
       allow read:   if isStaff();
       allow create: if isAuth() && callerRole() in ["admin", "standard_admin", "data_entry"];
       allow update: if isAuth() && callerRole() in ["admin", "standard_admin", "data_entry"];
