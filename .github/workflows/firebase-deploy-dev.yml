@@ -34,6 +34,7 @@ jobs:
           REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.DEV_FIREBASE_MESSAGING_SENDER_ID }}
           REACT_APP_FIREBASE_APP_ID:              ${{ secrets.DEV_FIREBASE_APP_ID }}
           REACT_APP_ENV:                          development
+          REACT_APP_APPCHECK_DEBUG_TOKEN:          "true"
         run: |
           node -e "
             const fs = require('fs');
