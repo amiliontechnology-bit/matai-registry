@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -48,8 +48,11 @@ jobs:
       - name: Deploy to Firebase Hosting + Functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RESEND_API_KEY_VALUE: ${{ secrets.RESEND_API_KEY }}
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/service-account.json
+          echo -n "$RESEND_API_KEY_VALUE" > /tmp/resend-key.txt
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/service-account.json
           cd functions && npm install && cd ..
+          firebase functions:secrets:set RESEND_API_KEY --data-file /tmp/resend-key.txt --project resitalaina-o-matai || true
           firebase deploy --only hosting:resitalaina-o-matai,functions,firestore:rules --project resitalaina-o-matai --non-interactive --force

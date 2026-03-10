@@ -1,19 +1,23 @@
-const functions = require("firebase-functions");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { beforeUserSignedIn } = require("firebase-functions/v2/identity");
 const { defineSecret } = require("firebase-functions/params");
-const admin     = require("firebase-admin");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const admin = require("firebase-admin");
 const { Resend } = require("resend");
 
 admin.initializeApp();
 
-// Securely store Resend API key as a Firebase secret (not hardcoded)
+// Set default region for all v2 functions
+setGlobalOptions({ region: "australia-southeast1" });
+
+// Securely store Resend API key as a Firebase secret
 const resendApiKey = defineSecret("RESEND_API_KEY");
 
 const MAX_FAILED_ATTEMPTS = 5;
 
 // ── Blocking function: check lockout before sign-in ───────────────────────
-exports.beforeSignIn = functions
-  .region("australia-southeast1")
-  .auth.user().beforeSignIn(async (user) => {
+exports.beforeSignIn = beforeUserSignedIn(async (event) => {
+  const user = event.data;
     const uid = user.uid;
     const userRef = admin.firestore().collection("users").doc(uid);
     const userDoc = await userRef.get();
@@ -21,10 +25,7 @@ exports.beforeSignIn = functions
 
     const data = userDoc.data();
     if (data.lockedOut === true) {
-      throw new functions.auth.HttpsError(
-        "permission-denied",
-        "ACCOUNT_LOCKED"
-      );
+      throw new HttpsError("permission-denied", "ACCOUNT_LOCKED");
     }
 
     // Reset failed login counter on successful sign-in
@@ -36,9 +37,8 @@ exports.beforeSignIn = functions
 // ── Callable: record a failed login attempt ───────────────────────────────
 // Called by the client after a wrong-password error.
 // Looks up the user by email, increments failedLogins, locks at MAX_FAILED_ATTEMPTS.
-exports.recordFailedLogin = functions
-  .region("australia-southeast1")
-  .https.onCall(async (data) => {
+exports.recordFailedLogin = onCall(async (request) => {
+  const data = request.data;
     const { email } = data;
     if (!email) return { success: false };
 
@@ -77,21 +77,20 @@ exports.recordFailedLogin = functions
   });
 
 // ── Callable: unlock a user account (admin only) ──────────────────────────
-exports.unlockUser = functions
-  .region("australia-southeast1")
-  .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+exports.unlockUser = onCall(async (request) => {
+  const { data, auth } = request;
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in.");
     }
 
     const callerDoc = await admin.firestore()
-      .collection("users").doc(context.auth.uid).get();
+      .collection("users").doc(auth.uid).get();
     if (!callerDoc.exists || callerDoc.data().role !== "admin") {
-      throw new functions.https.HttpsError("permission-denied", "Only admins can unlock accounts.");
+      throw new HttpsError("permission-denied", "Only admins can unlock accounts.");
     }
 
     const { uid } = data;
-    if (!uid) throw new functions.https.HttpsError("invalid-argument", "uid is required.");
+    if (!uid) throw new HttpsError("invalid-argument", "uid is required.");
 
     const targetUser = await admin.auth().getUser(uid);
 
@@ -105,7 +104,7 @@ exports.unlockUser = functions
       action:      "ACCOUNT_UNLOCKED",
       targetUid:   uid,
       targetEmail: targetUser.email,
-      unlockedBy:  context.auth.token.email || context.auth.uid,
+      unlockedBy:  auth.token.email || auth.uid,
       timestamp:   admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -114,25 +113,17 @@ exports.unlockUser = functions
 
 
 
-exports.sendNotification = functions
-  .region("australia-southeast1")
-  .runWith({ secrets: ["RESEND_API_KEY"] })
-  .https.onCall(async (data, context) => {
+exports.sendNotification = onCall({ secrets: [resendApiKey] }, async (request) => {
+  const { data, auth } = request;
 
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "You must be logged in to send notifications."
-      );
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in to send notifications.");
     }
 
     const { toEmail, subject, htmlBody, textBody } = data;
 
     if (!toEmail || !subject) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "toEmail and subject are required."
-      );
+      throw new HttpsError("invalid-argument", "toEmail and subject are required.");
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -150,7 +141,7 @@ exports.sendNotification = functions
         action:    "EMAIL_SENT",
         toEmail:   toEmail,
         subject:   subject,
-        sentBy:    context.auth.token.email || context.auth.uid,
+        sentBy:    auth.token.email || auth.uid,
         resendId:  result.data?.id || null,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -159,34 +150,33 @@ exports.sendNotification = functions
 
     } catch (err) {
       console.error("Resend error:", err);
-      throw new functions.https.HttpsError("internal", err.message || "Failed to send email.");
+      throw new HttpsError("internal", err.message || "Failed to send email.");
     }
   });
 
 // ── Admin: Disable / Enable a user account ────────────────────────────────
-exports.toggleUserDisabled = functions
-  .region("australia-southeast1")
-  .https.onCall(async (data, context) => {
+exports.toggleUserDisabled = onCall(async (request) => {
+  const { data, auth } = request;
 
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in.");
     }
 
     const callerDoc = await admin.firestore()
-      .collection("users").doc(context.auth.uid).get();
+      .collection("users").doc(auth.uid).get();
     const callerRole = callerDoc.exists ? callerDoc.data().role : null;
     if (callerRole !== "admin") {
-      throw new functions.https.HttpsError("permission-denied", "Only admins can disable users.");
+      throw new HttpsError("permission-denied", "Only admins can disable users.");
     }
 
     const { uid, disabled } = data;
     if (!uid || typeof disabled !== "boolean") {
-      throw new functions.https.HttpsError("invalid-argument", "uid and disabled (boolean) are required.");
+      throw new HttpsError("invalid-argument", "uid and disabled (boolean) are required.");
     }
 
     // Prevent disabling yourself
-    if (uid === context.auth.uid) {
-      throw new functions.https.HttpsError("failed-precondition", "You cannot disable your own account.");
+    if (uid === auth.uid) {
+      throw new HttpsError("failed-precondition", "You cannot disable your own account.");
     }
 
     const targetUser = await admin.auth().getUser(uid);
@@ -199,7 +189,7 @@ exports.toggleUserDisabled = functions
       action:      disabled ? "USER_DISABLED" : "USER_ENABLED",
       targetUid:   uid,
       targetEmail: targetUser.email,
-      setBy:       context.auth.token.email || context.auth.uid,
+      setBy:       auth.token.email || auth.uid,
       timestamp:   admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -207,33 +197,30 @@ exports.toggleUserDisabled = functions
   });
 
 // ── Admin: Set a user's password directly ──────────────────────────────────
-exports.setUserPassword = functions
-  .region("australia-southeast1")
-  .https.onCall(async (data, context) => {
+exports.setUserPassword = onCall(async (request) => {
+  const { data, auth } = request;
 
-    // Must be authenticated
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in.");
     }
 
-    // Caller must be admin or standard_admin in Firestore
     const callerDoc = await admin.firestore()
       .collection("users")
-      .doc(context.auth.uid)
+      .doc(auth.uid)
       .get();
 
     const callerRole = callerDoc.exists ? callerDoc.data().role : null;
     if (callerRole !== "admin") {
-      throw new functions.https.HttpsError("permission-denied", "Only admins can set passwords.");
+      throw new HttpsError("permission-denied", "Only admins can set passwords.");
     }
 
     const { uid, newPassword } = data;
 
     if (!uid || !newPassword) {
-      throw new functions.https.HttpsError("invalid-argument", "uid and newPassword are required.");
+      throw new HttpsError("invalid-argument", "uid and newPassword are required.");
     }
     if (newPassword.length < 8) {
-      throw new functions.https.HttpsError("invalid-argument", "Password must be at least 8 characters.");
+      throw new HttpsError("invalid-argument", "Password must be at least 8 characters.");
     }
 
     // Get the target user's email for audit log
@@ -241,14 +228,14 @@ exports.setUserPassword = functions
     try {
       targetUser = await admin.auth().getUser(uid);
     } catch (err) {
-      throw new functions.https.HttpsError("not-found", `User not found: ${err.message}`);
+      throw new HttpsError("not-found", `User not found: ${err.message}`);
     }
 
     // Update the password via Admin SDK
     try {
       await admin.auth().updateUser(uid, { password: newPassword });
     } catch (err) {
-      throw new functions.https.HttpsError("invalid-argument", err.message || "Failed to update password.");
+      throw new HttpsError("invalid-argument", err.message || "Failed to update password.");
     }
 
     // Audit log
@@ -256,7 +243,7 @@ exports.setUserPassword = functions
       action:     "PASSWORD_SET_BY_ADMIN",
       targetUid:  uid,
       targetEmail: targetUser.email,
-      setBy:      context.auth.token.email || context.auth.uid,
+      setBy:      auth.token.email || auth.uid,
       timestamp:  admin.firestore.FieldValue.serverTimestamp(),
     });
 
