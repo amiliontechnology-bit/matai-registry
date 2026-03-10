@@ -974,9 +974,13 @@ export default function Register({ userRole }) {
                   Numera ole Laupepa <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
                 </label>
-                <input type="text" value={form.certLaupepa} onChange={set("certLaupepa")}
+                <input type="number" min="1" step="1" value={form.certLaupepa}
+                  onChange={e => setForm(f => ({ ...f, certLaupepa: e.target.value.replace(/[^0-9]/g,"") }))}
                   placeholder="e.g. 12"
-                  style={{ width:"100%", boxSizing:"border-box" }} />
+                  style={{ width:"100%", boxSizing:"border-box", ...(!form.certLaupepa ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
+                {!form.certLaupepa && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
+                )}
               </div>
 
               {/* Registry Book */}
@@ -985,10 +989,14 @@ export default function Register({ userRole }) {
                   Registry Book Numbers <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
                   <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
                 </label>
-                <input type="text" value={form.certRegBook} onChange={set("certRegBook")}
+                <input type="number" min="1" step="1" value={form.certRegBook}
+                  onChange={e => setForm(f => ({ ...f, certRegBook: e.target.value.replace(/[^0-9]/g,"") }))}
                   onBlur={checkCertDuplicate}
                   placeholder="e.g. 1234"
-                  style={{ width:"100%", boxSizing:"border-box" }} />
+                  style={{ width:"100%", boxSizing:"border-box", ...(!form.certRegBook ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
+                {!form.certRegBook && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
+                )}
               </div>
             </div>
 
@@ -1198,18 +1206,20 @@ export default function Register({ userRole }) {
                 const _ageErr = form.dateBirth && !_ageRes.valid
                   ? `Holder is ${_ageRes.age} year${_ageRes.age !== 1 ? "s" : ""} old at conferral — must be 21+`
                   : null;
-                const _hasDateErrors = !!(_pubErr || _regErr || _ageErr);
+                const _certErr = (!form.certLaupepa || !/^\d+$/.test(String(form.certLaupepa))) ||
+                                 (!form.certRegBook  || !/^\d+$/.test(String(form.certRegBook)));
+                const _hasErrors = !!(_pubErr || _regErr || _ageErr || _certErr);
                 return (
                   <>
-                    {_hasDateErrors && (
+                    {_hasErrors && (
                       <p style={{ fontSize:"0.78rem", color:"#c0392b", margin:0, fontStyle:"italic" }}>
-                        ⚠ Fix date errors before saving
+                        ⚠ {_certErr && !(_pubErr||_regErr||_ageErr) ? "Laupepa & Registry Book numbers are required" : "Fix errors before saving"}
                       </p>
                     )}
                     <button type="submit" className="btn-primary"
-                      disabled={loading || _hasDateErrors}
-                      title={_hasDateErrors ? "Fix date errors in the Important Dates section before saving" : ""}
-                      style={_hasDateErrors ? { opacity:0.5, cursor:"not-allowed" } : {}}>
+                      disabled={loading || _hasErrors}
+                      title={_hasErrors ? "Fix all errors before saving" : ""}
+                      style={_hasErrors ? { opacity:0.5, cursor:"not-allowed" } : {}}>
                       {loading ? "Saving…" : isEdit ? "Update Registration" : "Register & Generate Certificate"}
                     </button>
                   </>

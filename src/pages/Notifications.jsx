@@ -197,8 +197,25 @@ export default function Notifications({ userRole }) {
   // Monthly — New Matai titles: entered but NO proclamation date yet (brand new entries)
   const newMataiRecords = records.filter(r => !r.dateSavaliPublished && !r.dateRegistration && r.objection !== "yes");
 
-  // Incomplete records — missing date of birth (flagged after import or data entry)
-  const incompleteRecords = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "");
+  // Incomplete records — missing any required field (flagged after import or data entry)
+  const REQUIRED_FIELDS = [
+    { key: "dateBirth",           label: "Date of Birth" },
+    { key: "dateConferred",       label: "Date of Conferral" },
+    { key: "dateSavaliPublished", label: "Savali Published Date" },
+    { key: "certLaupepa",         label: "Numera ole Laupepa" },
+    { key: "certRegBook",         label: "Registry Book Number" },
+    { key: "village",             label: "Village" },
+    { key: "district",            label: "District" },
+    { key: "holderName",          label: "Holder Name" },
+  ];
+  const incompleteRecords = records
+    .map(r => {
+      const missing = REQUIRED_FIELDS
+        .filter(f => !r[f.key] || String(r[f.key]).trim() === "")
+        .map(f => f.label);
+      return missing.length > 0 ? { ...r, _missingFields: missing } : null;
+    })
+    .filter(Boolean);
 
   // Monthly — Ready to register: 4 months past proclamation, no objection, not yet registered
   const readyToRegister = records.filter(r => {
@@ -631,20 +648,22 @@ export default function Notifications({ userRole }) {
             {/* ── Incomplete Records tab ── */}
             {activeTab === "incomplete" && (
               <div style={sStyle}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"1rem" }}>
                   <div>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#7c3aed", textTransform:"uppercase", marginBottom:"4px" }}>◈ Incomplete Records — Missing Date of Birth</p>
-                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>These records are missing a date of birth. Please edit each record to complete the information.</p>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#7c3aed", textTransform:"uppercase", marginBottom:"4px" }}>◈ Incomplete Records</p>
+                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
+                      These records were imported or entered with missing required information. Edit each record to resolve, then save — they will move to the registry automatically.
+                    </p>
                   </div>
                 </div>
                 {loading
                   ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                   : incompleteRecords.length === 0
-                    ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ All records have a date of birth recorded.</div>
+                    ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ All records have complete information.</div>
                     : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
                         <thead>
                           <tr style={{ borderBottom:"2px solid rgba(124,58,237,0.2)" }}>
-                            {["Matai Title","Holder","Village","District","Status","Action"].map(h => (
+                            {["Matai Title","Holder","Village","District","Missing Fields","Action"].map(h => (
                               <th key={h} style={{ padding:"0.5rem 0.75rem", textAlign:"left", fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#7c3aed" }}>{h}</th>
                             ))}
                           </tr>
@@ -657,16 +676,18 @@ export default function Notifications({ userRole }) {
                               <td style={{ padding:"0.5rem 0.75rem" }}>{r.village||"—"}</td>
                               <td style={{ padding:"0.5rem 0.75rem", fontSize:"0.78rem" }}>{r.district||"—"}</td>
                               <td style={{ padding:"0.5rem 0.75rem" }}>
-                                <span style={{ fontSize:"0.68rem", fontFamily:"'Cinzel',serif", padding:"2px 8px", borderRadius:"3px",
-                                  background: r.status==="completed" ? "#e8f5ed" : "#fef3c7",
-                                  color: r.status==="completed" ? "#1a5c35" : "#92400e", fontWeight:600 }}>
-                                  {r.status==="completed" ? "Registered" : "Pending"}
-                                </span>
+                                <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
+                                  {r._missingFields.map(f => (
+                                    <span key={f} style={{ fontSize:"0.62rem", fontFamily:"'Cinzel',serif", padding:"2px 7px", borderRadius:"3px", background:"#fef3c7", color:"#92400e", border:"1px solid #fcd34d", whiteSpace:"nowrap" }}>
+                                      ✗ {f}
+                                    </span>
+                                  ))}
+                                </div>
                               </td>
                               <td style={{ padding:"0.5rem 0.75rem" }}>
                                 <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
                                   <button style={{ padding:"0.25rem 0.65rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#7c3aed15", border:"1px solid #7c3aed40", borderRadius:"3px", color:"#7c3aed", cursor:"pointer" }}>
-                                    ✏ Edit
+                                    ✏ Edit & Resolve
                                   </button>
                                 </Link>
                               </td>
