@@ -80,6 +80,25 @@ export default function Users({ userRole }) {
   const [seedingUsers, setSeedingUsers] = useState(false);
   const [seedUserMsg, setSeedUserMsg]   = useState("");
 
+  const [togglingDisabled, setTogglingDisabled] = useState(null); // uid being toggled
+
+  const handleToggleDisabled = async (u) => {
+    const action = u.disabled ? "enable" : "disable";
+    if (!window.confirm(`Are you sure you want to ${action} ${u.email}?`)) return;
+    setTogglingDisabled(u.id);
+    try {
+      const functions = getFunctions(undefined, "australia-southeast1");
+      const toggleUserDisabled = httpsCallable(functions, "toggleUserDisabled");
+      await toggleUserDisabled({ uid: u.id, disabled: !u.disabled });
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, disabled: !u.disabled } : x));
+      setSuccess(`✓ User ${u.email} has been ${action}d.`);
+    } catch (err) {
+      setError(`✗ ${err.message}`);
+    } finally {
+      setTogglingDisabled(null);
+    }
+  };
+
   const [setPwModal, setSetPwModal] = useState(null); // { id, email } | null
   const [setPwValue, setSetPwValue] = useState("");
   const [setPwConfirm, setSetPwConfirm] = useState("");
@@ -436,15 +455,18 @@ export default function Users({ userRole }) {
                     {users.length === 0 ? (
                       <tr><td colSpan={5} style={{ ...td, textAlign:"center", color:"#9ca3af", fontStyle:"italic" }}>No users found.</td></tr>
                     ) : users.map(u => (
-                      <tr key={u.id} style={{ background: u.id === currentUser?.uid ? "#f0fdf4" : "#fff" }}>
+                      <tr key={u.id} style={{ background: u.disabled ? "#fafafa" : u.id === currentUser?.uid ? "#f0fdf4" : "#fff", opacity: u.disabled ? 0.7 : 1 }}>
                         <td style={td}>
                           <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
                             <div>
-                              {u.displayName && <p style={{ fontSize:"0.88rem", color:"#111827", fontWeight:600 }}>{u.displayName}</p>}
-                              <p style={{ fontSize: u.displayName ? "0.78rem" : "0.9rem", color: u.displayName ? "#6b7280" : "#111827" }}>{u.email}</p>
+                              {u.displayName && <p style={{ fontSize:"0.88rem", color: u.disabled ? "#9ca3af" : "#111827", fontWeight:600 }}>{u.displayName}</p>}
+                              <p style={{ fontSize: u.displayName ? "0.78rem" : "0.9rem", color: u.disabled ? "#9ca3af" : u.displayName ? "#6b7280" : "#111827" }}>{u.email}</p>
                             </div>
                             {u.id === currentUser?.uid && (
                               <span style={{ background:"#dcfce7", color:"#155c31", fontSize:"0.6rem", fontFamily:"'Cinzel',serif", padding:"1px 6px", borderRadius:"8px", letterSpacing:"0.06em" }}>YOU</span>
+                            )}
+                            {u.disabled && (
+                              <span style={{ background:"#fef3c7", color:"#92400e", fontSize:"0.6rem", fontFamily:"'Cinzel',serif", padding:"1px 6px", borderRadius:"8px", letterSpacing:"0.06em" }}>DISABLED</span>
                             )}
                           </div>
                         </td>
@@ -469,6 +491,14 @@ export default function Users({ userRole }) {
                               style={{ fontSize:"0.82rem", color:"#1e40af", borderColor:"rgba(30,64,175,0.3)" }}>
                               🔑 Set Password
                             </button>
+                            )}
+                            {u.id !== currentUser?.uid && perms.canSetPassword && (
+                              <button className="btn-ghost" onClick={() => handleToggleDisabled(u)}
+                                disabled={togglingDisabled === u.id}
+                                style={{ fontSize:"0.82rem", color: u.disabled ? "#155c31" : "#92400e", borderColor: u.disabled ? "rgba(21,92,49,0.3)" : "rgba(146,64,14,0.3)" }}
+                                title={u.disabled ? "Enable this user" : "Disable this user"}>
+                                {togglingDisabled === u.id ? "…" : u.disabled ? "✓ Enable" : "⊘ Disable"}
+                              </button>
                             )}
                             {u.id !== currentUser?.uid && (
                               <button className="btn-ghost" onClick={() => setConfirmDelete(u)}

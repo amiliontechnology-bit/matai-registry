@@ -54,6 +54,49 @@ exports.sendNotification = functions
     }
   });
 
+// ── Admin: Disable / Enable a user account ────────────────────────────────
+exports.toggleUserDisabled = functions
+  .region("australia-southeast1")
+  .https.onCall(async (data, context) => {
+
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    }
+
+    const callerDoc = await admin.firestore()
+      .collection("users").doc(context.auth.uid).get();
+    const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+    if (callerRole !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Only admins can disable users.");
+    }
+
+    const { uid, disabled } = data;
+    if (!uid || typeof disabled !== "boolean") {
+      throw new functions.https.HttpsError("invalid-argument", "uid and disabled (boolean) are required.");
+    }
+
+    // Prevent disabling yourself
+    if (uid === context.auth.uid) {
+      throw new functions.https.HttpsError("failed-precondition", "You cannot disable your own account.");
+    }
+
+    const targetUser = await admin.auth().getUser(uid);
+    await admin.auth().updateUser(uid, { disabled });
+
+    // Mirror the disabled state in Firestore
+    await admin.firestore().collection("users").doc(uid).update({ disabled });
+
+    await admin.firestore().collection("auditLog").add({
+      action:      disabled ? "USER_DISABLED" : "USER_ENABLED",
+      targetUid:   uid,
+      targetEmail: targetUser.email,
+      setBy:       context.auth.token.email || context.auth.uid,
+      timestamp:   admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  });
+
 // ── Admin: Set a user's password directly ──────────────────────────────────
 exports.setUserPassword = functions
   .region("australia-southeast1")
