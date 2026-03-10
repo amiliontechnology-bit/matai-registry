@@ -74,6 +74,7 @@ export default function Sidebar({ userRole, userEmail }) {
           {navItem("/dashboard",      "⊞",  "Dashboard")}
           {perms.canAdd    && navItem("/register",       "＋",  "New Matai Entry")}
           {perms.canAdd    && navItem("/import",          "↑",   "Import")}
+          {perms.canExport && navItem("/export",          "📊",  "Export")}
           {perms.canViewReports && navItem("/reports",   "📋",  "Reports")}
           {perms.canViewNotifications && navItem("/notifications","🔔",  "Notifications")}
           {perms.canViewUsers && navItem("/users",        "👤",  "Users")}

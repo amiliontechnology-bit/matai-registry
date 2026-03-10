@@ -186,6 +186,31 @@ export default function Export({ userRole }) {
     logAudit("REPORT", { format:"pdf", count: filtered.length });
   };
 
+  const exportExcel = () => {
+    const doExport = (XLSX) => {
+      const today = new Date();
+      const todayStr = `${String(today.getDate()).padStart(2,"0")}_${String(today.getMonth()+1).padStart(2,"0")}_${today.getFullYear()}`;
+      const headers = selectedFields.map(k => ALL_FIELDS.find(f => f.key === k)?.label || k);
+      const dataRows = filtered.map(r =>
+        selectedFields.map(k => DATE_KEYS.has(k) ? fmtDate(r[k]) : (r[k] || ""))
+      );
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      ws["!cols"] = headers.map(() => ({ wch: 22 }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Matai Registry");
+      XLSX.writeFile(wb, `Matai_Registry_Export_${todayStr}.xlsx`);
+      logAudit("EXPORT", { format: "excel", count: filtered.length });
+    };
+    if (window.XLSX) {
+      doExport(window.XLSX);
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      script.onload = () => doExport(window.XLSX);
+      document.head.appendChild(script);
+    }
+  };
+
   const sStyle = { background:"#ffffff", border:"1px solid rgba(30,107,60,0.2)", borderRadius:"4px", padding:"1.5rem", marginBottom:"1.5rem", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" };
   const lblStyle = { fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.15em", textTransform:"uppercase", color:"#1e6b3c", marginBottom:"0.75rem", display:"block" };
 
@@ -273,12 +298,17 @@ export default function Export({ userRole }) {
                   onClick={runReport} disabled={filtered.length === 0}>
                   🔍 Run Report
                 </button>
-                <button className="btn-primary" style={{ width:"100%", fontSize:"0.78rem", background:"#0f2e1a" }}
+                <button className="btn-primary" style={{ width:"100%", fontSize:"0.78rem", background:"#0f2e1a", marginBottom:"0.5rem" }}
                   disabled={selectedFields.length === 0 || filtered.length === 0}
                   onClick={exportPDF}>
                   📄 Export PDF Report
                 </button>
-                <p style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.4)", marginTop:"0.75rem", textAlign:"center", fontStyle:"italic" }}>Opens in new tab — use browser print</p>
+                <button className="btn-primary" style={{ width:"100%", fontSize:"0.78rem", background:"#1a6b3c" }}
+                  disabled={selectedFields.length === 0 || filtered.length === 0}
+                  onClick={exportExcel}>
+                  📊 Export to Excel (.xlsx)
+                </button>
+                <p style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.4)", marginTop:"0.75rem", textAlign:"center", fontStyle:"italic" }}>PDF opens in new tab — Excel downloads directly</p>
               </div>
             </div>
 
