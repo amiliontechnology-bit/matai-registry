@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { app, auth } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 export default function Login() {
@@ -24,7 +24,7 @@ export default function Login() {
       } else if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
         // Record the failed attempt
         try {
-          const fns = getFunctions(undefined, "australia-southeast1");
+          const fns = getFunctions(app, "australia-southeast1");
           const recordFailed = httpsCallable(fns, "recordFailedLogin");
           const result = await recordFailed({ email: email.trim() });
           if (result.data?.lockedOut) {

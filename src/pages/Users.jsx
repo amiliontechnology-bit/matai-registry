@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
 import { createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { auth, db, secondaryAuth } from "../firebase";
+import { app, auth, db, secondaryAuth } from "../firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
@@ -88,7 +88,7 @@ export default function Users({ userRole }) {
     if (!window.confirm(`Are you sure you want to ${action} ${u.email}?`)) return;
     setTogglingDisabled(u.id);
     try {
-      const functions = getFunctions(undefined, "australia-southeast1");
+      const functions = getFunctions(app, "australia-southeast1");
       const toggleUserDisabled = httpsCallable(functions, "toggleUserDisabled");
       await toggleUserDisabled({ uid: u.id, disabled: !u.disabled });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, disabled: !u.disabled } : x));
@@ -104,7 +104,7 @@ export default function Users({ userRole }) {
     if (!window.confirm(`Unlock account for ${u.email}? This will reset their failed login counter.`)) return;
     setUnlocking(u.id);
     try {
-      const functions = getFunctions(undefined, "australia-southeast1");
+      const functions = getFunctions(app, "australia-southeast1");
       const unlockUser = httpsCallable(functions, "unlockUser");
       await unlockUser({ uid: u.id });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, lockedOut: false, failedLogins: 0 } : x));
@@ -138,7 +138,7 @@ export default function Users({ userRole }) {
     setSetPwSaving(true);
     setSetPwMsg({ text:"", ok:false });
     try {
-      const functions = getFunctions(undefined, "australia-southeast1");
+      const functions = getFunctions(app, "australia-southeast1");
       const setUserPassword = httpsCallable(functions, "setUserPassword");
       await setUserPassword({ uid: setPwModal.id, newPassword: setPwValue });
       setSetPwMsg({ text:`✓ Password updated for ${setPwModal.email}`, ok:true });
