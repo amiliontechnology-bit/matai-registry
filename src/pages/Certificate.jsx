@@ -6,6 +6,8 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import { cacheGet, cacheSet } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Official Samoa district number → name
 const DISTRICT_BY_NUM = {
@@ -285,6 +287,7 @@ export default function Certificate({ userRole }) {
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [certLang, setCertLang] = useState("sm"); // "sm" = Samoan, "en" = English
+  const [generating, setGenerating] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -369,17 +372,18 @@ export default function Certificate({ userRole }) {
   const perms = getPermissions(userRole);
 
   const handlePrint = async () => {
-    if (!record) return;
-    // Generate tamper-evident hash of the certificate data
+    if (!record || generating) return;
+    setGenerating(true);
     try {
+      // 1. Generate tamper-evident hash
       const certData = JSON.stringify({
         recordId:    id,
         mataiTitle:  record.mataiTitle,
         holderName:  record.holderName,
         village:     record.village,
         district:    record.district,
-        dateConferred:      record.dateConferred,
-        dateRegistration:   record.dateRegistration,
+        dateConferred:       record.dateConferred,
+        dateRegistration:    record.dateRegistration,
         dateSavaliPublished: record.dateSavaliPublished,
         certLaupepa: record.certLaupepa,
         certRegBook: record.certRegBook,
@@ -396,11 +400,45 @@ export default function Certificate({ userRole }) {
         generatedBy: auth.currentUser?.email || "unknown",
         generatedAt: serverTimestamp(),
       });
+
+      // 2. Render certificate div to canvas
+      const el = document.getElementById("certificate");
+      const canvas = await html2canvas(el, {
+        scale: 3,               // high resolution
+        useCORS: true,
+        backgroundColor: "#faf8f2",
+        logging: false,
+      });
+
+      // 3. Create landscape A4 PDF and fit certificate to page
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();   // 297mm
+      const pageH = pdf.internal.pageSize.getHeight();  // 210mm
+      const margin = 8;
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2;
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = Math.min(availW / imgW, availH / imgH);
+      const finalW = imgW * ratio;
+      const finalH = imgH * ratio;
+      const x = margin + (availW - finalW) / 2;
+      const y = margin + (availH - finalH) / 2;
+
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalW, finalH);
+
+      // 4. Download
+      const safeTitle = (record.mataiTitle || "Certificate").replace(/[^a-zA-Z0-9]/g, "_");
+      const safeHolder = (record.holderName || "").replace(/[^a-zA-Z0-9]/g, "_");
+      pdf.save(`${safeTitle}_${safeHolder}_Certificate.pdf`);
+
+      logAudit("PRINT", { mataiTitle: record.mataiTitle, recordId: id, format: "pdf" });
     } catch (err) {
-      console.error("Hash generation failed:", err);
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed. Please try again.");
+    } finally {
+      setGenerating(false);
     }
-    logAudit("PRINT", { mataiTitle: record.mataiTitle, recordId: id });
-    window.print();
   };
 
   // Helpers for JSX
@@ -662,12 +700,15 @@ export default function Certificate({ userRole }) {
                 </button>
               </div>
               {perms.canPrint && (
-                <button onClick={handlePrint} style={{
-                  background:"linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)", color:"#fff", border:"none",
+                <button onClick={handlePrint} disabled={generating} style={{
+                  background: generating ? "#6b7280" : "linear-gradient(135deg,#14482a,#1e6b3c,#2d9b57)",
+                  color:"#fff", border:"none",
                   padding:"0.6rem 1.5rem", fontFamily:"'Cinzel',serif", fontSize:"0.75rem",
-                  fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase", borderRadius:"2px", cursor:"pointer"
+                  fontWeight:"700", letterSpacing:"0.12em", textTransform:"uppercase",
+                  borderRadius:"2px", cursor: generating ? "not-allowed" : "pointer",
+                  opacity: generating ? 0.8 : 1,
                 }}>
-                  🖨 Print / Save PDF
+                  {generating ? "⏳ Generating PDF…" : "⬇ Save as PDF"}
                 </button>
               )}
             </div>
