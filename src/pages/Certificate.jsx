@@ -861,14 +861,16 @@ export default function Certificate({ userRole }) {
                   )}
                 </div>
 
-                {/* English: name + village header — mirrors Samoan layout */}
+                {/* English: title + name + village header — identical layout to Samoan */}
                 {certLang === "en" && (<>
                   <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"center", gap:"20px", marginBottom:"6px" }}>
                     <div style={{ flex:1, textAlign:"center" }}>
-                      <div style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em", marginBottom:"6px" }}>
-                        {record.holderName || ""}
+                      <div style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
+                        <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
+                        &nbsp;&nbsp;&nbsp;
+                        <span>{record.holderName || ""}</span>
                       </div>
-                      <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 8px" }} />
+                      <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"6px auto 8px" }} />
                       <div style={{ fontSize:"20px", marginBottom:"4px" }}>{record.village || ""}</div>
                       <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
                     </div>
