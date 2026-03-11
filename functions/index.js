@@ -283,3 +283,25 @@ exports.updateUserEmail = functions
     });
     return { success: true };
   });
+
+exports.deleteUser = functions
+  .region("australia-southeast1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    const callerDoc = await admin.firestore().collection("users").doc(context.auth.uid).get();
+    if (callerDoc.data()?.role !== "admin") throw new functions.https.HttpsError("permission-denied", "Admins only.");
+    const { uid, email } = data;
+    if (!uid) throw new functions.https.HttpsError("invalid-argument", "uid required.");
+    // Delete from Firebase Auth
+    await admin.auth().deleteUser(uid);
+    // Firestore doc already deleted client-side, but clean up if still there
+    try { await admin.firestore().collection("users").doc(uid).delete(); } catch (_) {}
+    await admin.firestore().collection("auditLog").add({
+      action: "DELETE_USER",
+      targetUid: uid,
+      targetEmail: email || "unknown",
+      deletedBy: context.auth.token.email || context.auth.uid,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { success: true };
+  });

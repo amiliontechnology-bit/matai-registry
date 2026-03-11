@@ -252,8 +252,10 @@ export default function Users({ userRole }) {
   const handleDelete = async (uid, email) => {
     setDeleting(uid);
     try {
-      cacheClear("users"); await deleteDoc(doc(db, "users", uid));
-      await logAudit("DELETE_USER", { email, deletedBy: currentUser?.email });
+      const fns = getFunctions(app, "australia-southeast1");
+      const deleteUserFn = httpsCallable(fns, "deleteUser");
+      await deleteUserFn({ uid, email });
+      cacheClear("users");
       setUsers(prev => prev.filter(u => u.id !== uid));
       setConfirmDelete(null);
       setSuccess(`✓ User ${email} removed.`);
