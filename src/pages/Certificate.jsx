@@ -450,19 +450,7 @@ export default function Certificate({ userRole }) {
 
       pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, finalW, finalH);
 
-      // 5. Diagonal "OFFICIAL DOCUMENT" watermark across the PDF page
-      pdf.saveGraphicsState();
-      pdf.setGState(new pdf.GState({ opacity: 0.07 }));
-      pdf.setFontSize(52);
-      pdf.setTextColor(26, 92, 53);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("OFFICIAL DOCUMENT", pageW / 2, pageH / 2, {
-        align: "center",
-        angle: 35,
-      });
-      pdf.restoreGraphicsState();
-
-      // 6. Open in new tab — user can print from there, file is not auto-saved
+      // 5. Open in new tab — user can print from there, file is not auto-saved
       const blobUrl = pdf.output("bloburl");
       window.open(blobUrl, "_blank");
 
@@ -952,13 +940,13 @@ export default function Certificate({ userRole }) {
                   <div style={{ textAlign:"center", minWidth:"260px" }}>
                     <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
-                      {certLang === "sm" ? "Resitalaina" : "Registrar / Chief Executive Officer"}
+                      {certLang === "sm" ? "Mo le Resitara" : ""}
                     </p>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#3d2800" }}>
-                      {certLang === "sm"
-                        ? <>Mo le: <strong>RESITALAINA</strong></>
-                        : <>For: <strong>THE REGISTRAR / CHIEF EXECUTIVE OFFICER</strong><br /><strong>MINISTRY OF JUSTICE AND COURTS ADMINISTRATION</strong></> }
-                    </p>
+                    {certLang === "sm" && (
+                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#3d2800" }}>
+                        <strong>RESITARA</strong>
+                      </p>
+                    )}
                   </div>
                 </div>
 
