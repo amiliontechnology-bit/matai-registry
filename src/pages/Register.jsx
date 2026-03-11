@@ -312,7 +312,7 @@ const DISTRICT_VILLAGES = {
   "VAISIGANO Nu.1": ['Auala', 'Matavai Asau', 'Utuloa Asau', 'Vaisala'],
 };
 
-const MATAI_TYPES = ["Ali'i", "Tulafale"];
+const MATAI_TYPES = ["Ali'i", "Tulafale", "Tulafale/Ali'i"];
 
 const EMPTY = {
   // Title & Holder
@@ -322,7 +322,9 @@ const EMPTY = {
   village: "", district: "",
   nuuMataiAi: "",       // Nuu o loo Matai ai
   // Dates
+  intention: "no",      // Intention filed before saofai?
   dateConferred: "",    // Aso o le Saofai
+  dateOfficeReceived: "", // Aso tauaaoina ai e le ofisa
   dateSavaliPublished: "", // Aso o le Faasalalauga
   dateRegistration: "", // Aso na Resitala ai
   dateIssued: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
@@ -336,6 +338,8 @@ const EMPTY = {
   familyTitles: "",     // Isi Suafa Matai
   notes: "",            // Isi Faamatalaga
   suli: "",
+  // Holder photo (for certificate)
+  holderPhoto: "",       // base64 data URL — appears on certificate
   // Photo ID
   photoIdType: "",      // passport / drivers_licence
   photoIdNumber: "",
@@ -343,11 +347,64 @@ const EMPTY = {
   // Objection
   objection: "no",
   objectionDate: "",
+  objectionApplicantName: "",    // Suafa o le na faaulua le talosaga
+  objectionActingRegistrar: "",  // Suafa o le sui resitala
+  objectionFileNumber: "",       // File #
+  objectionLCNumber: "",         // LC # - Faaiuga Faamasinoga
 };
 
 export default function Register({ userRole }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [resolvingObj, setResolvingObj] = useState(false);
+
+  const handleResolveObjection = async (outcome) => {
+    // outcome: "dismissed" = court dismissed petition → registration proceeds
+    //          "upheld"    = petition upheld → registration voided
+    const isDismissed = outcome === "dismissed";
+    const confirmMsg = isDismissed
+      ? `Objection Resolved — the objection was dismissed by court for "${form.mataiTitle}".\n\nThe title will proceed with registration. You will need to enter a registration date (at least 4 months from Savali published date).`
+      : `Petition Successful — the court upheld the petition against "${form.mataiTitle}".\n\nThis will VOID the registration. A certificate CANNOT be printed. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+    setResolvingObj(true);
+    try {
+      const updates = isDismissed
+        ? {
+            objection: "resolved",
+            objectionResolvedAt: serverTimestamp(),
+            objectionResolvedBy: auth.currentUser?.email || "unknown",
+            status: "pending",
+            updatedAt: serverTimestamp(),
+          }
+        : {
+            objection: "petition_won",
+            objectionResolvedAt: serverTimestamp(),
+            objectionResolvedBy: auth.currentUser?.email || "unknown",
+            status: "void",
+            dateRegistration: "",
+            updatedAt: serverTimestamp(),
+          };
+      await updateDoc(doc(db, "registrations", id), updates);
+      await logAudit(isDismissed ? "OBJECTION_DISMISSED" : "PETITION_UPHELD", {
+        mataiTitle: form.mataiTitle, recordId: id,
+        by: auth.currentUser?.email,
+      });
+      cacheClear("registrations");
+      if (isDismissed) {
+        setForm(f => ({ ...f, objection: "resolved", status: "pending" }));
+        setSuccess("✓ Objection resolved — proceed with registration. Enter a registration date below (must be at least 4 months from the Savali published date) then save the record.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setForm(f => ({ ...f, objection: "petition_won", status: "void", dateRegistration: "" }));
+        setSuccess("✗ Petition successful — this registration is now VOID. A certificate cannot be printed for this title.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    } catch(err) {
+      setError("Failed to update: " + err.message);
+    } finally {
+      setResolvingObj(false);
+    }
+  };
   const location = useLocation();
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
@@ -432,11 +489,18 @@ export default function Register({ userRole }) {
   };
 
   // Date order validation helpers
-  const validatePublishedDate = (published, conferred) => {
+  const validatePublishedDate = (published, conferred, intentionVal) => {
     if (!published || !conferred) return null;
     const p = new Date(published + "T00:00:00");
     const c = new Date(conferred + "T00:00:00");
-    if (p <= c) return "Savali Published Date must be after the Date of Conferral.";
+    if (intentionVal === "yes") {
+      // Intention process: Savali is published BEFORE saofai — must be at least 4 months before
+      const minSaofai = new Date(p.getFullYear(), p.getMonth() + 4, p.getDate());
+      if (c < minSaofai) return "For Intention process: Saofai date must be at least 4 months after the Savali Published Date.";
+    } else {
+      // Normal process: Savali published AFTER saofai
+      if (p <= c) return "Savali Published Date must be after the Date of Conferral (Saofai).";
+    }
     return null;
   };
 
@@ -490,6 +554,14 @@ export default function Register({ userRole }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => setForm(f => ({ ...f, photoIdImage: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleHolderPhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(f => ({ ...f, holderPhoto: ev.target.result }));
     reader.readAsDataURL(file);
   };
 
@@ -550,12 +622,13 @@ export default function Register({ userRole }) {
           };
 
           // ── 1. Normalise all date fields ──
-          data.dateConferred    = toDateStr(data.dateConferred);
+          data.dateConferred       = toDateStr(data.dateConferred);
+          data.dateOfficeReceived  = toDateStr(data.dateOfficeReceived);
           data.dateSavaliPublished = toDateStr(data.dateSavaliPublished);
-          data.dateRegistration = toDateStr(data.dateRegistration);
-          data.dateIssued       = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
-          data.dateBirth        = toDateStr(data.dateBirth);
-          data.objectionDate    = toDateStr(data.objectionDate);
+          data.dateRegistration    = toDateStr(data.dateRegistration);
+          data.dateIssued          = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+          data.dateBirth           = toDateStr(data.dateBirth);
+          data.objectionDate = toDateStr(data.objectionDate);
 
           // ── 2. Cert number: parse combined string if parts missing ──
           if (!data.certItumalo && !data.certLaupepa && !data.certRegBook && data.mataiCertNumber) {
@@ -594,6 +667,7 @@ export default function Register({ userRole }) {
           const tRaw = (data.mataiType || "").toLowerCase().replace(/[''']/g, "").trim();
           if (tRaw === "alii") data.mataiType = "Ali'i";
           else if (tRaw === "tulafale") data.mataiType = "Tulafale";
+          else if (tRaw === "tulafale/alii" || tRaw === "tulafale/ali'i") data.mataiType = "Tulafale/Ali'i";
 
           // dateRegistration must only be set via Notifications confirm — never auto-filled
           // Old/backlogged records with past proclamation dates will appear in Notifications as overdue
@@ -685,53 +759,65 @@ export default function Register({ userRole }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
-    // Required fields validation
-    const missing = [];
-    if (!form.mataiTitle.trim())   missing.push("Matai Title (Suafa Matai)");
-    if (!form.holderName.trim())   missing.push("Untitled Name (Igoa Taulealea)");
-    if (!form.gender)              missing.push("Gender (Tane/Tamaitai)");
-    if (!form.mataiType)           missing.push("Title Type (Ituaiga Suafa)");
-    if (!form.district)            missing.push("District (Itumalo)");
-    if (!form.village)             missing.push("Village (Nu'u)");
-    if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
-                                   missing.push("Matai Certificate Number");
-    if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
-    if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
-    if (!form.faapogai?.trim())    missing.push("Faapogai");
-    if (!form.dateConferred)       missing.push("Aso o le Saofai (Date of Conferral)");
-    if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
-    if (missing.length > 0) {
-      setError("The following required fields are missing: " + missing.join(", ") + ".");
-      return;
+
+    // If this record has been confirmed as an old/historical record, skip required-field checks
+    if (form.incompleteConfirmed) {
+      if (!form.mataiTitle?.trim()) {
+        setError("Matai Title is required.");
+        return;
+      }
+      // Skip all other validation — fall through to save
+    } else {
+      // Required fields validation
+      const missing = [];
+      if (!form.mataiTitle.trim())   missing.push("Matai Title (Suafa Matai)");
+      if (!form.holderName.trim())   missing.push("Untitled Name (Igoa Taulealea)");
+      if (!form.gender)              missing.push("Gender (Tane/Tamaitai)");
+      if (!form.mataiType)           missing.push("Title Type (Ituaiga Suafa)");
+      if (!form.district)            missing.push("District (Itumalo)");
+      if (!form.village)             missing.push("Village (Nu'u)");
+      if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
+                                     missing.push("Matai Certificate Number");
+      if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
+      if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
+      if (!form.faapogai?.trim())    missing.push("Faapogai");
+      if (!form.dateConferred && form.intention !== "yes") missing.push("Aso o le Saofai (Date of Conferral)");
+      if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
+      if (missing.length > 0) {
+        setError("The following required fields are missing: " + missing.join(", ") + ".");
+        return;
+      }
+      // Date of birth is required
+      if (!form.dateBirth) {
+        setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older at the date of conferral.");
+        return;
+      }
     }
-    // Date of birth is required
-    if (!form.dateBirth) {
-      setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older at the date of conferral.");
-      return;
-    }
-    // Holder must be 21 or older as of the conferred date
-    const ageCheck = validateAge(form.dateBirth, form.dateConferred);
-    if (!ageCheck.valid) {
-      const yrStr = ageCheck.age !== 1 ? "s" : "";
-      setError("Holder must be at least 21 years old as of the Date of Conferral. Age at conferral: " + ageCheck.age + " year" + yrStr + ".");
-      return;
-    }
-    // Published date must be after conferred date
-    const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
-    if (publishedErr) { setError(publishedErr); return; }
-    // Registration date order checks
-    const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
-    if (regErr) { setError(regErr); return; }
-    // Block save if cert number mismatch
-    if (certMismatch) {
-      setError("Please correct the certificate Itumalo number — it does not match the selected district.");
-      return;
-    }
-    // Block save if a cert number duplicate is detected
-    if (dupWarning) {
-      setError("Please resolve the duplicate certificate number warning before saving.");
-      return;
-    }
+    if (!form.incompleteConfirmed) {
+      // Holder must be 21 or older as of the conferred date
+      const ageCheck = validateAge(form.dateBirth, form.dateConferred);
+      if (!ageCheck.valid) {
+        const yrStr = ageCheck.age !== 1 ? "s" : "";
+        setError("Holder must be at least 21 years old as of the Date of Conferral. Age at conferral: " + ageCheck.age + " year" + yrStr + ".");
+        return;
+      }
+      // Published date must be after conferred date
+      const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
+      if (publishedErr) { setError(publishedErr); return; }
+      // Registration date order checks
+      const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
+      if (regErr) { setError(regErr); return; }
+      // Block save if cert number mismatch
+      if (certMismatch) {
+        setError("Please correct the certificate Itumalo number — it does not match the selected district.");
+        return;
+      }
+      // Block save if a cert number duplicate is detected
+      if (dupWarning) {
+        setError("Please resolve the duplicate certificate number warning before saving.");
+        return;
+      }
+    } // end !incompleteConfirmed validation
     setLoading(true);
     try {
       if (isEdit) {
@@ -746,7 +832,17 @@ export default function Register({ userRole }) {
       const isAutoCalc2 = calcResult2 && form.dateRegistration === calcResult2.dateStr;
       const finalRegDate2 = isAutoCalc2 ? "" : form.dateRegistration;
       const regPassed2 = finalRegDate2 && new Date(finalRegDate2 + "T00:00:00") <= new Date();
-      const autoStatus = (regPassed2 && finalRegDate2) ? "completed" : "pending";
+      // Use canonical classifier; but if user has explicitly toggled pepa_samasama or void, respect that
+      const draftRecord = { ...form, dateRegistration: finalRegDate2 };
+      let autoStatus;
+      if (form.status === "void" || form.objection === "petition_won") {
+        autoStatus = "void";
+      } else if (form.status === "pepa_samasama") {
+        // Stays pepa until reg date passes — classifier handles that
+        autoStatus = "pepa_samasama";
+      } else {
+        autoStatus = draftRecord.status === "void" ? "void" : "in_progress";
+      }
       const saveForm = { ...form, dateRegistration: finalRegDate2, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
         await logAudit("UPDATE", {
@@ -756,7 +852,8 @@ export default function Register({ userRole }) {
           changes: changes.join(" | ")
         });
         cacheClear("registrations");
-        setSuccess("Registration updated successfully.");
+        setSuccess("✓ Record updated successfully.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         // Never save an auto-calculated dateRegistration — only save if staff manually entered it
@@ -765,7 +862,8 @@ export default function Register({ userRole }) {
         const isAutoCalc = calcResult && form.dateRegistration === calcResult.dateStr;
         const finalRegDate = isAutoCalc ? "" : form.dateRegistration;
         const regPassed = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
-        const autoStatus = (regPassed && finalRegDate) ? "completed" : "pending";
+        const regP = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
+        const autoStatus = regP ? "completed" : form.status === "pepa_samasama" ? "pepa_samasama" : form.status === "void" ? "void" : "in_progress";
         const saveForm = { ...form, dateRegistration: finalRegDate, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
@@ -860,6 +958,30 @@ export default function Register({ userRole }) {
         {error && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{error}</div>}
         {success && <div className="alert alert-success" style={{ marginBottom: "1.5rem" }}>{success}</div>}
         {dupWarning && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{dupWarning}</div>}
+
+        {/* ── Status badge + Pepa Samasama toggle ── */}
+        {isEdit && (
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", marginBottom:"0.5rem", flexWrap:"wrap" }}>
+            <span style={{
+              fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.12em", textTransform:"uppercase",
+              padding:"3px 10px", borderRadius:"3px",
+              background: form.status === "completed" ? "#dcfce7" : form.status === "pepa_samasama" ? "#f3f4f6" : form.status === "void" ? "#fee2e2" : "#fef3c7",
+              color: form.status === "completed" ? "#15803d" : form.status === "pepa_samasama" ? "#374151" : form.status === "void" ? "#991b1b" : "#92400e",
+              border: `1px solid ${form.status === "completed" ? "#86efac" : form.status === "pepa_samasama" ? "#d1d5db" : form.status === "void" ? "#fca5a5" : "#fcd34d"}`,
+            }}>
+              {form.status === "completed" ? "✓ Completed" : form.status === "pepa_samasama" ? "📂 Pepa Samasama" : form.status === "void" ? "✗ Void" : "✏ In Progress"}
+            </span>
+            {perms.canEdit && form.status !== "completed" && form.status !== "void" && (
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, status: f.status === "pepa_samasama" ? "in_progress" : "pepa_samasama" }))}
+                style={{ fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase",
+                  padding:"3px 10px", borderRadius:"3px", cursor:"pointer", background:"transparent",
+                  border:"1px solid #9ca3af", color:"#6b7280" }}>
+                {form.status === "pepa_samasama" ? "↑ Move to In Progress" : "📂 Mark as Pepa Samasama"}
+              </button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
         <fieldset disabled={viewOnly} style={{ border:"none", padding:0, margin:0 }}>
@@ -1017,9 +1139,30 @@ export default function Register({ userRole }) {
             )}
           </div>
 
+          {/* ── Intention ── */}
+          <div className="card fade-in-delay-2">
+            {sectionHead("Intention (Fa'amoemoe)")}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+              <div className="form-group">
+                <label>Intention Filed? <span style={{ fontSize:"0.78rem", color:"#6b7280", fontWeight:400 }}>(default: No)</span></label>
+                <select value={form.intention} onChange={e => setForm(f => ({ ...f, intention: e.target.value }))}>
+                  <option value="no">No — Standard process</option>
+                  <option value="yes">Yes — Intention filed before Saofai</option>
+                </select>
+              </div>
+            </div>
+            {form.intention === "yes" && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#1e40af", fontWeight:600 }}>
+                  ℹ Intention process: Savali is published <strong>before</strong> Saofai. The publication period must be at least 4 months. If no objection, Saofai proceeds, then the title is registered and certificate can be printed.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* ── Important Dates ── */}
           {(() => {
-            const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
+            const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
             const regErr       = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
             const ageResult    = validateAge(form.dateBirth, form.dateConferred);
             const ageErr       = form.dateBirth && !ageResult.valid
@@ -1035,15 +1178,27 @@ export default function Register({ userRole }) {
             {sectionHead("Important Dates")}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
-                <label>Aso o le Saofai (Date of Conferral) <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
+                <label>Aso o le Saofai (Date of Conferral) {form.intention !== "yes" && <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>}</label>
                 <input type="date" value={form.dateConferred} onChange={set("dateConferred")}
-                  style={!form.dateConferred ? errStyle : {}} />
-                {!form.dateConferred && (
+                  style={!form.dateConferred && form.intention !== "yes" ? errStyle : {}} />
+                {!form.dateConferred && form.intention !== "yes" && (
                   <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Date of Conferral is required</p>
+                )}
+                {form.intention === "yes" && (
+                  <p style={{ fontSize:"0.72rem", color:"#1e40af", marginTop:"4px", fontStyle:"italic" }}>
+                    ⓘ For Intention process — Saofai date can be added after publication period
+                  </p>
                 )}
               </div>
               <div className="form-group">
-                <label>Aso o le Faasalalauga (Savali Published Date)</label>
+                <label>Aso tauaaoina ai e le ofisa (Office Date Received)</label>
+                <input type="date" value={form.dateOfficeReceived || ""} onChange={set("dateOfficeReceived")} />
+                <p style={{ fontSize:"0.72rem", color:"#6b7280", marginTop:"4px", fontStyle:"italic" }}>
+                  ⓘ Date the office received the application after Saofai
+                </p>
+              </div>
+              <div className="form-group">
+                <label>Aso o le Faasalalauga (Savali Published Date){form.intention === "yes" ? " — must be BEFORE Saofai date (Intention process)" : ""}</label>
                 <input type="date" value={form.dateSavaliPublished}
                   onChange={e => setForm(f => ({ ...f, dateSavaliPublished: e.target.value }))}
                   style={publishedErr ? errStyle : {}} />
@@ -1100,26 +1255,44 @@ export default function Register({ userRole }) {
             );
           })()}
 
-          {/* ── Faapogai & Notes ── */}
+          {/* ── Faapogai ── */}
           <div className="card fade-in-delay-3">
-            {sectionHead("Faapogai & Notes")}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
-              <div className="form-group">
-                <label>Faapogai <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
-                <input type="text" value={form.faapogai} onChange={set("faapogai")}
-                  placeholder="e.g. SULI" />
-              </div>
-              <div className="form-group">
-                <label>Isi Faamatalaga (Notes)</label>
-                <textarea rows={3} value={form.notes} onChange={set("notes")}
-                  placeholder="Any additional notes…" style={{ resize:"vertical" }} />
-              </div>
+            {sectionHead("Faapogai")}
+            <div className="form-group" style={{ maxWidth:"320px" }}>
+              <label>Faapogai <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
+              <input type="text" value={form.faapogai} onChange={set("faapogai")}
+                placeholder="e.g. SULI" />
             </div>
           </div>
 
           {/* ── Photo Identification ── */}
           <div className="card fade-in-delay-3">
             {sectionHead("Photo Identification")}
+            {/* Holder photo — appears on certificate */}
+            <div style={{ display:"flex", gap:"1.5rem", alignItems:"flex-start", marginBottom:"1.2rem", paddingBottom:"1.2rem", borderBottom:"1px solid rgba(26,92,53,0.1)" }}>
+              <div style={{ flexShrink:0 }}>
+                {form.holderPhoto
+                  ? <img src={form.holderPhoto} alt="Holder" style={{ width:"110px", height:"140px", objectFit:"cover", border:"2px solid #a7d7b8", borderRadius:"4px" }} />
+                  : <div style={{ width:"110px", height:"140px", border:"2px dashed #a7d7b8", borderRadius:"4px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"rgba(26,92,53,0.4)", fontSize:"0.75rem", textAlign:"center", gap:"4px" }}>
+                      <span style={{ fontSize:"2rem" }}>👤</span>
+                      <span>No photo</span>
+                    </div>
+                }
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#1a5c35", display:"block", marginBottom:"0.4rem" }}>
+                  Holder Photo <span style={{ fontStyle:"italic", fontWeight:400, color:"#888", textTransform:"none" }}>(appears on certificate)</span>
+                </label>
+                <input type="file" accept="image/*" onChange={handleHolderPhotoUpload}
+                  style={{ fontSize:"0.88rem", marginBottom:"0.5rem" }} />
+                {form.holderPhoto && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, holderPhoto:"" }))}
+                    style={{ display:"block", fontSize:"0.75rem", color:"#8b1a1a", background:"none", border:"none", cursor:"pointer" }}>
+                    ✕ Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>ID Type</label>
@@ -1165,19 +1338,114 @@ export default function Register({ userRole }) {
                 }}>
                   <option value="no">No — No objection</option>
                   <option value="yes">Yes — Objection filed</option>
+                  <option value="resolved" disabled>Resolved — Objection dismissed by court</option>
+                  <option value="petition_won" disabled>Voided — Petition upheld by court</option>
                 </select>
               </div>
               {form.objection === "yes" && (
                 <div className="form-group">
-                  <label>Date Objection Filed</label>
+                  <label>Petition Date</label>
                   <input type="date" value={form.objectionDate} onChange={set("objectionDate")} />
                 </div>
               )}
             </div>
-            {form.objection === "yes" && (
-              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px" }}>
+            {form.objection === "yes" && (<>
+              <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
+                <div className="form-group">
+                  <label>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
+                  <input type="text" value={form.objectionApplicantName || ""} onChange={set("objectionApplicantName")}
+                    placeholder="Name of person who filed the objection" />
+                </div>
+                <div className="form-group">
+                  <label>Suafa o le sui resitala (Acting Registrar)</label>
+                  <input type="text" value={form.objectionActingRegistrar || ""} onChange={set("objectionActingRegistrar")}
+                    placeholder="Name of acting registrar" />
+                </div>
+                <div className="form-group">
+                  <label>File #</label>
+                  <input type="text" value={form.objectionFileNumber || ""} onChange={set("objectionFileNumber")}
+                    placeholder="File number" />
+                </div>
+                <div className="form-group">
+                  <label>LC # — Faaiuga Faamasinoga (Court Decision)</label>
+                  <input type="text" value={form.objectionLCNumber || ""} onChange={set("objectionLCNumber")}
+                    placeholder="LC number / Court decision reference" />
+                </div>
+              </div>
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"1rem", flexWrap:"wrap" }}>
                 <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:600 }}>
                   ⚠ Objection filed — this title cannot be registered until resolved through court.
+                </p>
+                {isEdit && perms.canEdit && (
+                  <div style={{ display:"flex", gap:"0.5rem", flexWrap:"wrap" }}>
+                    <button
+                      type="button"
+                      disabled={resolvingObj}
+                      onClick={() => handleResolveObjection("dismissed")}
+                      style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#f0faf4", border:"1px solid #1a5c3570", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
+                      {resolvingObj ? "…" : "✓ Objection Resolved — Proceed"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={resolvingObj}
+                      onClick={() => handleResolveObjection("upheld")}
+                      style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#fef2f2", border:"1px solid #c0392b70", borderRadius:"3px", color:"#8b1a1a", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
+                      {resolvingObj ? "…" : "✗ Petition Successful — Void"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>)}
+            {form.objection === "resolved" && (<>
+              {/* Show all objection detail fields read-only so history is preserved */}
+              <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem", opacity:0.75 }}>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Petition Date <span style={{ fontStyle:"italic", fontWeight:400 }}>(historical)</span></label>
+                  <input type="date" value={form.objectionDate || ""} onChange={set("objectionDate")} />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
+                  <input type="text" value={form.objectionApplicantName || ""} onChange={set("objectionApplicantName")} placeholder="Name of person who filed the objection" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Suafa o le sui resitala (Acting Registrar)</label>
+                  <input type="text" value={form.objectionActingRegistrar || ""} onChange={set("objectionActingRegistrar")} placeholder="Name of acting registrar" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>File #</label>
+                  <input type="text" value={form.objectionFileNumber || ""} onChange={set("objectionFileNumber")} placeholder="File number" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>LC # — Faaiuga Faamasinoga (Court Decision)</label>
+                  <input type="text" value={form.objectionLCNumber || ""} onChange={set("objectionLCNumber")} placeholder="LC number / Court decision reference" />
+                </div>
+              </div>
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#f0faf4", border:"1px solid #a7d7b8", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#1a5c35", fontWeight:600 }}>
+                  ✓ Objection dismissed — this title has returned to the normal registration process. Enter a registration date below and save to complete registration.
+                </p>
+              </div>
+              {/* Registration date entry for post-objection records */}
+              {isEdit && (
+                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
+                  <p style={{ fontSize:"0.82rem", color:"#7a5c00", marginBottom:"0.6rem", fontWeight:600 }}>
+                    ⚠ Enter the registration date to complete the process (must be at least 4 months from Savali published date: {form.dateSavaliPublished ? new Date(new Date(form.dateSavaliPublished + "T00:00:00").setMonth(new Date(form.dateSavaliPublished + "T00:00:00").getMonth()+4)).toLocaleDateString("en-WS",{day:"2-digit",month:"long",year:"numeric"}) : "—"}).
+                  </p>
+                  <div className="form-group" style={{ maxWidth:"240px" }}>
+                    <label style={{ fontSize:"0.8rem" }}>Registration Date</label>
+                    <input type="date" value={form.dateRegistration || ""} onChange={set("dateRegistration")}
+                      min={form.dateSavaliPublished ? (() => { const d=new Date(form.dateSavaliPublished+"T00:00:00"); d.setMonth(d.getMonth()+4); return d.toISOString().split("T")[0]; })() : ""} />
+                  </div>
+                </div>
+              )}
+            </>)}
+            {form.objection === "petition_won" && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff0f0", border:"2px solid #c0392b", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:700 }}>
+                  ✗ Petition upheld — registration is VOID. A certificate cannot be issued for this title.
+                </p>
+                <p style={{ fontSize:"0.78rem", color:"#8b1a1a", marginTop:"4px" }}>
+                  Objection history below is preserved for court records.
                 </p>
               </div>
             )}
@@ -1200,13 +1468,23 @@ export default function Register({ userRole }) {
             })()}
           </div>
 
+          {/* ── Isi Faamatalaga — last field ── */}
+          <div className="card fade-in-delay-4">
+            {sectionHead("Isi Faamatalaga (Notes)")}
+            <div className="form-group">
+              <label>Isi Faamatalaga (Additional Notes)</label>
+              <textarea rows={4} value={form.notes} onChange={set("notes")}
+                placeholder="Any additional notes, context or remarks…" style={{ resize:"vertical", width:"100%" }} />
+            </div>
+          </div>
+
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", flexWrap: "wrap", alignItems: "center" }}>
             {isDupMode
               ? <button type="button" className="btn-secondary" onClick={() => navigate(backTo, { state: { tab: backTab } })}>← Back to Duplicates</button>
               : <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
             }
             {!viewOnly && (() => {
-                const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
+                const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
                 const _regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
                 const _ageRes = validateAge(form.dateBirth, form.dateConferred);
                 const _ageErr = form.dateBirth && !_ageRes.valid

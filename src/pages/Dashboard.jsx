@@ -95,7 +95,13 @@ export default function Dashboard({ userRole }) {
     const matchType = filterType === "All" || r.mataiType === filterType;
     const matchVillage = filterVillage === "All" || r.village === filterVillage;
     const matchGender = filterGender === "All" || r.gender === filterGender;
-    const matchStatus = filterStatus === "All" || (filterStatus === "completed" ? r.status === "completed" : r.status !== "completed");
+    const getStatusCat = (r) => {
+      if (r.status === "void" || r.objection === "petition_won") return "void";
+      if (r.status === "completed") return "completed";
+      if (r.status === "pepa_samasama") return "pepa_samasama";
+      return "in_progress";
+    };
+    const matchStatus = filterStatus === "All" || getStatusCat(r) === filterStatus;
     const matchDateFrom = !filterDateFrom || (r.dateRegistration && r.dateRegistration >= filterDateFrom);
     const matchDateTo = !filterDateTo || (r.dateRegistration && r.dateRegistration <= filterDateTo);
     return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchStatus && matchDateFrom && matchDateTo;
@@ -112,6 +118,7 @@ export default function Dashboard({ userRole }) {
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli        = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
   const totalTulafale   = records.filter(r => normalizeType(r.mataiType) === "tulafale").length;
+  const totalTulafaleAlii = records.filter(r => { const t = normalizeType(r.mataiType); return t.includes("tulafale") && t.includes("ali"); }).length;
   const totalRegistered = records.filter(r => r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date()).length;
   const totalOther    = records.filter(r => {
     const t = normalizeType(r.mataiType);
@@ -128,6 +135,26 @@ export default function Dashboard({ userRole }) {
   });
   const duplicateCertCount = [...certMap.values()].filter(v => v > 1).length;
   const incompleteDobCount = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "").length;
+
+  // Ready to Register: Savali period passed, no objection, not yet registered
+  function autoRegDateDash(savaliStr) {
+    if (!savaliStr) return null;
+    const p = new Date(savaliStr + "T00:00:00");
+    if (isNaN(p)) return null;
+    const t = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+    const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const reg = new Date(t.getFullYear(), t.getMonth(), Math.min(29, last));
+    const y = reg.getFullYear(), m = String(reg.getMonth()+1).padStart(2,"0"), d = String(reg.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+  const readyToRegCount = records.filter(r => {
+    if (r.objection === "yes") return false;
+    if (r.status === "completed") return false;
+    if (r.dateRegistration) return false;
+    if (!r.dateSavaliPublished) return false;
+    const rd = autoRegDateDash(r.dateSavaliPublished);
+    return rd && new Date(rd + "T00:00:00") <= new Date();
+  }).length;
 
   const handleSeed = async () => {
     if (!window.confirm("This will clear all existing records and load test data. Continue?")) return;
@@ -168,25 +195,28 @@ export default function Dashboard({ userRole }) {
             {perms.canAdd && (
               <Link to="/register">
                 <button className="btn-primary">＋ Register Title</button>
-                {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
-                  <button onClick={handleSeed} disabled={seeding}
-                    style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seeding ? 0.6 : 1 }}>
-                    {seeding ? "Adding…" : "🧪 Add Test Data"}
-                  </button>
-                )}
-                {process.env.REACT_APP_ENV === "development" && seedMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedMsg}</span>}
               </Link>
+            )}
+            {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"0.3rem" }}>
+                <button onClick={handleSeed} disabled={seeding}
+                  style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1.1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor: seeding ? "not-allowed" : "pointer", opacity: seeding ? 0.6 : 1, whiteSpace:"nowrap" }}>
+                  {seeding ? "⏳ Loading…" : "🧪 Seed Test Data"}
+                </button>
+                {seedMsg && <span style={{ fontSize:"0.72rem", color: seedMsg.startsWith("✓") ? "#1e6b3c" : seedMsg.startsWith("✗") ? "#c0392b" : "#4a1d96", fontStyle:"italic", textAlign:"right" }}>{seedMsg}</span>}
+              </div>
             )}
           </div>
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
-            { label:"Total Entries",    value: records.length,   accent:"#155c31" },
-            { label:"Total Registered", value: totalRegistered,  accent:"#1a5c35" },
-            { label:"Ali'i",            value: totalAli,         accent:"#1e7a42" },
-            { label:"Tulafale",         value: totalTulafale,    accent:"#0d2818" },
+            { label:"Total Entries",    value: records.length,     accent:"#155c31" },
+            { label:"Total Registered", value: totalRegistered,    accent:"#1a5c35" },
+            { label:"Ali'i",            value: totalAli,           accent:"#1e7a42" },
+            { label:"Tulafale",         value: totalTulafale,      accent:"#0d2818" },
+            { label:"Tulafale/Ali'i",   value: totalTulafaleAlii,  accent:"#2d6a4f" },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.18em", color:"#6b7280", textTransform:"uppercase", marginBottom:"0.5rem" }}>{s.label}</p>
@@ -214,6 +244,30 @@ export default function Dashboard({ userRole }) {
               </div>
               <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#c0392b", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
                 View in Notifications →
+              </span>
+            </div>
+          </Link>
+        )}
+
+        {/* ── Ready to Register banner ── */}
+        {readyToRegCount > 0 && (
+          <Link to="/notifications" state={{ tab:"monthly", section:"ready" }} style={{ textDecoration:"none" }}>
+            <div style={{ background:"#f0faf4", border:"1px solid #a7d7b8", borderLeft:"4px solid #1a5c35", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background="#dcf5e7"}
+              onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+                <span style={{ fontSize:"1.1rem" }}>✅</span>
+                <div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", fontWeight:700, color:"#1a5c35", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                    Ready to Register
+                  </p>
+                  <p style={{ fontSize:"0.8rem", color:"#1e3a24", marginTop:"2px" }}>
+                    {readyToRegCount} title{readyToRegCount !== 1 ? "s" : ""} {readyToRegCount !== 1 ? "have" : "has"} completed the 4-month Savali period and {readyToRegCount !== 1 ? "are" : "is"} awaiting registration confirmation.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#1a5c35", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+                Confirm Now →
               </span>
             </div>
           </Link>
@@ -281,8 +335,10 @@ export default function Dashboard({ userRole }) {
               <label>Status</label>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 <option value="All">All</option>
-                <option value="completed">Completed (Printed)</option>
-                <option value="pending">Pending (Not Printed)</option>
+                <option value="completed">Completed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="pepa_samasama">Pepa Samasama</option>
+                <option value="void">Void</option>
               </select>
             </div>
             <div className="form-group" style={{ margin:0 }}>
@@ -321,7 +377,7 @@ export default function Dashboard({ userRole }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {["Cert No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
+                    {["Cert No.", "Matai Title", "Holder", "Type", "Nu'u", "Itūmālō", "Reg. Date", "Status", "Actions"].map(h => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>
@@ -329,66 +385,66 @@ export default function Dashboard({ userRole }) {
                 <tbody>
                   {pageRecords.map(r => (
                     <tr key={r.id}>
-                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280", whiteSpace:"nowrap" }}>
+                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#6b7280", whiteSpace:"nowrap" }}>
                         {r.certItumalo && r.certLaupepa && r.certRegBook
                           ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
-                          : r.mataiCertNumber || r.refNumber || "—"
-                        }
+                          : r.mataiCertNumber || r.refNumber || "—"}
                       </td>
-                      <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                          {r.mataiTitle}
-                        </div>
+                      <td style={{ fontFamily:"'Cinzel',serif", color: (r.status === "void" || r.objection === "petition_won") ? "#9ca3af" : "#155c31", fontWeight:700, fontSize:"0.88rem", whiteSpace:"nowrap", textDecoration: (r.status === "void" || r.objection === "petition_won") ? "line-through" : "none" }}>
+                        {r.mataiTitle}
+                        {(r.status === "void" || r.objection === "petition_won") && (
+                          <span style={{ marginLeft:"5px", fontFamily:"Arial,sans-serif", fontSize:"0.55rem", fontWeight:700, color:"#fff", background:"#991b1b", padding:"1px 4px", borderRadius:"2px", textDecoration:"none" }}>VOID</span>
+                        )}
                       </td>
-                      <td style={{ color:"#111827", fontWeight:500 }}>{r.holderName}</td>
-                      <td>
-                        <span className="type-badge">{r.mataiType || "—"}</span>
-                      </td>
-                      <td style={{ color:"#374151" }}>{r.village || "—"}</td>
-                      <td style={{ color:"#374151", fontSize:"0.85rem" }}>{r.district || "—"}</td>
-                      <td style={{ color:"#6b7280", fontSize:"0.83rem", whiteSpace:"nowrap" }}>
+                      <td style={{ color:"#111827", fontWeight:500, fontSize:"0.83rem" }}>{r.holderName}</td>
+                      <td><span className="type-badge" style={{ fontSize:"0.62rem", padding:"1px 7px" }}>{r.mataiType || "—"}</span></td>
+                      <td style={{ color:"#374151", fontSize:"0.83rem" }}>{r.village || "—"}</td>
+                      <td style={{ color:"#374151", fontSize:"0.78rem", whiteSpace:"nowrap" }}>{r.district || "—"}</td>
+                      <td style={{ color:"#6b7280", fontSize:"0.78rem", whiteSpace:"nowrap" }}>
                         {(() => {
                           const d = effectiveRegDate(r);
                           return d
-                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#b45309", fontStyle: r.dateRegistration ? "normal" : "italic", background: r.dateRegistration ? "none" : "#fef3c7", padding: r.dateRegistration ? "0" : "1px 5px", borderRadius:"3px" }}>{fmtDate(d)}{!r.dateRegistration && " ⚠"}</span>
+                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#b45309", fontStyle: r.dateRegistration ? "normal" : "italic", background: r.dateRegistration ? "none" : "#fef3c7", padding: r.dateRegistration ? "0" : "1px 4px", borderRadius:"3px" }}>{fmtDate(d)}{!r.dateRegistration && " ⚠"}</span>
                             : <span style={{ color:"#9ca3af" }}>—</span>;
                         })()}
                       </td>
                       <td>
-                        <div style={{ display:"flex", gap:"0.3rem" }}>
+                        <span style={{
+                                          fontFamily:"'Cinzel',serif", fontSize:"0.58rem", letterSpacing:"0.1em",
+                                          textTransform:"uppercase", padding:"2px 7px", borderRadius:"3px",
+                                          ...(r.status==="completed"     ? {background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"} :
+                                              r.status==="pepa_samasama" ? {background:"#f3f4f6",color:"#374151",border:"1px solid #d1d5db"} :
+                                              r.status==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
+                                                                           {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
+                                        }}>
+                                          {r.status==="completed"?"Completed":r.status==="pepa_samasama"?"Pepa Samasama":r.status==="void"?"Void":"In Progress"}
+                                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display:"flex", gap:"0.2rem" }}>
                           {(() => {
                             const regPassed = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
-                            return perms.canPrint && regPassed ? (
+                            return perms.canPrint && (regPassed || r.incompleteConfirmed) ? (
                               <Link to={`/certificate/${r.id}`}>
-                                <button className="btn-ghost" title="View Certificate"
-                                  onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>
-                                  🏅
-                                </button>
+                                <button className="btn-ghost" style={{ padding:"3px 6px" }} title="View Certificate"
+                                  onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>🏅</button>
                               </Link>
                             ) : perms.canPrint ? (
-                              <button className="btn-ghost" title="Certificate unavailable — awaiting registration" disabled
-                                style={{ opacity:0.35, cursor:"not-allowed" }}>
-                                🏅
-                              </button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px", opacity:0.35, cursor:"not-allowed" }} disabled>🏅</button>
                             ) : null;
                           })()}
-                          {perms.canEdit && (
+                          {perms.canEdit ? (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
-                              <button className="btn-ghost" title="Edit">✎</button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px" }} title="Edit">✎</button>
                             </Link>
-                          )}
-                          {!perms.canEdit && (
+                          ) : (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
-                              <button className="btn-ghost" title="View">👁</button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px" }} title="View">👁</button>
                             </Link>
                           )}
                           {perms.canDelete && (
-                            <button className="btn-ghost" title="Delete"
-                              onClick={() => handleDelete(r.id, r.mataiTitle)}
-                              disabled={deleting === r.id}
-                              style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)" }}>
-                              ✕
-                            </button>
+                            <button className="btn-ghost" style={{ padding:"3px 6px", color:"#991b1b", borderColor:"rgba(153,27,27,0.3)" }}
+                              title="Delete" onClick={() => handleDelete(r.id, r.mataiTitle)} disabled={deleting === r.id}>✕</button>
                           )}
                         </div>
                       </td>
