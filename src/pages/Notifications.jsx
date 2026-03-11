@@ -60,11 +60,57 @@ function isMonthlyRunDay() {
   return (mo === 1 && isLeap) ? day === 28 : day === 29;
 }
 
-function openPDF(title, html) {
-  const blob = new Blob([html], { type: "text/html" });
-  const url  = URL.createObjectURL(blob);
-  const win  = window.open(url, "_blank");
-  if (win) win.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+async function openPDF(_title, html) {
+  // Render the HTML report into an off-screen div, capture with html2canvas,
+  // then open as a real PDF in a new browser tab — same pipeline as the certificate.
+  const container = document.createElement("div");
+  container.style.cssText = "position:fixed;left:-9999px;top:0;width:1050px;background:#fff;padding:0;margin:0;";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+  try {
+    await new Promise(r => setTimeout(r, 700)); // fonts + images settle
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      width: 1050,
+      windowWidth: 1050,
+    });
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+    const pdf  = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+    const scale = pdfW / imgW;
+    const pagePixH = Math.floor(pdfH / scale);
+    let yOffset = 0, pageNum = 0;
+    while (yOffset < imgH) {
+      if (pageNum > 0) pdf.addPage();
+      const sliceH = Math.min(pagePixH, imgH - yOffset);
+      const slice  = document.createElement("canvas");
+      slice.width  = imgW;
+      slice.height = sliceH;
+      slice.getContext("2d").drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, sliceH);
+      pdf.addImage(slice.toDataURL("image/png"), "PNG", 0, 0, pdfW, sliceH * scale);
+      yOffset += pagePixH;
+      pageNum++;
+    }
+    // Open as embedded PDF in new browser tab — user can save/print from native browser PDF UI
+    const pdfData = pdf.output("datauristring");
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(
+        `<html><head><title>${_title}</title><style>*{margin:0;padding:0}body{height:100vh;display:flex}</style></head>` +
+        `<body><embed width="100%" height="100%" src="${pdfData}" type="application/pdf"/></body></html>`
+      );
+    }
+  } catch(err) {
+    console.error("PDF generation failed:", err);
+    alert("PDF generation failed: " + err.message);
+  } finally {
+    document.body.removeChild(container);
+  }
 }
 
 function reportHeader(title, subtitle, count, generatedBy) {
@@ -130,6 +176,38 @@ export default function Notifications({ userRole }) {
   }, []);
 
   const genBy = user?.displayName || user?.email || "Admin";
+
+  const resolveObjection = async (r) => {
+    const confirmed = window.confirm(
+      `Resolve objection for "${r.mataiTitle}" — ${r.holderName}?\n\n` +
+      `This marks the objection as resolved. The title will return to the normal process and will appear in ` +
+      `"Ready to Register" once the Savali publication period is complete.`
+    );
+    if (!confirmed) return;
+    setConfirming(r.id);
+    try {
+      await updateDoc(doc(db, "registrations", r.id), {
+        objection: "resolved",
+        objectionResolvedAt: serverTimestamp(),
+        objectionResolvedBy: genBy,
+        status: "pending",
+        updatedAt: serverTimestamp(),
+      });
+      await logAudit("OBJECTION_RESOLVED", {
+        mataiTitle: r.mataiTitle,
+        recordId: r.id,
+        resolvedBy: genBy,
+      });
+      cacheClear("registrations");
+      setRecords(prev => prev.map(rec =>
+        rec.id === r.id ? { ...rec, objection: "resolved" } : rec
+      ));
+    } catch(err) {
+      alert("Failed to resolve: " + err.message);
+    } finally {
+      setConfirming(null);
+    }
+  };
 
   const confirmIncomplete = async (r) => {
     if (!window.confirm(
@@ -201,7 +279,7 @@ export default function Notifications({ userRole }) {
   }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
 
   // Objection records
-  const objectionRecords = records.filter(r => r.objection === "yes");
+  const objectionRecords = records.filter(r => r.objection === "yes"); // objection="resolved" drops off automatically
 
   // Duplicate cert number records — check mataiCertNumber OR compose from parts
   const certNumberMap = new Map();
@@ -406,7 +484,7 @@ export default function Notifications({ userRole }) {
     }
   };
 
-  const printObjectionReport = () => {
+  const printObjectionReport = async () => {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = objectionRecords.map((r,i) => `<tr>
@@ -430,7 +508,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"objection", count: objectionRecords.length });
   };
 
-  const printNewMataiReport = () => {
+  const printNewMataiReport = async () => {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = newMataiRecords.map((r,i) => `<tr>
@@ -454,7 +532,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
   };
 
-  const printReadyReport = () => {
+  const printReadyReport = async () => {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = readyToRegister.map((r,i) => {
@@ -480,7 +558,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"ready_all", count: readyToRegister.length });
   };
 
-  const printMonthlyFullReport = () => {
+  const printMonthlyFullReport = async () => {
     const now = new Date();
     const MONTHS_L = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const monthLabel = `${MONTHS_L[now.getMonth()]} ${now.getFullYear()}`;
@@ -563,7 +641,7 @@ export default function Notifications({ userRole }) {
   };
 
   // ── Styles ─────────────────────────────────────────────
-  const printDuplicatesReport = () => {
+  const printDuplicatesReport = async () => {
     if (duplicateGroups.length === 0) return;
     const rows = duplicateGroups.flatMap(({ certNum, records: grp }) =>
       grp.map((r, i) => {
@@ -803,24 +881,39 @@ export default function Notifications({ userRole }) {
                 : objectionRecords.length === 0
                   ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No objections recorded.</div>
                   : <>{objPaged.map(r => (
-                    <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
-                      <div style={{ background:"#fdf8f8", border:"1px solid #e8b4b430", borderLeft:"4px solid #8b1a1a", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
-                        onMouseEnter={e => e.currentTarget.style.background="#fdf0f0"}
-                        onMouseLeave={e => e.currentTarget.style.background="#fdf8f8"}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
-                          <div>
-                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#8b1a1a" }}>{r.mataiTitle||"—"}</span>
-                            <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
-                          </div>
+                    <div key={r.id} style={{ background:"#fdf8f8", border:"1px solid #e8b4b430", borderLeft:"4px solid #8b1a1a", borderRadius:"3px", padding:"0.85rem 1.1rem", marginBottom:"0.6rem" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
+                        <div>
+                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#8b1a1a" }}>{r.mataiTitle||"—"}</span>
+                          <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
+                        </div>
+                        <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
                           <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:"#8b1a1a", background:"#8b1a1a15", padding:"2px 8px", borderRadius:"2px" }}>⚠ OBJECTION</span>
                         </div>
-                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
-                          <span>📍 {r.village}, {r.district}</span>
-                          <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
-                          <span style={{ color:"#8b1a1a" }}>📋 Objection: {fmtDate(r.objectionDate)}</span>
-                        </div>
                       </div>
-                    </Link>
+                      <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginBottom:"0.75rem" }}>
+                        <span>📍 {r.village}, {r.district}</span>
+                        <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
+                        <span style={{ color:"#8b1a1a" }}>📋 Objection filed: {fmtDate(r.objectionDate)}</span>
+                        {r.objectionFileNumber && <span>📁 File: {r.objectionFileNumber}</span>}
+                        {r.objectionLCNumber && <span>⚖ LC: {r.objectionLCNumber}</span>}
+                      </div>
+                      <div style={{ display:"flex", gap:"0.5rem" }}>
+                        <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
+                          <button style={{ padding:"0.3rem 0.8rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#fdf8f8", border:"1px solid #8b1a1a40", borderRadius:"3px", color:"#8b1a1a", cursor:"pointer" }}>
+                            ✎ View / Edit
+                          </button>
+                        </Link>
+                        {perms.canEdit && (
+                          <button
+                            disabled={confirming === r.id}
+                            onClick={() => resolveObjection(r)}
+                            style={{ padding:"0.3rem 0.8rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#f0faf4", border:"1px solid #1a5c3560", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", opacity: confirming === r.id ? 0.5 : 1 }}>
+                            {confirming === r.id ? "Resolving…" : "✓ Resolve Objection"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   ))}
                   <Pager page={objPageSafe} totalPages={objTotalPages} setPage={setObjPage} /></>
                 }

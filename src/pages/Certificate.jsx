@@ -501,7 +501,9 @@ export default function Certificate({ userRole }) {
   );
 
   // Block certificate access if no registration date OR date hasn't passed yet
-  const regDatePassed = record?.dateRegistration && new Date(record.dateRegistration + "T00:00:00") <= new Date();
+  // Exception: incompleteConfirmed records are old/historical and can always print
+  const regDatePassed = record?.incompleteConfirmed
+    || (record?.dateRegistration && new Date(record.dateRegistration + "T00:00:00") <= new Date());
   if (record && !regDatePassed) return (
     <div className="app-layout">
       <div className="pattern-bg" />

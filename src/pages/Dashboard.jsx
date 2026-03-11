@@ -129,6 +129,26 @@ export default function Dashboard({ userRole }) {
   const duplicateCertCount = [...certMap.values()].filter(v => v > 1).length;
   const incompleteDobCount = records.filter(r => !r.dateBirth || r.dateBirth.trim() === "").length;
 
+  // Ready to Register: Savali period passed, no objection, not yet registered
+  function autoRegDateDash(savaliStr) {
+    if (!savaliStr) return null;
+    const p = new Date(savaliStr + "T00:00:00");
+    if (isNaN(p)) return null;
+    const t = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+    const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const reg = new Date(t.getFullYear(), t.getMonth(), Math.min(29, last));
+    const y = reg.getFullYear(), m = String(reg.getMonth()+1).padStart(2,"0"), d = String(reg.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+  const readyToRegCount = records.filter(r => {
+    if (r.objection === "yes") return false;
+    if (r.status === "completed") return false;
+    if (r.dateRegistration) return false;
+    if (!r.dateSavaliPublished) return false;
+    const rd = autoRegDateDash(r.dateSavaliPublished);
+    return rd && new Date(rd + "T00:00:00") <= new Date();
+  }).length;
+
   const handleSeed = async () => {
     if (!window.confirm("This will clear all existing records and load test data. Continue?")) return;
     setSeeding(true); setSeedMsg("");
@@ -216,6 +236,30 @@ export default function Dashboard({ userRole }) {
               </div>
               <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#c0392b", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
                 View in Notifications →
+              </span>
+            </div>
+          </Link>
+        )}
+
+        {/* ── Ready to Register banner ── */}
+        {readyToRegCount > 0 && (
+          <Link to="/notifications" state={{ tab:"ready" }} style={{ textDecoration:"none" }}>
+            <div style={{ background:"#f0faf4", border:"1px solid #a7d7b8", borderLeft:"4px solid #1a5c35", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background="#dcf5e7"}
+              onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+                <span style={{ fontSize:"1.1rem" }}>✅</span>
+                <div>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", fontWeight:700, color:"#1a5c35", letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                    Ready to Register
+                  </p>
+                  <p style={{ fontSize:"0.8rem", color:"#1e3a24", marginTop:"2px" }}>
+                    {readyToRegCount} title{readyToRegCount !== 1 ? "s" : ""} {readyToRegCount !== 1 ? "have" : "has"} completed the 4-month Savali period and {readyToRegCount !== 1 ? "are" : "is"} awaiting registration confirmation.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", color:"#1a5c35", letterSpacing:"0.1em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+                Confirm Now →
               </span>
             </div>
           </Link>
