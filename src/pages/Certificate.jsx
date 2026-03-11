@@ -370,6 +370,9 @@ export default function Certificate({ userRole }) {
     return `${String(p.d).padStart(2,"0")}-${String(p.m+1).padStart(2,"0")}-${p.y}`;
   };
 
+  // Today's date — always used for issued date on certificate (reflects print date)
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+
   const perms = getPermissions(userRole);
 
   const handlePrint = async () => {
@@ -459,20 +462,7 @@ export default function Certificate({ userRole }) {
       });
       pdf.restoreGraphicsState();
 
-      // 6. Security footer — printed into PDF outside certificate image
-      const printedBy = auth.currentUser?.email || "unknown";
-      const printedAt = new Date().toLocaleString("en-WS", { timeZone: "Pacific/Apia" });
-      pdf.setFontSize(6.5);
-      pdf.setTextColor(130, 130, 130);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(
-        `CONTROLLED COPY — ${newPrintId} — Printed by: ${printedBy} — ${printedAt} (Samoa Time)`,
-        pageW / 2,
-        pageH - 3,
-        { align: "center" }
-      );
-
-      // 7. Open in new tab — user can print from there, file is not auto-saved
+      // 6. Open in new tab — user can print from there, file is not auto-saved
       const blobUrl = pdf.output("bloburl");
       window.open(blobUrl, "_blank");
 
@@ -483,8 +473,6 @@ export default function Certificate({ userRole }) {
     } finally {
       setGenerating(false);
       setPrintId(null); // clear the stamp from the screen after capture
-    }
-  };
     }
   };
 
@@ -803,7 +791,7 @@ export default function Certificate({ userRole }) {
                   <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"22px", fontWeight:"700", letterSpacing:"0.15em", color:"#1a5c35", textTransform:"uppercase" }}>
                     {certLang === "sm"
                       ? "Tusi Faamaonia o le Umia o le Suafa Matai"
-                      : "Certificate of Matai Title Registration"}
+                      : "Matai Title Certificate"}
                   </h1>
                 </div>
               </div>
@@ -826,7 +814,7 @@ export default function Certificate({ userRole }) {
                 {/* Title holder line — centred */}
                 <div style={{ textAlign:"center", marginBottom:"6px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"18px" }}>
-                    {certLang === "sm" ? "Afioga" : "To"}
+                    {certLang === "sm" ? "" : "To"}
                   </span>
                   <span style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
                     <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
@@ -876,29 +864,29 @@ export default function Certificate({ userRole }) {
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px" }}>
                       <span>Tuuina atu i lenei aso</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(todayStr)}</span>
                       <span>o</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(record.dateIssued)}</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(todayStr)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(todayStr)}</span>
                     </div>
                   </>) : (<>
                     {/* ── ENGLISH body ── */}
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
-                      <span>This Certificate is issued to confirm that you are the duly registered holder of the Matai title</span>
+                      <span>This is to certify that</span>
                       <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"130px", fontWeight:"700", textAlign:"center", paddingBottom:"1px", display:"inline-block", textTransform:"uppercase" }}>
                         {record.mataiTitle || ""}
                       </span>
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", flexWrap:"wrap", gap:"6px", marginBottom:"2px" }}>
-                      <span>of the village of</span>
+                      <span>at the village of</span>
                       <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"110px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                         {record.village || ""}
                       </span>
-                      <span>in the District of</span>
+                      <span>District</span>
                       <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"180px", fontWeight:"600", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>
                         {district || ""}
                       </span>
-                      <span>registered on the</span>
+                      <span>Registered on the</span>
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px", marginBottom:"2px" }}>
                       <span>day</span>
@@ -908,11 +896,11 @@ export default function Certificate({ userRole }) {
                       <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateRegistration)}</span>
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px" }}>
-                      <span>Issued this</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateIssued)}</span>
+                      <span>Issued at Mulinu\'u on the</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(todayStr)}</span>
                       <span>day of</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonthEn(record.dateIssued)}</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonthEn(todayStr)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(todayStr)}</span>
                     </div>
                   </>)}
 
@@ -936,12 +924,12 @@ export default function Certificate({ userRole }) {
                   <div style={{ textAlign:"center", minWidth:"260px" }}>
                     <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
-                      {certLang === "sm" ? "Resitalaina" : "Registrar"}
+                      {certLang === "sm" ? "Resitalaina" : "Registrar / Chief Executive Officer"}
                     </p>
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#3d2800" }}>
                       {certLang === "sm"
                         ? <>Mo le: <strong>RESITALAINA</strong></>
-                        : <>For: <strong>THE REGISTRAR</strong></>}
+                        : <>For: <strong>THE REGISTRAR / CHIEF EXECUTIVE OFFICER</strong><br /><strong>MINISTRY OF JUSTICE AND COURTS ADMINISTRATION</strong></> }
                     </p>
                   </div>
                 </div>
