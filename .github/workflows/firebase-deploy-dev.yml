@@ -26,7 +26,13 @@ jobs:
 
       - name: Build for Firebase Dev
         env:
-          REACT_APP_APPCHECK_DEBUG_TOKEN: "true"
+          REACT_APP_FIREBASE_API_KEY: "AIzaSyDmZet3rYi-2TZI-BjvQqtT3vj4eHfs5GI"
+          REACT_APP_FIREBASE_AUTH_DOMAIN: "resitalaina-o-matai-test.firebaseapp.com"
+          REACT_APP_FIREBASE_PROJECT_ID: "resitalaina-o-matai-test"
+          REACT_APP_FIREBASE_STORAGE_BUCKET: "resitalaina-o-matai-test.firebasestorage.app"
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: "311164419027"
+          REACT_APP_FIREBASE_APP_ID: "1:311164419027:web:88315d6d154f2db9cc4d26"
+          REACT_APP_ENV: "development"
         run: |
           node -e "
             const fs = require('fs');
