@@ -1301,13 +1301,40 @@ export default function Register({ userRole }) {
                 )}
               </div>
             </>)}
-            {form.objection === "resolved" && (
+            {form.objection === "resolved" && (<>
+              {/* Show all objection detail fields read-only so history is preserved */}
+              <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem", opacity:0.75 }}>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Date Objection Filed <span style={{ fontStyle:"italic", fontWeight:400 }}>(historical)</span></label>
+                  <input type="date" value={form.objectionDate || ""} onChange={set("objectionDate")} />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Aso faaulu ai le talosaga (Date Application Filed)</label>
+                  <input type="date" value={form.objectionApplicationDate || ""} onChange={set("objectionApplicationDate")} />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
+                  <input type="text" value={form.objectionApplicantName || ""} onChange={set("objectionApplicantName")} placeholder="Name of person who filed the objection" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>Suafa o le sui resitala (Acting Registrar)</label>
+                  <input type="text" value={form.objectionActingRegistrar || ""} onChange={set("objectionActingRegistrar")} placeholder="Name of acting registrar" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>File #</label>
+                  <input type="text" value={form.objectionFileNumber || ""} onChange={set("objectionFileNumber")} placeholder="File number" />
+                </div>
+                <div className="form-group">
+                  <label style={{ color:"#6b7280" }}>LC # — Faaiuga Faamasinoga (Court Decision)</label>
+                  <input type="text" value={form.objectionLCNumber || ""} onChange={set("objectionLCNumber")} placeholder="LC number / Court decision reference" />
+                </div>
+              </div>
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#f0faf4", border:"1px solid #a7d7b8", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#1a5c35", fontWeight:600 }}>
-                  ✓ Objection resolved — this title has returned to the normal registration process.
+                  ✓ Objection resolved — this title has returned to the normal registration process. Objection history above is preserved for court records.
                 </p>
               </div>
-            )}
+            </>)}
             {form.objection === "no" && form.dateSavaliPublished && (() => {
               const hint = regDateHint(form.dateSavaliPublished);
               if (!hint) return null;
