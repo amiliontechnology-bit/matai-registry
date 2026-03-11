@@ -6,6 +6,7 @@ import { auth, db } from "../firebase";
 import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import { classifyStatus } from "../utils/statusClassify";
 import Sidebar from "../components/Sidebar";
 
 
@@ -832,7 +833,17 @@ export default function Register({ userRole }) {
       const isAutoCalc2 = calcResult2 && form.dateRegistration === calcResult2.dateStr;
       const finalRegDate2 = isAutoCalc2 ? "" : form.dateRegistration;
       const regPassed2 = finalRegDate2 && new Date(finalRegDate2 + "T00:00:00") <= new Date();
-      const autoStatus = (regPassed2 && finalRegDate2) ? "completed" : "pending";
+      // Use canonical classifier; but if user has explicitly toggled pepa_samasama or void, respect that
+      const draftRecord = { ...form, dateRegistration: finalRegDate2 };
+      let autoStatus;
+      if (form.status === "void" || form.objection === "petition_won") {
+        autoStatus = "void";
+      } else if (form.status === "pepa_samasama") {
+        // Stays pepa until reg date passes — classifier handles that
+        autoStatus = classifyStatus({ ...draftRecord, status: "pepa_samasama" });
+      } else {
+        autoStatus = classifyStatus(draftRecord);
+      }
       const saveForm = { ...form, dateRegistration: finalRegDate2, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
         await logAudit("UPDATE", {
@@ -852,7 +863,7 @@ export default function Register({ userRole }) {
         const isAutoCalc = calcResult && form.dateRegistration === calcResult.dateStr;
         const finalRegDate = isAutoCalc ? "" : form.dateRegistration;
         const regPassed = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
-        const autoStatus = (regPassed && finalRegDate) ? "completed" : "pending";
+        const autoStatus = classifyStatus({ ...form, dateRegistration: finalRegDate });
         const saveForm = { ...form, dateRegistration: finalRegDate, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
@@ -947,6 +958,30 @@ export default function Register({ userRole }) {
         {error && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{error}</div>}
         {success && <div className="alert alert-success" style={{ marginBottom: "1.5rem" }}>{success}</div>}
         {dupWarning && <div className="alert alert-error" style={{ marginBottom: "1.5rem" }}>{dupWarning}</div>}
+
+        {/* ── Status badge + Pepa Samasama toggle ── */}
+        {isEdit && (
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", marginBottom:"0.5rem", flexWrap:"wrap" }}>
+            <span style={{
+              fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.12em", textTransform:"uppercase",
+              padding:"3px 10px", borderRadius:"3px",
+              background: form.status === "completed" ? "#dcfce7" : form.status === "pepa_samasama" ? "#f3f4f6" : form.status === "void" ? "#fee2e2" : "#fef3c7",
+              color: form.status === "completed" ? "#15803d" : form.status === "pepa_samasama" ? "#374151" : form.status === "void" ? "#991b1b" : "#92400e",
+              border: `1px solid ${form.status === "completed" ? "#86efac" : form.status === "pepa_samasama" ? "#d1d5db" : form.status === "void" ? "#fca5a5" : "#fcd34d"}`,
+            }}>
+              {form.status === "completed" ? "✓ Completed" : form.status === "pepa_samasama" ? "📂 Pepa Samasama" : form.status === "void" ? "✗ Void" : "✏ In Progress"}
+            </span>
+            {perms.canEdit && form.status !== "completed" && form.status !== "void" && (
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, status: f.status === "pepa_samasama" ? "in_progress" : "pepa_samasama" }))}
+                style={{ fontFamily:"'Cinzel',serif", fontSize:"0.6rem", letterSpacing:"0.08em", textTransform:"uppercase",
+                  padding:"3px 10px", borderRadius:"3px", cursor:"pointer", background:"transparent",
+                  border:"1px solid #9ca3af", color:"#6b7280" }}>
+                {form.status === "pepa_samasama" ? "↑ Move to In Progress" : "📂 Mark as Pepa Samasama"}
+              </button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
         <fieldset disabled={viewOnly} style={{ border:"none", padding:0, margin:0 }}>

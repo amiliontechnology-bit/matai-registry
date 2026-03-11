@@ -71,7 +71,17 @@ export default function Sidebar({ userRole, userEmail }) {
 
         {/* ── Nav ── */}
         <nav className="sidebar-nav">
-          {navItem("/dashboard",      "⊞",  "Dashboard")}
+          {navItem("/dashboard", "⊞", "Dashboard")}
+
+          {/* ── Records group ── */}
+          <div style={{ margin:"0.6rem 0 0.2rem", padding:"0 0.5rem" }}>
+            <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.5rem", letterSpacing:"0.18em", color:"rgba(255,255,255,0.25)",
+              textTransform:"uppercase", marginBottom:"0.35rem", paddingLeft:"0.25rem" }}>Records</p>
+            {navItem("/registry",           "📜", "Registry")}
+            {navItem("/registry-progress",  "✏", "Registry in Progress")}
+            {navItem("/pepa-samasama",       "📂", "Pepa Samasama")}
+          </div>
+
           {perms.canAdd    && navItem("/register",       "＋",  "New Matai Entry")}
           {perms.canAdd    && navItem("/import",          "↑",   "Import")}
           {perms.canExport && navItem("/export",          "📊",  "Export")}

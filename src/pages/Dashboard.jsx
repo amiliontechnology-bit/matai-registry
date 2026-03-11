@@ -6,6 +6,7 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
+import StatusTag from "../components/StatusTag";
 import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
@@ -95,7 +96,13 @@ export default function Dashboard({ userRole }) {
     const matchType = filterType === "All" || r.mataiType === filterType;
     const matchVillage = filterVillage === "All" || r.village === filterVillage;
     const matchGender = filterGender === "All" || r.gender === filterGender;
-    const matchStatus = filterStatus === "All" || (filterStatus === "completed" ? r.status === "completed" : r.status !== "completed");
+    const getStatusCat = (r) => {
+      if (r.status === "void" || r.objection === "petition_won") return "void";
+      if (r.status === "completed") return "completed";
+      if (r.status === "pepa_samasama") return "pepa_samasama";
+      return "in_progress";
+    };
+    const matchStatus = filterStatus === "All" || getStatusCat(r) === filterStatus;
     const matchDateFrom = !filterDateFrom || (r.dateRegistration && r.dateRegistration >= filterDateFrom);
     const matchDateTo = !filterDateTo || (r.dateRegistration && r.dateRegistration <= filterDateTo);
     return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchStatus && matchDateFrom && matchDateTo;
@@ -329,8 +336,10 @@ export default function Dashboard({ userRole }) {
               <label>Status</label>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                 <option value="All">All</option>
-                <option value="completed">Completed (Printed)</option>
-                <option value="pending">Pending (Not Printed)</option>
+                <option value="completed">Completed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="pepa_samasama">Pepa Samasama</option>
+                <option value="void">Void</option>
               </select>
             </div>
             <div className="form-group" style={{ margin:0 }}>
@@ -369,7 +378,7 @@ export default function Dashboard({ userRole }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {["Cert No.", "Matai Title", "Suafa Taulealea", "Type", "Nu'u", "Itūmālō", "Aso Resitala", "Actions"].map(h => (
+                    {["Cert No.", "Matai Title", "Holder", "Type", "Nu'u", "Itūmālō", "Reg. Date", "Status", "Actions"].map(h => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>
@@ -377,66 +386,57 @@ export default function Dashboard({ userRole }) {
                 <tbody>
                   {pageRecords.map(r => (
                     <tr key={r.id}>
-                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.75rem", color:"#6b7280", whiteSpace:"nowrap" }}>
+                      <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#6b7280", whiteSpace:"nowrap" }}>
                         {r.certItumalo && r.certLaupepa && r.certRegBook
                           ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
-                          : r.mataiCertNumber || r.refNumber || "—"
-                        }
+                          : r.mataiCertNumber || r.refNumber || "—"}
                       </td>
-                      <td style={{ fontFamily:"'Cinzel',serif", color:"#155c31", fontWeight:700, fontSize:"0.92rem" }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:"0.4rem" }}>
-                          {r.mataiTitle}
-                        </div>
+                      <td style={{ fontFamily:"'Cinzel',serif", color: (r.status === "void" || r.objection === "petition_won") ? "#9ca3af" : "#155c31", fontWeight:700, fontSize:"0.88rem", whiteSpace:"nowrap", textDecoration: (r.status === "void" || r.objection === "petition_won") ? "line-through" : "none" }}>
+                        {r.mataiTitle}
+                        {(r.status === "void" || r.objection === "petition_won") && (
+                          <span style={{ marginLeft:"5px", fontFamily:"Arial,sans-serif", fontSize:"0.55rem", fontWeight:700, color:"#fff", background:"#991b1b", padding:"1px 4px", borderRadius:"2px", textDecoration:"none" }}>VOID</span>
+                        )}
                       </td>
-                      <td style={{ color:"#111827", fontWeight:500 }}>{r.holderName}</td>
-                      <td>
-                        <span className="type-badge">{r.mataiType || "—"}</span>
-                      </td>
-                      <td style={{ color:"#374151" }}>{r.village || "—"}</td>
-                      <td style={{ color:"#374151", fontSize:"0.85rem" }}>{r.district || "—"}</td>
-                      <td style={{ color:"#6b7280", fontSize:"0.83rem", whiteSpace:"nowrap" }}>
+                      <td style={{ color:"#111827", fontWeight:500, fontSize:"0.83rem" }}>{r.holderName}</td>
+                      <td><span className="type-badge" style={{ fontSize:"0.62rem", padding:"1px 7px" }}>{r.mataiType || "—"}</span></td>
+                      <td style={{ color:"#374151", fontSize:"0.83rem" }}>{r.village || "—"}</td>
+                      <td style={{ color:"#374151", fontSize:"0.78rem", whiteSpace:"nowrap" }}>{r.district || "—"}</td>
+                      <td style={{ color:"#6b7280", fontSize:"0.78rem", whiteSpace:"nowrap" }}>
                         {(() => {
                           const d = effectiveRegDate(r);
                           return d
-                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#b45309", fontStyle: r.dateRegistration ? "normal" : "italic", background: r.dateRegistration ? "none" : "#fef3c7", padding: r.dateRegistration ? "0" : "1px 5px", borderRadius:"3px" }}>{fmtDate(d)}{!r.dateRegistration && " ⚠"}</span>
+                            ? <span style={{ color: r.dateRegistration ? "#374151" : "#b45309", fontStyle: r.dateRegistration ? "normal" : "italic", background: r.dateRegistration ? "none" : "#fef3c7", padding: r.dateRegistration ? "0" : "1px 4px", borderRadius:"3px" }}>{fmtDate(d)}{!r.dateRegistration && " ⚠"}</span>
                             : <span style={{ color:"#9ca3af" }}>—</span>;
                         })()}
                       </td>
                       <td>
-                        <div style={{ display:"flex", gap:"0.3rem" }}>
+                        <StatusTag record={r} canEdit={perms.canEdit} />
+                      </td>
+                      <td>
+                        <div style={{ display:"flex", gap:"0.2rem" }}>
                           {(() => {
                             const regPassed = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
-                            return perms.canPrint && regPassed ? (
+                            return perms.canPrint && (regPassed || r.incompleteConfirmed) ? (
                               <Link to={`/certificate/${r.id}`}>
-                                <button className="btn-ghost" title="View Certificate"
-                                  onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>
-                                  🏅
-                                </button>
+                                <button className="btn-ghost" style={{ padding:"3px 6px" }} title="View Certificate"
+                                  onClick={() => logAudit("PRINT", { mataiTitle: r.mataiTitle, recordId: r.id })}>🏅</button>
                               </Link>
                             ) : perms.canPrint ? (
-                              <button className="btn-ghost" title="Certificate unavailable — awaiting registration" disabled
-                                style={{ opacity:0.35, cursor:"not-allowed" }}>
-                                🏅
-                              </button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px", opacity:0.35, cursor:"not-allowed" }} disabled>🏅</button>
                             ) : null;
                           })()}
-                          {perms.canEdit && (
+                          {perms.canEdit ? (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
-                              <button className="btn-ghost" title="Edit">✎</button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px" }} title="Edit">✎</button>
                             </Link>
-                          )}
-                          {!perms.canEdit && (
+                          ) : (
                             <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
-                              <button className="btn-ghost" title="View">👁</button>
+                              <button className="btn-ghost" style={{ padding:"3px 6px" }} title="View">👁</button>
                             </Link>
                           )}
                           {perms.canDelete && (
-                            <button className="btn-ghost" title="Delete"
-                              onClick={() => handleDelete(r.id, r.mataiTitle)}
-                              disabled={deleting === r.id}
-                              style={{ color:"#991b1b", borderColor:"rgba(153,27,27,0.3)" }}>
-                              ✕
-                            </button>
+                            <button className="btn-ghost" style={{ padding:"3px 6px", color:"#991b1b", borderColor:"rgba(153,27,27,0.3)" }}
+                              title="Delete" onClick={() => handleDelete(r.id, r.mataiTitle)} disabled={deleting === r.id}>✕</button>
                           )}
                         </div>
                       </td>
