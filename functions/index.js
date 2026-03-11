@@ -255,3 +255,11 @@ exports.verifyUserEmail = functions
     await admin.auth().updateUser(uid, { emailVerified: true });
     return { success: true };
   });
+
+exports.onUserCreated = functions
+  .region("australia-southeast1")
+  .auth.user().onCreate(async (user) => {
+    if (!user.emailVerified) {
+      await admin.auth().updateUser(user.uid, { emailVerified: true });
+    }
+  });
