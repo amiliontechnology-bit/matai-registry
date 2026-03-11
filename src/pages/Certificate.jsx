@@ -803,18 +803,24 @@ export default function Certificate({ userRole }) {
 
                 {/* Title holder + village — Samoan only */}
                 {certLang === "sm" && (<>
-                  <div style={{ textAlign:"center", marginBottom:"6px" }}>
-                    <span style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
-                      <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
-                      &nbsp;&nbsp;&nbsp;
-                      <span>{record.holderName || ""}</span>
-                    </span>
+                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"center", gap:"20px", marginBottom:"6px" }}>
+                    <div style={{ flex:1, textAlign:"center" }}>
+                      <div style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
+                        <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
+                        &nbsp;&nbsp;&nbsp;
+                        <span>{record.holderName || ""}</span>
+                      </div>
+                      <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"6px auto 8px" }} />
+                      <div style={{ fontSize:"20px", marginBottom:"4px" }}>{record.village || ""}</div>
+                      <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
+                    </div>
+                    {record.holderPhoto && (
+                      <div style={{ flexShrink:0, marginTop:"4px" }}>
+                        <img src={record.holderPhoto} alt="Holder"
+                          style={{ width:"90px", height:"115px", objectFit:"cover", border:"1.5px solid #1a5c35", borderRadius:"2px" }} />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 8px" }} />
-                  <div style={{ textAlign:"center", marginBottom:"4px" }}>
-                    <span style={{ fontSize:"20px" }}>{record.village || ""}</span>
-                  </div>
-                  <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
                 </>)}
 
                 {/* Divider */}
@@ -865,10 +871,16 @@ export default function Certificate({ userRole }) {
                     </div>
 
                     {/* Holder name */}
-                    <div style={{ marginBottom:"4px" }}>
+                    <div style={{ marginBottom:"4px", display:"flex", alignItems:"flex-end", justifyContent:"center", gap:"20px" }}>
                       <span style={{ borderBottom:"2px solid #1a1208", padding:"0 12px 2px", fontWeight:"700", fontSize:"20px" }}>
                         {record.holderName || ""}
                       </span>
+                      {record.holderPhoto && (
+                        <div style={{ flexShrink:0 }}>
+                          <img src={record.holderPhoto} alt="Holder"
+                            style={{ width:"80px", height:"100px", objectFit:"cover", border:"1.5px solid #1a1208", borderRadius:"2px" }} />
+                        </div>
+                      )}
                     </div>
 
                     {/* has been duly confirmed with the Title ___ */}
@@ -941,14 +953,19 @@ export default function Certificate({ userRole }) {
                   {/* Signature — bottom right */}
                   <div style={{ textAlign:"center", minWidth:"260px" }}>
                     <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
-                      {certLang === "sm" ? "Mo le Resitara" : ""}
-                    </p>
                     {certLang === "sm" && (
-                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#3d2800" }}>
-                        <strong>RESITARA</strong>
+                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
+                        Mo le Resitara
                       </p>
                     )}
+                    {certLang === "en" && (<>
+                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.1em", color:"#1a5c35", textTransform:"uppercase", lineHeight:"1.7" }}>
+                        Registrar / Chief Executive Officer
+                      </p>
+                      <p style={{ fontFamily:"'Cinzel',serif", fontSize:"8px", letterSpacing:"0.08em", color:"#666", textTransform:"uppercase" }}>
+                        Ministry of Justice and Courts Administration
+                      </p>
+                    </>)}
                   </div>
                 </div>
 

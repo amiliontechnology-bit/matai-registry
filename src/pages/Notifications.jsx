@@ -337,7 +337,7 @@ export default function Notifications({ userRole }) {
 
   // ── PDF generators ─────────────────────────────────────
 
-  const printProclamationReport = async () => {
+  const printProclamationReport = () => {
     const genBy2 = genBy;
     const rows = alertRecords.map((r,i) => {
       const days = daysUntilReg(r);
@@ -363,59 +363,8 @@ export default function Notifications({ userRole }) {
     ) + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
-
-    // Render HTML into a hidden off-screen div, capture with html2canvas, save as PDF blob
-    const container = document.createElement("div");
-    container.style.cssText = "position:fixed;left:-9999px;top:0;width:1100px;background:#fff;";
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    try {
-      await new Promise(r => setTimeout(r, 600)); // let fonts/images settle
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        width: 1100,
-        windowWidth: 1100,
-      });
-      const imgW   = canvas.width;
-      const imgH   = canvas.height;
-      const pdf    = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pdfW   = pdf.internal.pageSize.getWidth();
-      const pdfH   = pdf.internal.pageSize.getHeight();
-      const scale  = pdfW / imgW;
-      const pagePixH = Math.floor(pdfH / scale); // canvas px that fit one A4 page
-      let yOffset = 0;
-      let pageNum = 0;
-      while (yOffset < imgH) {
-        if (pageNum > 0) pdf.addPage();
-        const sliceH = Math.min(pagePixH, imgH - yOffset);
-        const slice  = document.createElement("canvas");
-        slice.width  = imgW;
-        slice.height = sliceH;
-        slice.getContext("2d").drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, sliceH);
-        pdf.addImage(slice.toDataURL("image/png"), "PNG", 0, 0, pdfW, sliceH * scale);
-        yOffset += pagePixH;
-        pageNum++;
-      }
-      // Open as a proper PDF in the browser tab (not a blob download)
-      const pdfData = pdf.output("datauristring");
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(
-          `<html><head><title>Savali Alerts Report</title></head><body style="margin:0">` +
-          `<embed width="100%" height="100%" src="${pdfData}" type="application/pdf"/>` +
-          `</body></html>`
-        );
-      }
-      logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
-    } catch(err) {
-      console.error("PDF generation failed:", err);
-      alert("PDF generation failed: " + err.message);
-    } finally {
-      document.body.removeChild(container);
-    }
+    openPDF("Savali Alerts Report", html);
+    logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
   };
 
   const printObjectionReport = () => {

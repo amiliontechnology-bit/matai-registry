@@ -338,6 +338,8 @@ const EMPTY = {
   familyTitles: "",     // Isi Suafa Matai
   notes: "",            // Isi Faamatalaga
   suli: "",
+  // Holder photo (for certificate)
+  holderPhoto: "",       // base64 data URL — appears on certificate
   // Photo ID
   photoIdType: "",      // passport / drivers_licence
   photoIdNumber: "",
@@ -529,6 +531,14 @@ export default function Register({ userRole }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => setForm(f => ({ ...f, photoIdImage: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleHolderPhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(f => ({ ...f, holderPhoto: ev.target.result }));
     reader.readAsDataURL(file);
   };
 
@@ -1204,6 +1214,31 @@ export default function Register({ userRole }) {
           {/* ── Photo Identification ── */}
           <div className="card fade-in-delay-3">
             {sectionHead("Photo Identification")}
+            {/* Holder photo — appears on certificate */}
+            <div style={{ display:"flex", gap:"1.5rem", alignItems:"flex-start", marginBottom:"1.2rem", paddingBottom:"1.2rem", borderBottom:"1px solid rgba(26,92,53,0.1)" }}>
+              <div style={{ flexShrink:0 }}>
+                {form.holderPhoto
+                  ? <img src={form.holderPhoto} alt="Holder" style={{ width:"110px", height:"140px", objectFit:"cover", border:"2px solid #a7d7b8", borderRadius:"4px" }} />
+                  : <div style={{ width:"110px", height:"140px", border:"2px dashed #a7d7b8", borderRadius:"4px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", color:"rgba(26,92,53,0.4)", fontSize:"0.75rem", textAlign:"center", gap:"4px" }}>
+                      <span style={{ fontSize:"2rem" }}>👤</span>
+                      <span>No photo</span>
+                    </div>
+                }
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.1em", textTransform:"uppercase", color:"#1a5c35", display:"block", marginBottom:"0.4rem" }}>
+                  Holder Photo <span style={{ fontStyle:"italic", fontWeight:400, color:"#888", textTransform:"none" }}>(appears on certificate)</span>
+                </label>
+                <input type="file" accept="image/*" onChange={handleHolderPhotoUpload}
+                  style={{ fontSize:"0.88rem", marginBottom:"0.5rem" }} />
+                {form.holderPhoto && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, holderPhoto:"" }))}
+                    style={{ display:"block", fontSize:"0.75rem", color:"#8b1a1a", background:"none", border:"none", cursor:"pointer" }}>
+                    ✕ Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>ID Type</label>

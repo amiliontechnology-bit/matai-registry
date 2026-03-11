@@ -112,6 +112,7 @@ export default function Dashboard({ userRole }) {
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli        = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
   const totalTulafale   = records.filter(r => normalizeType(r.mataiType) === "tulafale").length;
+  const totalTulafaleAlii = records.filter(r => { const t = normalizeType(r.mataiType); return t.includes("tulafale") && t.includes("ali"); }).length;
   const totalRegistered = records.filter(r => r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date()).length;
   const totalOther    = records.filter(r => {
     const t = normalizeType(r.mataiType);
@@ -203,12 +204,13 @@ export default function Dashboard({ userRole }) {
         </div>
 
         {/* ── Stats ── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"1rem", marginBottom:"2rem" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"1rem", marginBottom:"2rem" }}>
           {[
-            { label:"Total Entries",    value: records.length,   accent:"#155c31" },
-            { label:"Total Registered", value: totalRegistered,  accent:"#1a5c35" },
-            { label:"Ali'i",            value: totalAli,         accent:"#1e7a42" },
-            { label:"Tulafale",         value: totalTulafale,    accent:"#0d2818" },
+            { label:"Total Entries",    value: records.length,     accent:"#155c31" },
+            { label:"Total Registered", value: totalRegistered,    accent:"#1a5c35" },
+            { label:"Ali'i",            value: totalAli,           accent:"#1e7a42" },
+            { label:"Tulafale",         value: totalTulafale,      accent:"#0d2818" },
+            { label:"Tulafale/Ali'i",   value: totalTulafaleAlii,  accent:"#2d6a4f" },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.18em", color:"#6b7280", textTransform:"uppercase", marginBottom:"0.5rem" }}>{s.label}</p>
