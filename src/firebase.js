@@ -16,24 +16,13 @@ export const app  = initializeApp(firebaseConfig);
 export const db   = getFirestore(app);
 export const auth = getAuth(app);
 
-// App Check — protects against unauthorised API abuse
-// Prod:  uses reCAPTCHA v3 (REACT_APP_RECAPTCHA_SITE_KEY)
-// Test:  uses debug token  (REACT_APP_APPCHECK_DEBUG_TOKEN=true)
-//        Firebase auto-generates a debug token and logs it to the console.
-//        Register that token in Firebase Console → App Check → Apps → debug tokens.
-const debugToken = process.env.REACT_APP_APPCHECK_DEBUG_TOKEN;
-const siteKey    = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+// App Check — only enabled in production with a real reCAPTCHA site key
+// Dev environment skips App Check entirely to avoid debug token registration hassle
+const siteKey = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
 
-if (debugToken) {
-  // eslint-disable-next-line no-restricted-globals
-  self.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken === "true" ? true : debugToken;
-}
-
-if (siteKey || debugToken) {
+if (siteKey) {
   initializeAppCheck(app, {
-    // When debug token is active Firebase bypasses reCAPTCHA entirely.
-    // siteKey falls back to "debug-placeholder" so the provider can still init.
-    provider: new ReCaptchaV3Provider(siteKey || "debug-placeholder"),
+    provider: new ReCaptchaV3Provider(siteKey),
     isTokenAutoRefreshEnabled: true,
   });
 }
