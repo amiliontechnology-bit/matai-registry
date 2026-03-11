@@ -364,6 +364,9 @@ export default function Certificate({ userRole }) {
   const getMonth = (str) => { const p = parseDateParts(str); return p ? MONTHS_SA[p.m] : ""; };
   const getMonthEn = (str) => { const p = parseDateParts(str); return p ? ["January","February","March","April","May","June","July","August","September","October","November","December"][p.m] : ""; };
   const getYear  = (str) => { const p = parseDateParts(str); return p ? p.y : ""; };
+
+  // Today's date — always used for "Date Issued" on the certificate (reflects print date)
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
   const formatDate = (str) => {
     const p = parseDateParts(str);
     if (!p) return str || "—";
@@ -861,10 +864,10 @@ export default function Certificate({ userRole }) {
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px" }}>
                       <span>Tuuina atu i lenei aso</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(todayStr)}</span>
                       <span>o</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(record.dateIssued)}</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonth(todayStr)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(todayStr)}</span>
                     </div>
                   </>) : (<>
                     {/* ── ENGLISH body ── */}
@@ -894,10 +897,10 @@ export default function Certificate({ userRole }) {
                     </div>
                     <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:"8px" }}>
                       <span>Issued this</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"38px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getDay(todayStr)}</span>
                       <span>day of</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonthEn(record.dateIssued)}</span>
-                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(record.dateIssued)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"100px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getMonthEn(todayStr)}</span>
+                      <span style={{ borderBottom:"1px solid #1a5c35", minWidth:"58px", textAlign:"center", paddingBottom:"1px", display:"inline-block" }}>{getYear(todayStr)}</span>
                     </div>
                   </>)}
 
