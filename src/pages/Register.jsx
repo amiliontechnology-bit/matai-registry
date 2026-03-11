@@ -1498,14 +1498,12 @@ export default function Register({ userRole }) {
                 const _ageErr = form.dateBirth && !_ageRes.valid
                   ? `Holder is ${_ageRes.age} year${_ageRes.age !== 1 ? "s" : ""} old at conferral — must be 21+`
                   : null;
-                const _certErr = (!form.certLaupepa || !/^\d+$/.test(String(form.certLaupepa))) ||
-                                 (!form.certRegBook  || !/^\d+$/.test(String(form.certRegBook)));
-                const _hasErrors = !!(_pubErr || _regErr || _ageErr || _certErr);
+                const _hasErrors = !!(_pubErr || _regErr || _ageErr);
                 return (
                   <>
                     {_hasErrors && (
                       <p style={{ fontSize:"0.78rem", color:"#c0392b", margin:0, fontStyle:"italic" }}>
-                        ⚠ {_certErr && !(_pubErr||_regErr||_ageErr) ? "Laupepa & Registry Book numbers are required" : "Fix errors before saving"}
+                        ⚠ Fix errors before saving
                       </p>
                     )}
                     <button type="submit" className="btn-primary"
