@@ -208,10 +208,11 @@ export default function Notifications({ userRole }) {
   }).sort((a,b) => (daysUntilReg(a)||0) - (daysUntilReg(b)||0));
 
   // Objection records
-  // All objection records — both active ("yes") and resolved ("resolved") — for full history
-  const objectionRecords = records.filter(r => r.objection === "yes" || r.objection === "resolved");
+  // All objection records — active, dismissed, and petition-won — for full history
+  const objectionRecords = records.filter(r => r.objection === "yes" || r.objection === "resolved" || r.objection === "petition_won");
   const activeObjRecords   = objectionRecords.filter(r => r.objection === "yes");
   const resolvedObjRecords = objectionRecords.filter(r => r.objection === "resolved");
+  const voidObjRecords     = objectionRecords.filter(r => r.objection === "petition_won");
 
   // Duplicate cert number records — check mataiCertNumber OR compose from parts
   const certNumberMap = new Map();
@@ -369,7 +370,7 @@ export default function Notifications({ userRole }) {
 
   const printObjectionReport = () => {
     // Both active and resolved — full history for court purposes
-    const allObj = [...activeObjRecords, ...resolvedObjRecords];
+    const allObj = [...activeObjRecords, ...resolvedObjRecords, ...voidObjRecords];
     const activeRows = activeObjRecords.map((r,i) => `<tr>
       <td>${i+1}</td>
       <td><strong>${r.mataiTitle||"—"}</strong></td>
@@ -403,14 +404,27 @@ export default function Notifications({ userRole }) {
         <td style="color:#1a5c35;font-weight:700">RESOLVED ${resolvedDate}</td>
       </tr>`;
     }).join("");
+    const voidRows = voidObjRecords.map((r,i) => `<tr style="background:#fff0f0">
+        <td>${activeObjRecords.length + resolvedObjRecords.length + i + 1}</td>
+        <td><strong>${r.mataiTitle||"—"}</strong></td>
+        <td>${r.holderName||"—"}</td>
+        <td>${r.village||"—"}</td>
+        <td>${r.district||"—"}</td>
+        <td>${fmtDate(r.dateSavaliPublished)}</td>
+        <td>${fmtDate(r.objectionDate)}</td>
+        <td>${r.objectionApplicantName||"—"}</td>
+        <td>${r.objectionFileNumber||"—"}</td>
+        <td>${r.objectionLCNumber||"—"}</td>
+        <td style="color:#c0392b;font-weight:700">⛔ VOID — Petition Upheld</td>
+      </tr>`).join("");
     const html = reportHeader(
         "Objections Report — Full History",
-        `Active: ${activeObjRecords.length} | Resolved: ${resolvedObjRecords.length} | Total: ${allObj.length}`,
+        `Active: ${activeObjRecords.length} | Dismissed: ${resolvedObjRecords.length} | Voided: ${voidObjRecords.length} | Total: ${allObj.length}`,
         allObj.length, genBy)
       + `<table><thead><tr>
           <th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th>
-          <th>Published Date</th><th>Objection Date</th><th>Applicant</th><th>File #</th><th>LC #</th><th>Status</th>
-        </tr></thead><tbody>${activeRows}${resolvedRows}</tbody></table>
+          <th>Published Date</th><th>Petition Date</th><th>Applicant</th><th>File #</th><th>LC #</th><th>Status</th>
+        </tr></thead><tbody>${activeRows}${resolvedRows}${voidRows}</tbody></table>
       <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
     openPDF("Objections Report", html);
@@ -779,7 +793,7 @@ export default function Notifications({ userRole }) {
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                   <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#8b1a1a", textTransform:"uppercase" }}>
-                    ◈ {activeObjRecords.length} Active Objection{activeObjRecords.length!==1?"s":""}{resolvedObjRecords.length > 0 ? ` — ${resolvedObjRecords.length} Resolved` : ""}
+                    ◈ {activeObjRecords.length} Active Objection{activeObjRecords.length!==1?"s":""}{resolvedObjRecords.length > 0 ? ` — ${resolvedObjRecords.length} Dismissed` : ""}{voidObjRecords.length > 0 ? ` — ${voidObjRecords.length} Voided` : ""}
                   </p>
                   {perms.canPrint && <PdfBtn onClick={printObjectionReport} label="PDF Report" count={objectionRecords.length} color="#8b1a1a" />}
                 </div>
@@ -839,6 +853,34 @@ export default function Notifications({ userRole }) {
                             {r.objectionFileNumber && <span>📁 {r.objectionFileNumber}</span>}
                             {r.objectionLCNumber && <span>⚖ {r.objectionLCNumber}</span>}
                             {r.objectionResolvedAt && <span style={{ color:"#1a5c35" }}>✓ Resolved: {fmtDate(typeof r.objectionResolvedAt?.toDate === "function" ? r.objectionResolvedAt.toDate().toISOString().split("T")[0] : r.objectionResolvedAt)}</span>}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {/* ── Voided (Petition Won) Objections ── */}
+                {voidObjRecords.length > 0 && (
+                  <div style={{ marginTop:"1.5rem" }}>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.15em", color:"#8b1a1a", textTransform:"uppercase", marginBottom:"0.75rem", paddingTop:"1rem", borderTop:"1px solid rgba(26,26,26,0.08)" }}>
+                      ◈ {voidObjRecords.length} Voided — Petition Upheld
+                    </p>
+                    {voidObjRecords.map(r => (
+                      <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
+                        <div style={{ background:"#fff0f0", border:"1px solid #c0392b30", borderLeft:"4px solid #c0392b", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
+                          onMouseEnter={e => e.currentTarget.style.background="#fee2e2"}
+                          onMouseLeave={e => e.currentTarget.style.background="#fff0f0"}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
+                            <div>
+                              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#8b1a1a" }}>{r.mataiTitle||"—"}</span>
+                              <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
+                            </div>
+                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:"#8b1a1a", background:"#c0392b20", padding:"2px 8px", borderRadius:"2px" }}>⛔ VOID</span>
+                          </div>
+                          <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
+                            <span>📍 {r.village}, {r.district}</span>
+                            <span>📋 Petition: {fmtDate(r.objectionDate)}</span>
+                            {r.objectionFileNumber && <span>📁 {r.objectionFileNumber}</span>}
                           </div>
                         </div>
                       </Link>

@@ -359,25 +359,47 @@ export default function Register({ userRole }) {
   const navigate = useNavigate();
   const [resolvingObj, setResolvingObj] = useState(false);
 
-  const handleResolveObjection = async () => {
-    if (!window.confirm(
-      `Resolve the objection for "${form.mataiTitle}"?\n\n` +
-      `This will mark the objection as resolved. The title will return to the normal registration process.`
-    )) return;
+  const handleResolveObjection = async (outcome) => {
+    // outcome: "dismissed" = court dismissed petition → registration proceeds
+    //          "upheld"    = petition upheld → registration voided
+    const isDismissed = outcome === "dismissed";
+    const confirmMsg = isDismissed
+      ? `Objection Dismissed — court dismissed the petition for "${form.mataiTitle}".\n\nThe title will return to the normal registration process. You will need to enter a registration date (at least 4 months from Savali published date).`
+      : `Petition Upheld — the court upheld the petition against "${form.mataiTitle}".\n\nThis will VOID the registration. A certificate CANNOT be printed. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
     setResolvingObj(true);
     try {
-      await updateDoc(doc(db, "registrations", id), {
-        objection: "resolved",
-        objectionResolvedAt: serverTimestamp(),
-        objectionResolvedBy: auth.currentUser?.email || "unknown",
-        updatedAt: serverTimestamp(),
+      const updates = isDismissed
+        ? {
+            objection: "resolved",
+            objectionResolvedAt: serverTimestamp(),
+            objectionResolvedBy: auth.currentUser?.email || "unknown",
+            status: "pending",
+            updatedAt: serverTimestamp(),
+          }
+        : {
+            objection: "petition_won",
+            objectionResolvedAt: serverTimestamp(),
+            objectionResolvedBy: auth.currentUser?.email || "unknown",
+            status: "void",
+            dateRegistration: "",
+            updatedAt: serverTimestamp(),
+          };
+      await updateDoc(doc(db, "registrations", id), updates);
+      await logAudit(isDismissed ? "OBJECTION_DISMISSED" : "PETITION_UPHELD", {
+        mataiTitle: form.mataiTitle, recordId: id,
+        by: auth.currentUser?.email,
       });
-      await logAudit("OBJECTION_RESOLVED", { mataiTitle: form.mataiTitle, recordId: id });
       cacheClear("registrations");
-      setForm(f => ({ ...f, objection: "resolved" }));
-      setSuccess("Objection resolved. The title will return to the normal registration process.");
+      if (isDismissed) {
+        setForm(f => ({ ...f, objection: "resolved", status: "pending" }));
+        setSuccess("Objection dismissed. Enter a registration date (≥4 months from Savali published date) and save to complete registration.");
+      } else {
+        setForm(f => ({ ...f, objection: "petition_won", status: "void", dateRegistration: "" }));
+        setSuccess("Petition upheld — registration is now VOID. A certificate cannot be printed for this title.");
+      }
     } catch(err) {
-      setError("Failed to resolve objection: " + err.message);
+      setError("Failed to update: " + err.message);
     } finally {
       setResolvingObj(false);
     }
@@ -606,7 +628,6 @@ export default function Register({ userRole }) {
           data.dateIssued          = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
           data.dateBirth           = toDateStr(data.dateBirth);
           data.objectionDate            = toDateStr(data.objectionDate);
-          data.objectionApplicationDate = toDateStr(data.objectionApplicationDate);
 
           // ── 2. Cert number: parse combined string if parts missing ──
           if (!data.certItumalo && !data.certLaupepa && !data.certRegBook && data.mataiCertNumber) {
@@ -820,11 +841,8 @@ export default function Register({ userRole }) {
           changes: changes.join(" | ")
         });
         cacheClear("registrations");
-        setSuccess("Registration updated successfully.");
-        // Navigate back to where the user came from
-        const returnPath = backTo || "/notifications";
-        const returnState = backTab ? { tab: backTab } : {};
-        setTimeout(() => navigate(returnPath, { state: returnState }), 1200);
+        setSuccess("Record updated successfully.");
+        // Stay on this page — success message shown inline, user can continue editing or navigate away
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         // Never save an auto-calculated dateRegistration — only save if staff manually entered it
@@ -1284,22 +1302,19 @@ export default function Register({ userRole }) {
                 }}>
                   <option value="no">No — No objection</option>
                   <option value="yes">Yes — Objection filed</option>
-                  <option value="resolved" disabled>Resolved — Objection resolved</option>
+                  <option value="resolved" disabled>Resolved — Objection dismissed by court</option>
+                  <option value="petition_won" disabled>Voided — Petition upheld by court</option>
                 </select>
               </div>
               {form.objection === "yes" && (
                 <div className="form-group">
-                  <label>Date Objection Filed</label>
+                  <label>Petition Date</label>
                   <input type="date" value={form.objectionDate} onChange={set("objectionDate")} />
                 </div>
               )}
             </div>
             {form.objection === "yes" && (<>
               <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
-                <div className="form-group">
-                  <label>Aso faaulu ai le talosaga (Date Application Filed)</label>
-                  <input type="date" value={form.objectionApplicationDate || ""} onChange={set("objectionApplicationDate")} />
-                </div>
                 <div className="form-group">
                   <label>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
                   <input type="text" value={form.objectionApplicantName || ""} onChange={set("objectionApplicantName")}
@@ -1326,13 +1341,22 @@ export default function Register({ userRole }) {
                   ⚠ Objection filed — this title cannot be registered until resolved through court.
                 </p>
                 {isEdit && perms.canEdit && (
-                  <button
-                    type="button"
-                    disabled={resolvingObj}
-                    onClick={handleResolveObjection}
-                    style={{ padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", background:"#f0faf4", border:"1px solid #1a5c3570", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
-                    {resolvingObj ? "Resolving…" : "✓ Resolve Objection"}
-                  </button>
+                  <div style={{ display:"flex", gap:"0.5rem", flexWrap:"wrap" }}>
+                    <button
+                      type="button"
+                      disabled={resolvingObj}
+                      onClick={() => handleResolveObjection("dismissed")}
+                      style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#f0faf4", border:"1px solid #1a5c3570", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
+                      {resolvingObj ? "…" : "✓ Objection Dismissed"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={resolvingObj}
+                      onClick={() => handleResolveObjection("upheld")}
+                      style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#fef2f2", border:"1px solid #c0392b70", borderRadius:"3px", color:"#8b1a1a", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
+                      {resolvingObj ? "…" : "✗ Petition Upheld"}
+                    </button>
+                  </div>
                 )}
               </div>
             </>)}
@@ -1340,12 +1364,8 @@ export default function Register({ userRole }) {
               {/* Show all objection detail fields read-only so history is preserved */}
               <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem", opacity:0.75 }}>
                 <div className="form-group">
-                  <label style={{ color:"#6b7280" }}>Date Objection Filed <span style={{ fontStyle:"italic", fontWeight:400 }}>(historical)</span></label>
+                  <label style={{ color:"#6b7280" }}>Petition Date <span style={{ fontStyle:"italic", fontWeight:400 }}>(historical)</span></label>
                   <input type="date" value={form.objectionDate || ""} onChange={set("objectionDate")} />
-                </div>
-                <div className="form-group">
-                  <label style={{ color:"#6b7280" }}>Aso faaulu ai le talosaga (Date Application Filed)</label>
-                  <input type="date" value={form.objectionApplicationDate || ""} onChange={set("objectionApplicationDate")} />
                 </div>
                 <div className="form-group">
                   <label style={{ color:"#6b7280" }}>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
@@ -1366,10 +1386,33 @@ export default function Register({ userRole }) {
               </div>
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#f0faf4", border:"1px solid #a7d7b8", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#1a5c35", fontWeight:600 }}>
-                  ✓ Objection resolved — this title has returned to the normal registration process. Objection history above is preserved for court records.
+                  ✓ Objection dismissed — this title has returned to the normal registration process. Enter a registration date below and save to complete registration.
                 </p>
               </div>
+              {/* Registration date entry for post-objection records */}
+              {isEdit && (
+                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
+                  <p style={{ fontSize:"0.82rem", color:"#7a5c00", marginBottom:"0.6rem", fontWeight:600 }}>
+                    ⚠ Enter the registration date to complete the process (must be at least 4 months from Savali published date: {form.dateSavaliPublished ? new Date(new Date(form.dateSavaliPublished + "T00:00:00").setMonth(new Date(form.dateSavaliPublished + "T00:00:00").getMonth()+4)).toLocaleDateString("en-WS",{day:"2-digit",month:"long",year:"numeric"}) : "—"}).
+                  </p>
+                  <div className="form-group" style={{ maxWidth:"240px" }}>
+                    <label style={{ fontSize:"0.8rem" }}>Registration Date</label>
+                    <input type="date" value={form.dateRegistration || ""} onChange={set("dateRegistration")}
+                      min={form.dateSavaliPublished ? (() => { const d=new Date(form.dateSavaliPublished+"T00:00:00"); d.setMonth(d.getMonth()+4); return d.toISOString().split("T")[0]; })() : ""} />
+                  </div>
+                </div>
+              )}
             </>)}
+            {form.objection === "petition_won" && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff0f0", border:"2px solid #c0392b", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:700 }}>
+                  ✗ Petition upheld — registration is VOID. A certificate cannot be issued for this title.
+                </p>
+                <p style={{ fontSize:"0.78rem", color:"#8b1a1a", marginTop:"4px" }}>
+                  Objection history below is preserved for court records.
+                </p>
+              </div>
+            )}
             {form.objection === "no" && form.dateSavaliPublished && (() => {
               const hint = regDateHint(form.dateSavaliPublished);
               if (!hint) return null;

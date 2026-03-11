@@ -500,8 +500,43 @@ export default function Certificate({ userRole }) {
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#1e6b3c", fontStyle:"italic" }}>Loading…</div>
   );
 
-  // Block certificate access if no registration date OR date hasn't passed yet
-  // Exception: incompleteConfirmed records are old/historical and can always print
+  // ── Void check: petition was upheld by court — registration is void ──
+  if (record && record.status === "void") return (
+    <div className="app-layout">
+      <div className="pattern-bg" />
+      <Sidebar userRole={userRole} userEmail={auth.currentUser?.email} />
+      <div className="sidebar-content">
+        <div style={{ maxWidth:"600px", margin:"6rem auto", textAlign:"center" }}>
+          <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>⛔</div>
+          <h2 style={{ fontFamily:"'Cinzel',serif", fontSize:"1.3rem", color:"#8b1a1a", marginBottom:"0.75rem" }}>
+            Registration Void
+          </h2>
+          <p style={{ color:"rgba(26,26,26,0.6)", fontSize:"0.95rem", marginBottom:"0.5rem" }}>
+            <strong style={{ color:"#1a1a1a" }}>{record.mataiTitle} — {record.holderName}</strong>
+          </p>
+          <p style={{ color:"#8b1a1a", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
+            The court upheld the petition against this title. The registration has been voided and a certificate cannot be issued.
+          </p>
+          <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
+            <Link to="/dashboard">
+              <button style={{ padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em", textTransform:"uppercase", background:"#fef2f2", border:"1px solid #fca5a5", color:"#8b1a1a", borderRadius:"3px", cursor:"pointer" }}>
+                ← Back to Registry
+              </button>
+            </Link>
+            <Link to={`/register/${record.id}`}>
+              <button style={{ padding:"0.6rem 1.4rem", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.1em", textTransform:"uppercase", background:"#1a5c35", border:"1px solid #1a5c35", color:"#fff", borderRadius:"3px", cursor:"pointer" }}>
+                ✎ View Record
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Block certificate if no registration date or date hasn't passed yet ──
+  // Exception: incompleteConfirmed (old historical records) always allowed
+  // Exception: objection="resolved" (dismissed) records allowed once reg date is set and passed
   const regDatePassed = record?.incompleteConfirmed
     || (record?.dateRegistration && new Date(record.dateRegistration + "T00:00:00") <= new Date());
   if (record && !regDatePassed) return (
@@ -518,9 +553,11 @@ export default function Certificate({ userRole }) {
             <strong style={{ color:"#1a1a1a" }}>{record.mataiTitle} — {record.holderName}</strong>
           </p>
           <p style={{ color:"rgba(26,26,26,0.55)", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
-            {record.dateRegistration
-              ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed and the registration is confirmed in Notifications.</>
-              : <>This record does not have a registration date yet. Once the 4-month Savali publication period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
+            {record.objection === "resolved"
+              ? <>This title had an objection that was dismissed by court. Enter the registration date in the record to make the certificate available.</>
+              : record.dateRegistration
+                ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed.</>
+                : <>This record does not have a registration date yet. Once the 4-month Savali publication period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
             }
           </p>
           <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
