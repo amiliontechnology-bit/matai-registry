@@ -322,9 +322,7 @@ const EMPTY = {
   village: "", district: "",
   nuuMataiAi: "",       // Nuu o loo Matai ai
   // Dates
-  intention: "no",      // Intention filed before saofai?
   dateConferred: "",    // Aso o le Saofai
-  dateOfficeReceived: "", // Aso tauaaoina ai e le ofisa
   dateSavaliPublished: "", // Aso o le Faasalalauga
   dateRegistration: "", // Aso na Resitala ai
   dateIssued: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })(),
@@ -345,11 +343,6 @@ const EMPTY = {
   // Objection
   objection: "no",
   objectionDate: "",
-  objectionApplicationDate: "",  // Aso faaulu ai le talosaga
-  objectionApplicantName: "",    // Suafa o le na faaulua le talosaga
-  objectionActingRegistrar: "",  // Suafa o le sui resitala
-  objectionFileNumber: "",       // File #
-  objectionLCNumber: "",         // LC # - Faaiuga Faamasinoga
 };
 
 export default function Register({ userRole }) {
@@ -409,8 +402,8 @@ export default function Register({ userRole }) {
     if (!proclamation || !proclamation.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(proclamation.trim())) return null;
     const p = new Date(proclamation + "T00:00:00");
     if (isNaN(p.getTime())) return null;
-    // Move to 1st of the month, add 3 months, then set day to 29 (clamped)
-    const target = new Date(p.getFullYear(), p.getMonth() + 3, 1);
+    // Move to 1st of the month, add 4 months, then set day to 29 (clamped)
+    const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
     const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
     const regDay = Math.min(29, lastDay);
     const reg = new Date(target.getFullYear(), target.getMonth(), regDay);
@@ -439,18 +432,11 @@ export default function Register({ userRole }) {
   };
 
   // Date order validation helpers
-  const validatePublishedDate = (published, conferred, intentionVal) => {
+  const validatePublishedDate = (published, conferred) => {
     if (!published || !conferred) return null;
     const p = new Date(published + "T00:00:00");
     const c = new Date(conferred + "T00:00:00");
-    if (intentionVal === "yes") {
-      // Intention process: Savali is published BEFORE saofai — must be at least 3 months before
-      const minSaofai = new Date(p.getFullYear(), p.getMonth() + 3, p.getDate());
-      if (c < minSaofai) return "For Intention process: Saofai date must be at least 3 months after the Savali Published Date.";
-    } else {
-      // Normal process: Savali published AFTER saofai
-      if (p <= c) return "Savali Published Date must be after the Date of Conferral (Saofai).";
-    }
+    if (p <= c) return "Savali Published Date must be after the Date of Conferral.";
     return null;
   };
 
@@ -463,8 +449,8 @@ export default function Register({ userRole }) {
     }
     if (published) {
       const p = new Date(published + "T00:00:00");
-      const minReg = new Date(p.getFullYear(), p.getMonth() + 3, p.getDate());
-      if (r < minReg) return "Registration Date must be at least 3 months after the Savali Published Date.";
+      const minReg = new Date(p.getFullYear(), p.getMonth() + 4, p.getDate());
+      if (r < minReg) return "Registration Date must be at least 4 months after the Savali Published Date.";
     }
     return null;
   };
@@ -564,14 +550,12 @@ export default function Register({ userRole }) {
           };
 
           // ── 1. Normalise all date fields ──
-          data.dateConferred       = toDateStr(data.dateConferred);
-          data.dateOfficeReceived  = toDateStr(data.dateOfficeReceived);
+          data.dateConferred    = toDateStr(data.dateConferred);
           data.dateSavaliPublished = toDateStr(data.dateSavaliPublished);
-          data.dateRegistration    = toDateStr(data.dateRegistration);
-          data.dateIssued          = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
-          data.dateBirth           = toDateStr(data.dateBirth);
-          data.objectionDate            = toDateStr(data.objectionDate);
-          data.objectionApplicationDate = toDateStr(data.objectionApplicationDate);
+          data.dateRegistration = toDateStr(data.dateRegistration);
+          data.dateIssued       = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+          data.dateBirth        = toDateStr(data.dateBirth);
+          data.objectionDate    = toDateStr(data.objectionDate);
 
           // ── 2. Cert number: parse combined string if parts missing ──
           if (!data.certItumalo && !data.certLaupepa && !data.certRegBook && data.mataiCertNumber) {
@@ -733,7 +717,7 @@ export default function Register({ userRole }) {
       return;
     }
     // Published date must be after conferred date
-    const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
+    const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
     if (publishedErr) { setError(publishedErr); return; }
     // Registration date order checks
     const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
@@ -1033,30 +1017,9 @@ export default function Register({ userRole }) {
             )}
           </div>
 
-          {/* ── Intention ── */}
-          <div className="card fade-in-delay-2">
-            {sectionHead("Intention (Fa'amoemoe)")}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
-              <div className="form-group">
-                <label>Intention Filed? <span style={{ fontSize:"0.78rem", color:"#6b7280", fontWeight:400 }}>(default: No)</span></label>
-                <select value={form.intention} onChange={e => setForm(f => ({ ...f, intention: e.target.value }))}>
-                  <option value="no">No — Standard process</option>
-                  <option value="yes">Yes — Intention filed before Saofai</option>
-                </select>
-              </div>
-            </div>
-            {form.intention === "yes" && (
-              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"4px" }}>
-                <p style={{ fontSize:"0.85rem", color:"#1e40af", fontWeight:600 }}>
-                  ℹ Intention process: Savali is published <strong>before</strong> Saofai. The publication period must be at least 3 months. If no objection, Saofai proceeds, then the title is registered and certificate can be printed.
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* ── Important Dates ── */}
           {(() => {
-            const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
+            const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
             const regErr       = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
             const ageResult    = validateAge(form.dateBirth, form.dateConferred);
             const ageErr       = form.dateBirth && !ageResult.valid
@@ -1080,14 +1043,7 @@ export default function Register({ userRole }) {
                 )}
               </div>
               <div className="form-group">
-                <label>Aso tauaaoina ai e le ofisa (Office Date Received)</label>
-                <input type="date" value={form.dateOfficeReceived || ""} onChange={set("dateOfficeReceived")} />
-                <p style={{ fontSize:"0.72rem", color:"#6b7280", marginTop:"4px", fontStyle:"italic" }}>
-                  ⓘ Date the office received the application after Saofai
-                </p>
-              </div>
-              <div className="form-group">
-                <label>Aso o le Faasalalauga (Savali Published Date){form.intention === "yes" ? " — must be BEFORE Saofai date (Intention process)" : ""}</label>
+                <label>Aso o le Faasalalauga (Savali Published Date)</label>
                 <input type="date" value={form.dateSavaliPublished}
                   onChange={e => setForm(f => ({ ...f, dateSavaliPublished: e.target.value }))}
                   style={publishedErr ? errStyle : {}} />
@@ -1218,39 +1174,13 @@ export default function Register({ userRole }) {
                 </div>
               )}
             </div>
-            {form.objection === "yes" && (<>
-              <div style={{ marginTop:"1rem", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
-                <div className="form-group">
-                  <label>Aso faaulu ai le talosaga (Date Application Filed)</label>
-                  <input type="date" value={form.objectionApplicationDate || ""} onChange={set("objectionApplicationDate")} />
-                </div>
-                <div className="form-group">
-                  <label>Suafa o le na faaulua le talosaga (Name of Applicant)</label>
-                  <input type="text" value={form.objectionApplicantName || ""} onChange={set("objectionApplicantName")}
-                    placeholder="Name of person who filed the objection" />
-                </div>
-                <div className="form-group">
-                  <label>Suafa o le sui resitala (Acting Registrar)</label>
-                  <input type="text" value={form.objectionActingRegistrar || ""} onChange={set("objectionActingRegistrar")}
-                    placeholder="Name of acting registrar" />
-                </div>
-                <div className="form-group">
-                  <label>File #</label>
-                  <input type="text" value={form.objectionFileNumber || ""} onChange={set("objectionFileNumber")}
-                    placeholder="File number" />
-                </div>
-                <div className="form-group">
-                  <label>LC # — Faaiuga Faamasinoga (Court Decision)</label>
-                  <input type="text" value={form.objectionLCNumber || ""} onChange={set("objectionLCNumber")}
-                    placeholder="LC number / Court decision reference" />
-                </div>
-              </div>
+            {form.objection === "yes" && (
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:600 }}>
                   ⚠ Objection filed — this title cannot be registered until resolved through court.
                 </p>
               </div>
-            </>)}
+            )}
             {form.objection === "no" && form.dateSavaliPublished && (() => {
               const hint = regDateHint(form.dateSavaliPublished);
               if (!hint) return null;
@@ -1276,7 +1206,7 @@ export default function Register({ userRole }) {
               : <Link to="/dashboard"><button type="button" className="btn-secondary">{ viewOnly ? "Back" : "Cancel" }</button></Link>
             }
             {!viewOnly && (() => {
-                const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
+                const _pubErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred);
                 const _regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
                 const _ageRes = validateAge(form.dateBirth, form.dateConferred);
                 const _ageErr = form.dateBirth && !_ageRes.valid
