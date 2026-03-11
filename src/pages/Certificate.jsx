@@ -811,24 +811,21 @@ export default function Certificate({ userRole }) {
                   </span>
                 </div>
 
-                {/* Title holder line — centred */}
-                <div style={{ textAlign:"center", marginBottom:"6px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"18px" }}>
-                    {certLang === "sm" ? "" : "To"}
-                  </span>
-                  <span style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
-                    <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
-                    &nbsp;&nbsp;&nbsp;
-                    <span>{record.holderName || ""}</span>
-                  </span>
-                </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 8px" }} />
-
-                {/* Village — centred */}
-                <div style={{ textAlign:"center", marginBottom:"4px" }}>
-                  <span style={{ fontSize:"20px" }}>{record.village || ""}</span>
-                </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
+                {/* Title holder + village — Samoan only */}
+                {certLang === "sm" && (<>
+                  <div style={{ textAlign:"center", marginBottom:"6px" }}>
+                    <span style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
+                      <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
+                      &nbsp;&nbsp;&nbsp;
+                      <span>{record.holderName || ""}</span>
+                    </span>
+                  </div>
+                  <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 8px" }} />
+                  <div style={{ textAlign:"center", marginBottom:"4px" }}>
+                    <span style={{ fontSize:"20px" }}>{record.village || ""}</span>
+                  </div>
+                  <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
+                </>)}
 
                 {/* Divider */}
                 <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"18px" }} />
