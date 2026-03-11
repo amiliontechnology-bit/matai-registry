@@ -245,6 +245,71 @@ const SAMPLES = [
     notes: "TEST: Duplicate cert 22/10/777 — same as record above.",
     status: "completed",
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // 8. TULAFALE/ALI'I type — tests new combined title type
+  // ═══════════════════════════════════════════════════════════
+  {
+    mataiTitle: "FAUOLO", holderName: "Sione Fauolo Tasi", gender: "Tane",
+    mataiType: "Tulafale/Ali'i", village: "Afega", district: "SAGAGA LE USOGA",
+    certItumalo: "6", certLaupepa: "31", certRegBook: "629",
+    dateConferred: mAgo(12), dateOfficeReceived: dAgo(12*30+4),
+    dateSavaliPublished: mAgo(6), dateRegistration: mAgo(3),
+    dateIssued: TODAY, dateBirth: "1978-06-14", nuuFanau: "Afega",
+    faapogai: "SULI", familyTitles: "", nuuMataiAi: "",
+    photoIdType: "passport", photoIdNumber: "P5544332",
+    intention: "no", objection: "no",
+    notes: "TEST: Tulafale/Ali'i combined title type.",
+    status: "completed",
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // 9. INCOMPLETE RECORDS — tests Confirm Anyway button
+  // These have missing fields but are real/old records
+  // ═══════════════════════════════════════════════════════════
+  {
+    mataiTitle: "SALAVE'A", holderName: "Tama Salave'a", gender: "Tane",
+    mataiType: "Ali'i", village: "Lufilufi", district: "ANOAMAA SASA'E",
+    certItumalo: "21", certLaupepa: "03", certRegBook: "044",
+    // Missing: dateConferred, dateSavaliPublished, dateBirth
+    dateConferred: "", dateOfficeReceived: "",
+    dateSavaliPublished: "", dateRegistration: "",
+    dateIssued: TODAY, dateBirth: "", nuuFanau: "",
+    faapogai: "SULI", familyTitles: "", nuuMataiAi: "",
+    intention: "no", objection: "no",
+    notes: "TEST: Old incomplete record — missing dates. Use Confirm Anyway to accept.",
+    status: "pending",
+  },
+  {
+    mataiTitle: "LEOTA", holderName: "Leota Fono Pio", gender: "Tane",
+    mataiType: "Tulafale", village: "", district: "",
+    certItumalo: "5", certLaupepa: "12", certRegBook: "310",
+    // Missing: village, district, dateBirth
+    dateConferred: mAgo(36), dateOfficeReceived: "",
+    dateSavaliPublished: mAgo(30), dateRegistration: mAgo(26),
+    dateIssued: TODAY, dateBirth: "", nuuFanau: "",
+    faapogai: "SULI", familyTitles: "", nuuMataiAi: "",
+    intention: "no", objection: "no",
+    notes: "TEST: Old record — registered but village/DOB missing. Use Confirm Anyway.",
+    status: "completed",
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // 10. ISI FAAMATALAGA field test — notes as last field
+  // ═══════════════════════════════════════════════════════════
+  {
+    mataiTitle: "PEPE", holderName: "Sina Pepe Faleolo", gender: "Tamaitai",
+    mataiType: "Ali'i", village: "Magiagi", district: "VAIMAUGA SISIFO",
+    certItumalo: "2", certLaupepa: "55", certRegBook: "941",
+    dateConferred: mAgo(8), dateOfficeReceived: dAgo(8*30+3),
+    dateSavaliPublished: mAgo(3), dateRegistration: "",
+    dateIssued: TODAY, dateBirth: "1991-04-17", nuuFanau: "Magiagi",
+    faapogai: "SULI", familyTitles: "VA'AI", nuuMataiAi: "Lufilufi",
+    photoIdType: "passport", photoIdNumber: "P8877665",
+    intention: "no", objection: "no",
+    notes: "TEST: Record to verify Isi Faamatalaga appears as the last field in the form. This note should appear at the very bottom of the registration form.",
+    status: "pending",
+  },
 ];
 
 export async function seedTestData(onProgress) {
