@@ -350,9 +350,15 @@ function mapRow(row) {
                         ? DISTRICT_BY_NUM[itumaaloNum] : "";
 
   // ── Numera ole Laupepa = registry volume number ──
-  const laupepaNum     = g("Numera ole Laupepa", "numeraolelaupepa");
+  const laupepaNum     = g("Numera ole Laupepa", "numeraolelaupepa", "laupepa", "Laupepa",
+                           "Volume Number", "volumenumber", "volumeno", "Volume No",
+                           "Book Number", "booknumber", "bookno", "Book No");
   // ── Registry Book Numbers = sequential entry number ──
-  const regBookNum     = g("Registry Book Numbers", "registrybooknumbers");
+  const regBookNum     = g("Registry Book Numbers", "Registry Book Number", "registrybooknumbers",
+                           "registrybooknumber", "regbooknumber", "regbooknumbers",
+                           "entrynumber", "Entry Number", "bookentry", "Book Entry",
+                           "registryentry", "Registry Entry", "entryno", "Entry No",
+                           "Numera ole Resitara", "numeraoleresitara");
 
   // ── Matai Cert Number = Itumalo / Laupepa / RegBookNum ──
   // e.g. "2/13/45" means district 2, volume 13, entry 45
