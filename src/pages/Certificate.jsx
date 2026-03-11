@@ -687,7 +687,7 @@ export default function Certificate({ userRole }) {
               <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
               {/* ── HEADER ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"32px 70px 24px", display:"flex", alignItems:"center", gap:"28px", borderBottom:"2px solid #1a5c35" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"24px 70px 18px", display:"flex", alignItems:"center", gap:"28px", borderBottom:"2px solid #1a5c35" }}>
                 <div style={{ flexShrink:0 }}>
                   <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
                     style={{ width:"95px", height:"95px", objectFit:"contain" }} />
@@ -712,10 +712,10 @@ export default function Certificate({ userRole }) {
               </div>
 
               {/* ── BODY ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"32px 90px 40px" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"24px 90px 28px" }}>
 
                 {/* Cert number — top right */}
-                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"32px" }}>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"20px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", color:"#1a1208", letterSpacing:"0.05em" }}>
                     <span style={{ fontVariant:"small-caps" }}>{certLang === "sm" ? "Numera:" : "Number:"}</span>{" "}
                     <strong style={{ fontSize:"16px" }}>
@@ -727,7 +727,7 @@ export default function Certificate({ userRole }) {
                 </div>
 
                 {/* Title holder line — centred */}
-                <div style={{ textAlign:"center", marginBottom:"8px" }}>
+                <div style={{ textAlign:"center", marginBottom:"6px" }}>
                   <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"18px" }}>
                     {certLang === "sm" ? "Afioga" : "To"}
                   </span>
@@ -737,19 +737,19 @@ export default function Certificate({ userRole }) {
                     <span>{record.holderName || ""}</span>
                   </span>
                 </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 12px" }} />
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 8px" }} />
 
                 {/* Village — centred */}
                 <div style={{ textAlign:"center", marginBottom:"4px" }}>
                   <span style={{ fontSize:"20px" }}>{record.village || ""}</span>
                 </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 32px" }} />
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
 
                 {/* Divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"28px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"18px" }} />
 
                 {/* Body text */}
-                <div style={{ fontSize:"17px", lineHeight:"2.8", color:"#1a1208", textAlign:"center" }}>
+                <div style={{ fontSize:"17px", lineHeight:"2.6", color:"#1a1208", textAlign:"center" }}>
 
                   {certLang === "sm" ? (<>
                     {/* ── SAMOAN body ── */}
@@ -822,12 +822,12 @@ export default function Certificate({ userRole }) {
                 </div>
 
                 {/* Bottom divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", margin:"36px 0 20px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", margin:"20px 0 14px" }} />
 
                 {/* Signature — bottom right */}
                 <div style={{ display:"flex", justifyContent:"flex-end" }}>
                   <div style={{ textAlign:"center", minWidth:"260px" }}>
-                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"44px", marginBottom:"8px" }} />
+                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                       {certLang === "sm" ? "Resitalaina" : "Registrar"}
                     </p>
@@ -850,35 +850,50 @@ export default function Certificate({ userRole }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
         @media print {
-          .no-print { display: none !important; }
-          .sidebar  { display: none !important; }
-          .app-layout { display: block !important; }
-          .sidebar-content { margin-left: 0 !important; padding: 0 !important; }
-          body { background: white !important; margin: 0 !important; }
+          /* Hide all UI chrome */
+          .no-print  { display: none !important; }
+          .sidebar   { display: none !important; }
+          .pattern-bg { display: none !important; }
 
+          /* Hide dev banner (fixed position element from App.jsx) */
+          body > div[style*="DEVELOPMENT"],
+          body > div[style*="position:fixed"],
+          body > div[style*="position: fixed"] { display: none !important; }
+
+          /* Reset layout */
+          html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+          .app-layout { display: block !important; background: white !important; }
+          .sidebar-content { margin-left: 0 !important; padding: 0 !important; background: white !important; }
+
+          /* Certificate wrapper fills the page */
           #certificate-wrapper {
             padding: 0 !important;
             background: white !important;
             display: flex !important;
             justify-content: center !important;
-            align-items: center !important;
-            width: 100vw !important;
-            min-height: 100vh !important;
+            align-items: flex-start !important;
+            page-break-inside: avoid !important;
           }
 
+          /* Certificate fills landscape width exactly */
           #certificate {
             box-shadow: none !important;
-            width: 257mm !important;
-            max-width: 257mm !important;
-            transform: none !important;
+            width: 277mm !important;
+            max-width: 277mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
-          /* Scale all text proportionally for landscape A4 */
-          #certificate * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* Ensure colours print */
+          #certificate, #certificate * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
 
           @page {
             size: A4 landscape;
-            margin: 8mm;
+            margin: 10mm 10mm 10mm 10mm;
           }
         }
       `}</style>
