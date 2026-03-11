@@ -1,5 +1,23 @@
 {
   "projects": {
-    "default": "resitalaina-o-matai"
+    "default": "resitalaina-o-matai",
+    "prod": "resitalaina-o-matai",
+    "dev": "resitalaina-o-matai-test"
+  },
+  "targets": {
+    "resitalaina-o-matai": {
+      "hosting": {
+        "resitalaina-o-matai": [
+          "resitalaina-o-matai"
+        ]
+      }
+    },
+    "resitalaina-o-matai-test": {
+      "hosting": {
+        "resitalaina-o-matai-test": [
+          "resitalaina-o-matai-test"
+        ]
+      }
+    }
   }
 }
