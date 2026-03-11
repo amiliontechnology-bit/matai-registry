@@ -727,6 +727,15 @@ export default function Certificate({ userRole }) {
               {/* Inner border — gold */}
               <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
+              {/* Emblem watermark — centred behind all content */}
+              <div style={{
+                position:"absolute", inset:0, zIndex:2, pointerEvents:"none",
+                display:"flex", alignItems:"center", justifyContent:"center"
+              }}>
+                <img src={process.env.PUBLIC_URL + "/emblem.png"} alt=""
+                  style={{ width:"420px", height:"420px", objectFit:"contain", opacity:0.055 }} />
+              </div>
+
               {/* ── HEADER ── */}
               <div style={{ position:"relative", zIndex:3, padding:"24px 70px 18px", display:"flex", alignItems:"center", gap:"28px", borderBottom:"2px solid #1a5c35" }}>
                 <div style={{ flexShrink:0 }}>
