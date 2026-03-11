@@ -840,8 +840,7 @@ export default function Certificate({ userRole }) {
                   </span>
                 </div>
 
-                {/* Title holder + village — Samoan only */}
-                {/* Title + Holder + Village — shared header for both Samoan and English */}
+                {/* Title + Holder + Village header — same layout for both languages */}
                 <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"center", gap:"20px", marginBottom:"6px" }}>
                   <div style={{ flex:1, textAlign:"center" }}>
                     <div style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
@@ -860,28 +859,6 @@ export default function Certificate({ userRole }) {
                     </div>
                   )}
                 </div>
-
-                {/* English: title + name + village header — identical layout to Samoan */}
-                {certLang === "en" && (<>
-                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"center", gap:"20px", marginBottom:"6px" }}>
-                    <div style={{ flex:1, textAlign:"center" }}>
-                      <div style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
-                        <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
-                        &nbsp;&nbsp;&nbsp;
-                        <span>{record.holderName || ""}</span>
-                      </div>
-                      <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"6px auto 8px" }} />
-                      <div style={{ fontSize:"20px", marginBottom:"4px" }}>{record.village || ""}</div>
-                      <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 20px" }} />
-                    </div>
-                    {record.holderPhoto && (
-                      <div style={{ flexShrink:0, marginTop:"4px" }}>
-                        <img src={record.holderPhoto} alt="Holder"
-                          style={{ width:"90px", height:"115px", objectFit:"cover", border:"1.5px solid #1a5c35", borderRadius:"2px" }} />
-                      </div>
-                    )}
-                  </div>
-                </>)}
 
                 {/* Divider */}
                 <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"18px" }} />
