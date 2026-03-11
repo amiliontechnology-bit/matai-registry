@@ -541,16 +541,12 @@ export default function Reports({ userRole }) {
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.25rem" }}>◈ Monthly Reports — {monthLabel}</p>
               <p style={{ fontSize:"0.74rem", color:"rgba(26,26,26,0.4)", marginBottom:"1.1rem" }}>All data filtered to the current month only.</p>
               <ReportRow title="Full Monthly Report" desc={`All activity summary for ${monthLabel}`} onClick={printMonthlyFull} count={records.length} data={records} headers={["#","Matai Title","Holder","Type","Village","District","Published Date"]} />
-              <ReportRow title="New Matai Titles" desc={`Titles entered or imported in ${monthLabel}`} onClick={printMonthlyNew} count={newMonth.length} color="#7c3aed" data={newMonth} headers={HDR_NEW} />
-              <ReportRow title="Ready to Register" desc={`Registration date falls in ${monthLabel} — awaiting confirmation`} onClick={printMonthlyReady} count={readyMonth.length} data={readyMonth} headers={HDR_READY} />
               <ReportRow title="Savali Published Date Report" desc={`Savali published dates active in ${monthLabel}`} onClick={printMonthlyProc} count={procMonth.length} data={procMonth} headers={HDR_PROC} />
               <ReportRow title="Objections Report" desc={`Objections filed in ${monthLabel}`} onClick={printMonthlyObj} count={objMonth.length} color="#8b1a1a" data={objMonth} headers={HDR_OBJ} />
             </div>
             <div style={{ ...sStyle, position:"sticky", top:"2rem" }}>
               <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase", marginBottom:"0.75rem" }}>◈ {monthLabel} Summary</p>
               <SummaryRow label="Total Records"      count={records.length}    color="#1a5c35" />
-              <SummaryRow label="New Matai Titles"   count={newMonth.length}   color="#7c3aed" />
-              <SummaryRow label="Ready to Register"  count={readyMonth.length} color="#1e6b3c" />
               <SummaryRow label="Published Dates"      count={procMonth.length}  color="#1a5c35" />
               <SummaryRow label="Objections"         count={objMonth.length}   color="#8b1a1a" />
               <SummaryRow label="Registered"         count={regMonth.length}   color="#155c31" />
