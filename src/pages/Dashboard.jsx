@@ -168,14 +168,16 @@ export default function Dashboard({ userRole }) {
             {perms.canAdd && (
               <Link to="/register">
                 <button className="btn-primary">＋ Register Title</button>
-                {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
-                  <button onClick={handleSeed} disabled={seeding}
-                    style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor:"pointer", opacity: seeding ? 0.6 : 1 }}>
-                    {seeding ? "Adding…" : "🧪 Add Test Data"}
-                  </button>
-                )}
-                {process.env.REACT_APP_ENV === "development" && seedMsg && <span style={{ fontSize:"0.78rem", color:"#4a1d96", fontStyle:"italic" }}>{seedMsg}</span>}
               </Link>
+            )}
+            {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"0.3rem" }}>
+                <button onClick={handleSeed} disabled={seeding}
+                  style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1.1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor: seeding ? "not-allowed" : "pointer", opacity: seeding ? 0.6 : 1, whiteSpace:"nowrap" }}>
+                  {seeding ? "⏳ Loading…" : "🧪 Seed Test Data"}
+                </button>
+                {seedMsg && <span style={{ fontSize:"0.72rem", color: seedMsg.startsWith("✓") ? "#1e6b3c" : seedMsg.startsWith("✗") ? "#c0392b" : "#4a1d96", fontStyle:"italic", textAlign:"right" }}>{seedMsg}</span>}
+              </div>
             )}
           </div>
         </div>
