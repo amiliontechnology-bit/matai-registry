@@ -702,53 +702,65 @@ export default function Register({ userRole }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setSuccess("");
-    // Required fields validation
-    const missing = [];
-    if (!form.mataiTitle.trim())   missing.push("Matai Title (Suafa Matai)");
-    if (!form.holderName.trim())   missing.push("Untitled Name (Igoa Taulealea)");
-    if (!form.gender)              missing.push("Gender (Tane/Tamaitai)");
-    if (!form.mataiType)           missing.push("Title Type (Ituaiga Suafa)");
-    if (!form.district)            missing.push("District (Itumalo)");
-    if (!form.village)             missing.push("Village (Nu'u)");
-    if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
-                                   missing.push("Matai Certificate Number");
-    if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
-    if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
-    if (!form.faapogai?.trim())    missing.push("Faapogai");
-    if (!form.dateConferred && form.intention !== "yes") missing.push("Aso o le Saofai (Date of Conferral)");
-    if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
-    if (missing.length > 0) {
-      setError("The following required fields are missing: " + missing.join(", ") + ".");
-      return;
+
+    // If this record has been confirmed as an old/historical record, skip required-field checks
+    if (form.incompleteConfirmed) {
+      if (!form.mataiTitle?.trim()) {
+        setError("Matai Title is required.");
+        return;
+      }
+      // Skip all other validation — fall through to save
+    } else {
+      // Required fields validation
+      const missing = [];
+      if (!form.mataiTitle.trim())   missing.push("Matai Title (Suafa Matai)");
+      if (!form.holderName.trim())   missing.push("Untitled Name (Igoa Taulealea)");
+      if (!form.gender)              missing.push("Gender (Tane/Tamaitai)");
+      if (!form.mataiType)           missing.push("Title Type (Ituaiga Suafa)");
+      if (!form.district)            missing.push("District (Itumalo)");
+      if (!form.village)             missing.push("Village (Nu'u)");
+      if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
+                                     missing.push("Matai Certificate Number");
+      if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
+      if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
+      if (!form.faapogai?.trim())    missing.push("Faapogai");
+      if (!form.dateConferred && form.intention !== "yes") missing.push("Aso o le Saofai (Date of Conferral)");
+      if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
+      if (missing.length > 0) {
+        setError("The following required fields are missing: " + missing.join(", ") + ".");
+        return;
+      }
+      // Date of birth is required
+      if (!form.dateBirth) {
+        setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older at the date of conferral.");
+        return;
+      }
     }
-    // Date of birth is required
-    if (!form.dateBirth) {
-      setError("Date of Birth (Aso Fanau) is required. The holder must be 21 years or older at the date of conferral.");
-      return;
-    }
-    // Holder must be 21 or older as of the conferred date
-    const ageCheck = validateAge(form.dateBirth, form.dateConferred);
-    if (!ageCheck.valid) {
-      const yrStr = ageCheck.age !== 1 ? "s" : "";
-      setError("Holder must be at least 21 years old as of the Date of Conferral. Age at conferral: " + ageCheck.age + " year" + yrStr + ".");
-      return;
-    }
-    // Published date must be after conferred date
-    const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
-    if (publishedErr) { setError(publishedErr); return; }
-    // Registration date order checks
-    const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
-    if (regErr) { setError(regErr); return; }
-    // Block save if cert number mismatch
-    if (certMismatch) {
-      setError("Please correct the certificate Itumalo number — it does not match the selected district.");
-      return;
-    }
-    // Block save if a cert number duplicate is detected
-    if (dupWarning) {
-      setError("Please resolve the duplicate certificate number warning before saving.");
-      return;
-    }
+    if (!form.incompleteConfirmed) {
+      // Holder must be 21 or older as of the conferred date
+      const ageCheck = validateAge(form.dateBirth, form.dateConferred);
+      if (!ageCheck.valid) {
+        const yrStr = ageCheck.age !== 1 ? "s" : "";
+        setError("Holder must be at least 21 years old as of the Date of Conferral. Age at conferral: " + ageCheck.age + " year" + yrStr + ".");
+        return;
+      }
+      // Published date must be after conferred date
+      const publishedErr = validatePublishedDate(form.dateSavaliPublished, form.dateConferred, form.intention);
+      if (publishedErr) { setError(publishedErr); return; }
+      // Registration date order checks
+      const regErr = validateRegistrationDate(form.dateRegistration, form.dateSavaliPublished, form.dateConferred);
+      if (regErr) { setError(regErr); return; }
+      // Block save if cert number mismatch
+      if (certMismatch) {
+        setError("Please correct the certificate Itumalo number — it does not match the selected district.");
+        return;
+      }
+      // Block save if a cert number duplicate is detected
+      if (dupWarning) {
+        setError("Please resolve the duplicate certificate number warning before saving.");
+        return;
+      }
+    } // end !incompleteConfirmed validation
     setLoading(true);
     try {
       if (isEdit) {
@@ -774,6 +786,10 @@ export default function Register({ userRole }) {
         });
         cacheClear("registrations");
         setSuccess("Registration updated successfully.");
+        // Navigate back to where the user came from
+        const returnPath = backTo || "/notifications";
+        const returnState = backTab ? { tab: backTab } : {};
+        setTimeout(() => navigate(returnPath, { state: returnState }), 1200);
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         // Never save an auto-calculated dateRegistration — only save if staff manually entered it

@@ -96,7 +96,6 @@ function reportHeader(title, subtitle, count, generatedBy) {
   </div>
   <div class="meta">
     <span>Generated: ${fmtDate(new Date().toISOString().split("T")[0])}</span>
-    <span>By: ${generatedBy}</span>
     <span>Records: ${count}</span>
   </div>`;
 }
@@ -350,7 +349,7 @@ export default function Notifications({ userRole }) {
       `Savali Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`,
       filterDesc, alertRecords.length, genBy2
     ) + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
 
     // Render HTML into a hidden off-screen div, capture with html2canvas, save as PDF blob
@@ -388,7 +387,16 @@ export default function Notifications({ userRole }) {
         yOffset += pagePixH;
         pageNum++;
       }
-      window.open(pdf.output("bloburl"), "_blank");
+      // Open as a proper PDF in the browser tab (not a blob download)
+      const pdfData = pdf.output("datauristring");
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(
+          `<html><head><title>Savali Alerts Report</title></head><body style="margin:0">` +
+          `<embed width="100%" height="100%" src="${pdfData}" type="application/pdf"/>` +
+          `</body></html>`
+        );
+      }
       logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
     } catch(err) {
       console.error("PDF generation failed:", err);
@@ -416,7 +424,7 @@ export default function Notifications({ userRole }) {
         "All titles with objection recorded — cannot be registered until resolved through court",
         objectionRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Objection Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
     openPDF("Objections Report", html);
     logAudit("REPORT_PDF", { type:"objection", count: objectionRecords.length });
@@ -440,7 +448,7 @@ export default function Notifications({ userRole }) {
         "All titles entered and awaiting Savali publication period",
         newMataiRecords.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Type</th><th>Date Conferred</th><th>Date Entered</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
     openPDF("New Matai Titles — All Records", html);
     logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
@@ -466,7 +474,7 @@ export default function Notifications({ userRole }) {
         "All titles where Savali publication period is complete — awaiting registration confirmation",
         readyToRegister.length, genBy)
       + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Registration Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
     openPDF("Ready to Register — All Records", html);
     logAudit("REPORT_PDF", { type:"ready_all", count: readyToRegister.length });
@@ -585,7 +593,7 @@ export default function Notifications({ userRole }) {
           <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Type</th>
           <th style="background:#c0392b;color:#fff;padding:5px 8px;text-align:left;font-family:serif;font-size:0.7rem">Note</th>
         </tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
+      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
       </body></html>`;
     openPDF("Duplicate Certificate Numbers Report", html);
     logAudit("REPORT_PDF", { type:"duplicates", count: duplicateGroups.reduce((n,g)=>n+g.records.length,0) });
