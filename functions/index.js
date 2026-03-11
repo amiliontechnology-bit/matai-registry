@@ -235,3 +235,23 @@ exports.setUserPassword = functions
 
     return { success: true };
   });
+
+exports.verifyUserEmail = functions
+  .region("australia-southeast1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    }
+    const callerDoc = await admin.firestore()
+      .collection("users").doc(context.auth.uid).get();
+    const callerRole = callerDoc.exists ? callerDoc.data().role : null;
+    if (callerRole !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Only admins can verify emails.");
+    }
+    const { uid } = data;
+    if (!uid) {
+      throw new functions.https.HttpsError("invalid-argument", "uid is required.");
+    }
+    await admin.auth().updateUser(uid, { emailVerified: true });
+    return { success: true };
+  });

@@ -187,6 +187,7 @@ export default function Users({ userRole }) {
         department: form.department || "",
         createdAt: serverTimestamp()
       });
+      try { const verifyEmail = httpsCallable(functions, "verifyUserEmail"); await verifyEmail({ uid: cred.user.uid }); } catch (e) { console.warn("verifyUserEmail:", e.message); }
       await logAudit("CREATE_USER", { email: trimmedEmail, role: form.role });
       await secondaryAuth.signOut();
       setSuccess(`✓ User ${trimmedEmail} created with role: ${ROLE_LABELS[form.role]}`);
@@ -273,6 +274,7 @@ export default function Users({ userRole }) {
           displayName: u.displayName, department: u.department,
           phone: "", createdAt: serverTimestamp()
         });
+        try { const verifyEmail = httpsCallable(functions, "verifyUserEmail"); await verifyEmail({ uid: cred.user.uid }); } catch (e) { console.warn("verifyUserEmail:", e.message); }
         await secondaryAuth.signOut();
         created++;
       } catch (err) {
