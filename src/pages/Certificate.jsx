@@ -676,7 +676,7 @@ export default function Certificate({ userRole }) {
           {/* ── Certificate document ── */}
           <div id="certificate-wrapper" style={{ display:"flex", justifyContent:"center", padding:"2rem 1rem 4rem", background:"#f0ede6" }}>
             <div id="certificate" style={{
-              width:"794px", background:"#faf8f2", color:"#1a1208",
+              width:"1020px", background:"#faf8f2", color:"#1a1208",
               position:"relative", fontFamily:"'EB Garamond', Georgia, serif",
               boxShadow:"0 20px 80px rgba(0,0,0,0.25)", overflow:"hidden"
             }}>
@@ -687,23 +687,23 @@ export default function Certificate({ userRole }) {
               <div style={{ position:"absolute", inset:"14px", border:"1px solid #c9a84c", pointerEvents:"none", zIndex:1 }} />
 
               {/* ── HEADER ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"28px 50px 20px", display:"flex", alignItems:"center", gap:"24px", borderBottom:"2px solid #1a5c35" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"32px 70px 24px", display:"flex", alignItems:"center", gap:"28px", borderBottom:"2px solid #1a5c35" }}>
                 <div style={{ flexShrink:0 }}>
                   <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
-                    style={{ width:"80px", height:"80px", objectFit:"contain" }} />
+                    style={{ width:"95px", height:"95px", objectFit:"contain" }} />
                 </div>
                 <div>
-                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
+                  <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                     {certLang === "sm"
                       ? "Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga"
                       : "Ministry of Justice and Courts Administration"}
                   </p>
-                  <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"11px", color:"#5a3e00", fontStyle:"italic", marginBottom:"8px" }}>
+                  <p style={{ fontFamily:"'EB Garamond',serif", fontSize:"12px", color:"#5a3e00", fontStyle:"italic", marginBottom:"10px" }}>
                     {certLang === "sm"
                       ? "Ministry of Justice and Courts Administration"
                       : "Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga"}
                   </p>
-                  <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"17px", fontWeight:"700", letterSpacing:"0.15em", color:"#1a5c35", textTransform:"uppercase" }}>
+                  <h1 style={{ fontFamily:"'Cinzel',serif", fontSize:"22px", fontWeight:"700", letterSpacing:"0.15em", color:"#1a5c35", textTransform:"uppercase" }}>
                     {certLang === "sm"
                       ? "Tusi Faamaonia o le Umia o le Suafa Matai"
                       : "Certificate of Matai Title Registration"}
@@ -712,13 +712,13 @@ export default function Certificate({ userRole }) {
               </div>
 
               {/* ── BODY ── */}
-              <div style={{ position:"relative", zIndex:3, padding:"28px 60px 32px" }}>
+              <div style={{ position:"relative", zIndex:3, padding:"32px 90px 40px" }}>
 
                 {/* Cert number — top right */}
-                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"28px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"11px", color:"#1a1208", letterSpacing:"0.05em" }}>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"32px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", color:"#1a1208", letterSpacing:"0.05em" }}>
                     <span style={{ fontVariant:"small-caps" }}>{certLang === "sm" ? "Numera:" : "Number:"}</span>{" "}
-                    <strong style={{ fontSize:"14px" }}>
+                    <strong style={{ fontSize:"16px" }}>
                       {(record.certItumalo && record.certLaupepa && record.certRegBook)
                         ? `${record.certItumalo}/${record.certLaupepa}/${record.certRegBook}`
                         : record.mataiCertNumber || record.refNumber || "___/___/___"}
@@ -727,29 +727,29 @@ export default function Certificate({ userRole }) {
                 </div>
 
                 {/* Title holder line — centred */}
-                <div style={{ textAlign:"center", marginBottom:"6px" }}>
-                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"14px" }}>
+                <div style={{ textAlign:"center", marginBottom:"8px" }}>
+                  <span style={{ fontFamily:"'Cinzel',serif", fontSize:"12px", letterSpacing:"0.2em", color:"#1a5c35", textTransform:"uppercase", marginRight:"18px" }}>
                     {certLang === "sm" ? "Afioga" : "To"}
                   </span>
-                  <span style={{ fontSize:"20px", fontWeight:"600", letterSpacing:"0.03em" }}>
+                  <span style={{ fontSize:"26px", fontWeight:"600", letterSpacing:"0.03em" }}>
                     <span style={{ textTransform:"uppercase" }}>{record.mataiTitle || ""}</span>
                     &nbsp;&nbsp;&nbsp;
                     <span>{record.holderName || ""}</span>
                   </span>
                 </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 10px" }} />
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"70%", margin:"0 auto 12px" }} />
 
                 {/* Village — centred */}
                 <div style={{ textAlign:"center", marginBottom:"4px" }}>
-                  <span style={{ fontSize:"17px" }}>{record.village || ""}</span>
+                  <span style={{ fontSize:"20px" }}>{record.village || ""}</span>
                 </div>
-                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 28px" }} />
+                <div style={{ borderBottom:"1px solid #1a5c35", width:"30%", margin:"0 auto 32px" }} />
 
                 {/* Divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"24px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", marginBottom:"28px" }} />
 
                 {/* Body text */}
-                <div style={{ fontSize:"14.5px", lineHeight:"2.6", color:"#1a1208", textAlign:"center" }}>
+                <div style={{ fontSize:"17px", lineHeight:"2.8", color:"#1a1208", textAlign:"center" }}>
 
                   {certLang === "sm" ? (<>
                     {/* ── SAMOAN body ── */}
@@ -822,16 +822,16 @@ export default function Certificate({ userRole }) {
                 </div>
 
                 {/* Bottom divider */}
-                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", margin:"28px 0 16px" }} />
+                <div style={{ borderTop:"1px solid rgba(26,92,53,0.2)", margin:"36px 0 20px" }} />
 
                 {/* Signature — bottom right */}
                 <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                  <div style={{ textAlign:"center", minWidth:"220px" }}>
-                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"36px", marginBottom:"6px" }} />
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
+                  <div style={{ textAlign:"center", minWidth:"260px" }}>
+                    <div style={{ borderBottom:"1px solid #1a5c35", paddingBottom:"44px", marginBottom:"8px" }} />
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", letterSpacing:"0.14em", color:"#1a5c35", textTransform:"uppercase", marginBottom:"3px" }}>
                       {certLang === "sm" ? "Resitalaina" : "Registrar"}
                     </p>
-                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"9px", color:"#3d2800" }}>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"10px", color:"#3d2800" }}>
                       {certLang === "sm"
                         ? <>Mo le: <strong>RESITALAINA</strong></>
                         : <>For: <strong>THE REGISTRAR</strong></>}
@@ -855,9 +855,31 @@ export default function Certificate({ userRole }) {
           .app-layout { display: block !important; }
           .sidebar-content { margin-left: 0 !important; padding: 0 !important; }
           body { background: white !important; margin: 0 !important; }
-          #certificate-wrapper { padding: 0 !important; background: white !important; }
-          #certificate { box-shadow: none !important; }
-          @page { size: A4 portrait; margin: 0.5cm; }
+
+          #certificate-wrapper {
+            padding: 0 !important;
+            background: white !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 100vw !important;
+            min-height: 100vh !important;
+          }
+
+          #certificate {
+            box-shadow: none !important;
+            width: 257mm !important;
+            max-width: 257mm !important;
+            transform: none !important;
+          }
+
+          /* Scale all text proportionally for landscape A4 */
+          #certificate * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
         }
       `}</style>
     </div>
