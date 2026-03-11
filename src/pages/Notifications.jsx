@@ -6,6 +6,8 @@ import { logAudit } from "../utils/audit";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -130,6 +132,29 @@ export default function Notifications({ userRole }) {
 
   const genBy = user?.displayName || user?.email || "Admin";
 
+  const confirmIncomplete = async (r) => {
+    if (!window.confirm(
+      `Confirm "${r.mataiTitle}" as a valid registry record?\n\nSome fields are still empty (${r._missingFields?.join(", ")}).\n\nThis will mark the record as accepted in the system. Missing fields can still be filled in later.`
+    )) return;
+    setConfirming(r.id);
+    try {
+      await updateDoc(doc(db, "registrations", r.id), {
+        incompleteConfirmed: true,
+        status: r.dateRegistration ? "completed" : "pending",
+        updatedAt: serverTimestamp(),
+        confirmedBy: genBy,
+        confirmedAt: serverTimestamp(),
+      });
+      await logAudit("CONFIRM_INCOMPLETE", { mataiTitle: r.mataiTitle, missingFields: r._missingFields?.join(", "), recordId: r.id });
+      cacheClear("registrations");
+      setRecords(prev => prev.map(rec => rec.id === r.id ? { ...rec, incompleteConfirmed: true } : rec));
+    } catch(err) {
+      alert("Failed to confirm: " + err.message);
+    } finally {
+      setConfirming(null);
+    }
+  };
+
   const confirmRegistration = async (r) => {
     const regDate = effectiveRegDate(r);
     if (!regDate) return;
@@ -210,6 +235,7 @@ export default function Notifications({ userRole }) {
   ];
   const incompleteRecords = records
     .map(r => {
+      if (r.incompleteConfirmed) return null; // user has confirmed this record is OK
       const missing = REQUIRED_FIELDS
         .filter(f => !r[f.key] || String(r[f.key]).trim() === "")
         .map(f => f.label);
@@ -300,31 +326,123 @@ export default function Notifications({ userRole }) {
 
   // ── PDF generators ─────────────────────────────────────
 
-  const printProclamationReport = () => {
-    const genBy2 = genBy;
-    const rows = alertRecords.map((r,i) => {
-      const days = daysUntilReg(r);
-      const col = days < 0 ? "#8b1a1a" : days <= 30 ? "#c0392b" : "#1e6b3c";
-      const regDate = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
-      return `<tr>
-        <td>${i+1}</td>
-        <td><strong>${r.mataiTitle||"—"}</strong></td>
-        <td>${r.holderName||"—"}</td>
-        <td>${r.village||"—"}</td>
-        <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateSavaliPublished)}</td>
-        <td style="color:${col};font-weight:600">${urgencyLabel(days)}</td>
-        <td>${fmtDate(regDate)}</td>
-      </tr>`;
-    }).join("");
-    const filterDesc = filterWindow >= 365 ? "All active Savali published dates — not yet registered"
-      : `Records with registration date within ${filterWindow} days — not yet registered`;
-    const html = reportHeader(`Savali Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`, filterDesc, alertRecords.length, genBy2)
-      + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai — Confidential</div>
-      </body></html>`;
-    openPDF("Savali Alerts Report", html);
-    logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
+  const printProclamationReport = async () => {
+    try {
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 14;
+
+      // ── Header bar ──
+      pdf.setFillColor(26, 92, 53);
+      pdf.rect(0, 0, pageW, 18, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text("SAMOA MATAI TITLE REGISTRY", margin, 7.5);
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("Resitalaina o Matai — Matagaluega o Faamasinoga ma le Faafoeina o Tulaga Tau Faamasinoga", margin, 13.5);
+
+      // ── Report title ──
+      pdf.setTextColor(26, 92, 53);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(13);
+      const titleText = filterWindow >= 365 ? "Savali Proclamation Alerts — All Active Records" : `Savali Proclamation Alerts — Within ${filterWindow} Days`;
+      pdf.text(titleText, margin, 28);
+
+      // ── Meta line ──
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`;
+      pdf.text(`Generated: ${dateStr}   |   By: ${genBy}   |   Records: ${alertRecords.length}`, margin, 34);
+
+      // ── Divider ──
+      pdf.setDrawColor(26, 92, 53);
+      pdf.setLineWidth(0.4);
+      pdf.line(margin, 37, pageW - margin, 37);
+
+      // ── Table ──
+      const tableRows = alertRecords.map((r, i) => {
+        const days = daysUntilReg(r);
+        const regDate = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
+        return [
+          i + 1,
+          r.mataiTitle || "—",
+          r.holderName || "—",
+          r.village || "—",
+          r.district || "—",
+          fmtDate(r.dateSavaliPublished),
+          urgencyLabel(days),
+          fmtDate(regDate),
+        ];
+      });
+
+      pdf.autoTable({
+        startY: 41,
+        head: [["#", "Matai Title", "Holder Name", "Village", "District", "Published Date", "Urgency", "Reg. Date"]],
+        body: tableRows,
+        margin: { left: margin, right: margin },
+        headStyles: {
+          fillColor: [26, 92, 53],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 7.5,
+          cellPadding: 3,
+        },
+        bodyStyles: { fontSize: 7.5, cellPadding: 2.5, textColor: [26, 18, 8] },
+        alternateRowStyles: { fillColor: [240, 250, 244] },
+        columnStyles: {
+          0: { cellWidth: 8,  halign: "center" },
+          1: { cellWidth: 32, fontStyle: "bold" },
+          2: { cellWidth: 38 },
+          3: { cellWidth: 28 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 26, halign: "center" },
+          6: { cellWidth: 24, halign: "center" },
+          7: { cellWidth: 26, halign: "center" },
+        },
+        didParseCell: (data) => {
+          if (data.column.index === 6 && data.section === "body") {
+            const val = data.cell.text[0] || "";
+            if (val.includes("OVERDUE"))      { data.cell.styles.textColor = [139, 26, 26]; data.cell.styles.fontStyle = "bold"; }
+            else if (val.includes("≤30d"))    { data.cell.styles.textColor = [192, 57, 43]; }
+            else                              { data.cell.styles.textColor = [30, 107, 60]; }
+          }
+        },
+        didDrawPage: (data) => {
+          // Footer on every page
+          const pCount = pdf.internal.getNumberOfPages();
+          pdf.setFontSize(7);
+          pdf.setTextColor(160, 160, 160);
+          pdf.setFont("helvetica", "normal");
+          pdf.text(
+            `Samoa Matai Title Registry — Confidential — Page ${data.pageNumber} of ${pCount}`,
+            pageW / 2, pdf.internal.pageSize.getHeight() - 6,
+            { align: "center" }
+          );
+        },
+      });
+
+      // ── Signature line ──
+      const finalY = pdf.lastAutoTable.finalY + 12;
+      const sigX = pageW - margin - 60;
+      pdf.setDrawColor(26, 92, 53);
+      pdf.setLineWidth(0.3);
+      pdf.line(sigX, finalY, pageW - margin, finalY);
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(26, 92, 53);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("Mo le Resitara / RESITARA", sigX + 30, finalY + 4.5, { align: "center" });
+
+      const blobUrl = pdf.output("bloburl");
+      window.open(blobUrl, "_blank");
+      logAudit("REPORT_PDF", { type: "proclamation", count: alertRecords.length });
+    } catch(err) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed: " + err.message);
+    }
   };
 
   const printObjectionReport = () => {
@@ -652,7 +770,7 @@ export default function Notifications({ userRole }) {
                   <div>
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#7c3aed", textTransform:"uppercase", marginBottom:"4px" }}>◈ Incomplete Records</p>
                     <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)" }}>
-                      These records were imported or entered with missing required information. Edit each record to resolve, then save — they will move to the registry automatically.
+                      These records have missing fields. Edit and resolve — or use "Confirm Anyway" to accept old/historical records where some information may never be available.
                     </p>
                   </div>
                 </div>
@@ -685,11 +803,21 @@ export default function Notifications({ userRole }) {
                                 </div>
                               </td>
                               <td style={{ padding:"0.5rem 0.75rem" }}>
-                                <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
-                                  <button style={{ padding:"0.25rem 0.65rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#7c3aed15", border:"1px solid #7c3aed40", borderRadius:"3px", color:"#7c3aed", cursor:"pointer" }}>
-                                    ✏ Edit & Resolve
-                                  </button>
-                                </Link>
+                                <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
+                                  <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
+                                    <button style={{ padding:"0.25rem 0.65rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#7c3aed15", border:"1px solid #7c3aed40", borderRadius:"3px", color:"#7c3aed", cursor:"pointer", width:"100%" }}>
+                                      ✏ Edit & Resolve
+                                    </button>
+                                  </Link>
+                                  {perms.canEdit && (
+                                    <button
+                                      disabled={confirming === r.id}
+                                      onClick={() => confirmIncomplete(r)}
+                                      style={{ padding:"0.25rem 0.65rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#fef3c715", border:"1px solid #fcd34d", borderRadius:"3px", color:"#92400e", cursor:"pointer", width:"100%", opacity: confirming === r.id ? 0.5 : 1 }}>
+                                      {confirming === r.id ? "Confirming…" : "✓ Confirm Anyway"}
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}

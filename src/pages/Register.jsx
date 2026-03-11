@@ -312,7 +312,7 @@ const DISTRICT_VILLAGES = {
   "VAISIGANO Nu.1": ['Auala', 'Matavai Asau', 'Utuloa Asau', 'Vaisala'],
 };
 
-const MATAI_TYPES = ["Ali'i", "Tulafale"];
+const MATAI_TYPES = ["Ali'i", "Tulafale", "Tulafale/Ali'i"];
 
 const EMPTY = {
   // Title & Holder
@@ -409,8 +409,8 @@ export default function Register({ userRole }) {
     if (!proclamation || !proclamation.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(proclamation.trim())) return null;
     const p = new Date(proclamation + "T00:00:00");
     if (isNaN(p.getTime())) return null;
-    // Move to 1st of the month, add 3 months, then set day to 29 (clamped)
-    const target = new Date(p.getFullYear(), p.getMonth() + 3, 1);
+    // Move to 1st of the month, add 4 months, then set day to 29 (clamped)
+    const target = new Date(p.getFullYear(), p.getMonth() + 4, 1);
     const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
     const regDay = Math.min(29, lastDay);
     const reg = new Date(target.getFullYear(), target.getMonth(), regDay);
@@ -444,9 +444,9 @@ export default function Register({ userRole }) {
     const p = new Date(published + "T00:00:00");
     const c = new Date(conferred + "T00:00:00");
     if (intentionVal === "yes") {
-      // Intention process: Savali is published BEFORE saofai — must be at least 3 months before
-      const minSaofai = new Date(p.getFullYear(), p.getMonth() + 3, p.getDate());
-      if (c < minSaofai) return "For Intention process: Saofai date must be at least 3 months after the Savali Published Date.";
+      // Intention process: Savali is published BEFORE saofai — must be at least 4 months before
+      const minSaofai = new Date(p.getFullYear(), p.getMonth() + 4, p.getDate());
+      if (c < minSaofai) return "For Intention process: Saofai date must be at least 4 months after the Savali Published Date.";
     } else {
       // Normal process: Savali published AFTER saofai
       if (p <= c) return "Savali Published Date must be after the Date of Conferral (Saofai).";
@@ -463,8 +463,8 @@ export default function Register({ userRole }) {
     }
     if (published) {
       const p = new Date(published + "T00:00:00");
-      const minReg = new Date(p.getFullYear(), p.getMonth() + 3, p.getDate());
-      if (r < minReg) return "Registration Date must be at least 3 months after the Savali Published Date.";
+      const minReg = new Date(p.getFullYear(), p.getMonth() + 4, p.getDate());
+      if (r < minReg) return "Registration Date must be at least 4 months after the Savali Published Date.";
     }
     return null;
   };
@@ -610,6 +610,7 @@ export default function Register({ userRole }) {
           const tRaw = (data.mataiType || "").toLowerCase().replace(/[''']/g, "").trim();
           if (tRaw === "alii") data.mataiType = "Ali'i";
           else if (tRaw === "tulafale") data.mataiType = "Tulafale";
+          else if (tRaw === "tulafale/alii" || tRaw === "tulafale/ali'i") data.mataiType = "Tulafale/Ali'i";
 
           // dateRegistration must only be set via Notifications confirm — never auto-filled
           // Old/backlogged records with past proclamation dates will appear in Notifications as overdue
@@ -1048,7 +1049,7 @@ export default function Register({ userRole }) {
             {form.intention === "yes" && (
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#1e40af", fontWeight:600 }}>
-                  ℹ Intention process: Savali is published <strong>before</strong> Saofai. The publication period must be at least 3 months. If no objection, Saofai proceeds, then the title is registered and certificate can be printed.
+                  ℹ Intention process: Savali is published <strong>before</strong> Saofai. The publication period must be at least 4 months. If no objection, Saofai proceeds, then the title is registered and certificate can be printed.
                 </p>
               </div>
             )}
@@ -1149,20 +1150,13 @@ export default function Register({ userRole }) {
             );
           })()}
 
-          {/* ── Faapogai & Notes ── */}
+          {/* ── Faapogai ── */}
           <div className="card fade-in-delay-3">
-            {sectionHead("Faapogai & Notes")}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.2rem" }}>
-              <div className="form-group">
-                <label>Faapogai <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
-                <input type="text" value={form.faapogai} onChange={set("faapogai")}
-                  placeholder="e.g. SULI" />
-              </div>
-              <div className="form-group">
-                <label>Isi Faamatalaga (Notes)</label>
-                <textarea rows={3} value={form.notes} onChange={set("notes")}
-                  placeholder="Any additional notes…" style={{ resize:"vertical" }} />
-              </div>
+            {sectionHead("Faapogai")}
+            <div className="form-group" style={{ maxWidth:"320px" }}>
+              <label>Faapogai <span style={{ color:"#c0392b", fontWeight:700 }}>*</span></label>
+              <input type="text" value={form.faapogai} onChange={set("faapogai")}
+                placeholder="e.g. SULI" />
             </div>
           </div>
 
@@ -1273,6 +1267,16 @@ export default function Register({ userRole }) {
                 </div>
               );
             })()}
+          </div>
+
+          {/* ── Isi Faamatalaga — last field ── */}
+          <div className="card fade-in-delay-4">
+            {sectionHead("Isi Faamatalaga (Notes)")}
+            <div className="form-group">
+              <label>Isi Faamatalaga (Additional Notes)</label>
+              <textarea rows={4} value={form.notes} onChange={set("notes")}
+                placeholder="Any additional notes, context or remarks…" style={{ resize:"vertical", width:"100%" }} />
+            </div>
           </div>
 
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", flexWrap: "wrap", alignItems: "center" }}>
