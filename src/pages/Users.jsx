@@ -213,12 +213,23 @@ export default function Users({ userRole }) {
     setError(""); setSuccess("");
     setSaving(true);
     try {
+      const fns = getFunctions(app, "australia-southeast1");
       const updates = {
         displayName: form.displayName || "",
         phone: form.phone || "",
         department: form.department || "",
       };
       const changes = [];
+
+      // Email change — via Admin SDK callable
+      const newEmail = form.email.trim().toLowerCase();
+      if (newEmail && newEmail !== editUser.email && editUser.id !== currentUser?.uid) {
+        const updateUserEmail = httpsCallable(fns, "updateUserEmail");
+        await updateUserEmail({ uid: editUser.id, newEmail });
+        updates.email = newEmail;
+        changes.push(`Email → ${newEmail}`);
+      }
+
       if (form.role !== editUser.role && editUser.id !== currentUser?.uid) {
         updates.role = form.role;
         changes.push(`Role → ${ROLE_LABELS[form.role]}`);
@@ -387,9 +398,14 @@ export default function Users({ userRole }) {
             <form onSubmit={handleEdit} style={{ display:"flex", flexDirection:"column", gap:"1.2rem" }}>
               <div className="form-group">
                 <label>Email Address</label>
-                <input type="email" value={form.email} disabled
-                  style={{ opacity:0.6, cursor:"not-allowed" }} />
-                <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Email cannot be changed here.</p>
+                <input type="email" value={form.email}
+                  onChange={e => setForm(p=>({...p, email: e.target.value}))}
+                  disabled={editUser.id === currentUser?.uid}
+                  style={editUser.id === currentUser?.uid ? { opacity:0.6, cursor:"not-allowed" } : {}} />
+                {editUser.id === currentUser?.uid
+                  ? <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>You cannot change your own email.</p>
+                  : <p style={{ fontSize:"0.75rem", color:"#6b7280", fontStyle:"italic" }}>Changing email will update the login address for this user.</p>
+                }
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.75rem" }}>
                 <div className="form-group" style={{ margin:0 }}>

@@ -263,3 +263,23 @@ exports.onUserCreated = functions
       await admin.auth().updateUser(user.uid, { emailVerified: true });
     }
   });
+
+exports.updateUserEmail = functions
+  .region("australia-southeast1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+    const callerDoc = await admin.firestore().collection("users").doc(context.auth.uid).get();
+    if (callerDoc.data()?.role !== "admin") throw new functions.https.HttpsError("permission-denied", "Admins only.");
+    const { uid, newEmail } = data;
+    if (!uid || !newEmail) throw new functions.https.HttpsError("invalid-argument", "uid and newEmail required.");
+    await admin.auth().updateUser(uid, { email: newEmail, emailVerified: true });
+    await admin.firestore().collection("users").doc(uid).update({ email: newEmail });
+    await admin.firestore().collection("auditLog").add({
+      action: "UPDATE_USER_EMAIL",
+      targetUid: uid,
+      newEmail,
+      updatedBy: context.auth.token.email || context.auth.uid,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { success: true };
+  });
