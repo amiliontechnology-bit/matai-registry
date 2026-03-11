@@ -213,7 +213,7 @@ exports.setUserPassword = functions
     }
 
     try {
-      await admin.auth().updateUser(uid, { password: newPassword });
+      await admin.auth().updateUser(uid, { password: newPassword, emailVerified: true });
     } catch (err) {
       console.error("updateUser error:", JSON.stringify({ code: err.code, message: err.message, errorInfo: err.errorInfo }));
       const msg = err?.errorInfo?.message || err?.message || "Failed to update password.";
