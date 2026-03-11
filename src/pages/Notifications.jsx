@@ -6,6 +6,8 @@ import { logAudit } from "../utils/audit";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -59,7 +61,107 @@ function isMonthlyRunDay() {
   return (mo === 1 && isLeap) ? day === 28 : day === 29;
 }
 
+// ── PDF helpers — generates a proper PDF blob (like the certificate) ─────────
+function makePDF(title, subtitle, count, generatedBy, columns, rows, extraSections) {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageW = pdf.internal.pageSize.getWidth();
+
+  // Header bar
+  pdf.setFillColor(26, 92, 53);
+  pdf.rect(0, 0, pageW, 22, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.text("MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA", pageW / 2, 8, { align: "center" });
+  pdf.setFontSize(13);
+  pdf.text(title.toUpperCase(), pageW / 2, 16, { align: "center" });
+
+  // Subtitle + meta
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont("helvetica", "italic");
+  pdf.setFontSize(8);
+  pdf.text(subtitle, pageW / 2, 27, { align: "center" });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.5);
+  const now = new Date();
+  const dateStr = `${String(now.getDate()).padStart(2,"0")}-${String(now.getMonth()+1).padStart(2,"0")}-${now.getFullYear()}`;
+  pdf.text(`Printed: ${dateStr}`, 14, 33);
+  pdf.text(`${title} — ${count} record${count !== 1 ? "s" : ""}`, pageW - 14, 33, { align: "right" });
+  pdf.setDrawColor(200, 200, 200);
+  pdf.line(14, 35, pageW - 14, 35);
+
+  let startY = 38;
+
+  // Main table
+  if (columns && rows && rows.length > 0) {
+    autoTable(pdf, {
+      startY,
+      head: [columns],
+      body: rows,
+      theme: "grid",
+      styles: { fontSize: 7.5, cellPadding: 2.5, font: "helvetica", textColor: [26, 26, 26] },
+      headStyles: { fillColor: [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
+      alternateRowStyles: { fillColor: [245, 250, 247] },
+      margin: { left: 14, right: 14 },
+    });
+    startY = pdf.lastAutoTable.finalY + 6;
+  } else if (columns) {
+    autoTable(pdf, {
+      startY,
+      head: [columns],
+      body: [["No records found", ...Array(columns.length - 1).fill("")]],
+      theme: "grid",
+      styles: { fontSize: 7.5, cellPadding: 2.5, fontStyle: "italic", textColor: [150, 150, 150] },
+      headStyles: { fillColor: [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
+      margin: { left: 14, right: 14 },
+    });
+    startY = pdf.lastAutoTable.finalY + 6;
+  }
+
+  // Extra sections (for combined reports)
+  if (extraSections) {
+    for (const sec of extraSections) {
+      if (startY > 250) { pdf.addPage(); startY = 15; }
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8);
+      pdf.setTextColor(...(sec.color || [26, 92, 53]));
+      pdf.text(sec.title.toUpperCase(), 14, startY);
+      startY += 3;
+      pdf.setDrawColor(...(sec.color || [26, 92, 53]));
+      pdf.line(14, startY, pageW - 14, startY);
+      startY += 3;
+      autoTable(pdf, {
+        startY,
+        head: [sec.columns],
+        body: sec.rows.length > 0 ? sec.rows : [["No records", ...Array(sec.columns.length - 1).fill("")]],
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 2.5, font: "helvetica", textColor: [26, 26, 26] },
+        headStyles: { fillColor: sec.color || [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
+        alternateRowStyles: { fillColor: [245, 250, 247] },
+        margin: { left: 14, right: 14 },
+      });
+      startY = pdf.lastAutoTable.finalY + 8;
+    }
+  }
+
+  // Footer on every page
+  const pageCount = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    const pW = pdf.internal.pageSize.getWidth();
+    const pH = pdf.internal.pageSize.getHeight();
+    pdf.setFontSize(6.5);
+    pdf.setTextColor(160, 160, 160);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Samoa Matai Title Registry — Resitalaina o Matai", pW / 2, pH - 6, { align: "center" });
+    pdf.text(`${i} / ${pageCount}`, pW - 14, pH - 6, { align: "right" });
+  }
+
+  return pdf.output("bloburl");
+}
+
 function openPDF(title, html) {
+  // Legacy HTML blob fallback (not used for proclamation — kept for any remaining callers)
   const blob = new Blob([html], { type: "text/html" });
   const url  = URL.createObjectURL(blob);
   const win  = window.open(url, "_blank");
@@ -339,33 +441,31 @@ export default function Notifications({ userRole }) {
   // ── PDF generators ─────────────────────────────────────
 
   const printProclamationReport = () => {
-    const genBy2 = genBy;
-    const rows = alertRecords.map((r,i) => {
+    const cols = ["#", "Matai Title", "Holder", "Village", "District", "Published Date", "Urgency", "Auto Reg. Date"];
+    const tableRows = alertRecords.map((r, i) => {
       const days = daysUntilReg(r);
-      const col = days < 0 ? "#8b1a1a" : days <= 30 ? "#c0392b" : "#1e6b3c";
       const regDate = effectiveRegDate(r) || autoRegDate(r.dateSavaliPublished);
-      return `<tr>
-        <td>${i+1}</td>
-        <td><strong>${r.mataiTitle||"—"}</strong></td>
-        <td>${r.holderName||"—"}</td>
-        <td>${r.village||"—"}</td>
-        <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateSavaliPublished)}</td>
-        <td style="color:${col};font-weight:600">${urgencyLabel(days)}</td>
-        <td>${fmtDate(regDate)}</td>
-      </tr>`;
-    }).join("");
+      return [
+        i + 1,
+        r.mataiTitle || "—",
+        r.holderName || "—",
+        r.village || "—",
+        r.district || "—",
+        fmtDate(r.dateSavaliPublished),
+        urgencyLabel(days),
+        fmtDate(regDate),
+      ];
+    });
     const filterDesc = filterWindow >= 365
       ? "All active Savali published dates — not yet registered"
       : `Records with registration date within ${filterWindow} days — not yet registered`;
-    const html = reportHeader(
-      `Savali Alerts Report${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`,
-      filterDesc, alertRecords.length, genBy2
-    ) + `<table><thead><tr><th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th><th>Published Date</th><th>Urgency</th><th>Auto Reg. Date</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
-      </body></html>`;
-    openPDF("Savali Alerts Report", html);
-    logAudit("REPORT_PDF", { type:"proclamation", count: alertRecords.length });
+    const blobUrl = makePDF(
+      `Savali${filterWindow < 365 ? ` — Within ${filterWindow} Days` : ""}`,
+      filterDesc, alertRecords.length, genBy,
+      cols, tableRows
+    );
+    window.open(blobUrl, "_blank");
+    logAudit("REPORT_PDF", { type: "proclamation", count: alertRecords.length });
   };
 
   const printObjectionReport = () => {
