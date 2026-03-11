@@ -778,8 +778,6 @@ export default function Register({ userRole }) {
       if (!form.village)             missing.push("Village (Nu'u)");
       if (!form.certItumalo && !form.certLaupepa && !form.certRegBook && !form.mataiCertNumber)
                                      missing.push("Matai Certificate Number");
-      if (!form.certLaupepa?.trim()) missing.push("Numera ole Laupepa (Volume / Book Number)");
-      if (!form.certRegBook?.trim()) missing.push("Registry Book Numbers (Entry Number)");
       if (!form.faapogai?.trim())    missing.push("Faapogai");
       if (!form.dateConferred && form.intention !== "yes") missing.push("Aso o le Saofai (Date of Conferral)");
       if (!form.nuuFanau)            missing.push("Nuu na Fanau ai (Village of Birth)");
@@ -1064,81 +1062,6 @@ export default function Register({ userRole }) {
             </div>
           </div>
 
-          {/* ── Certificate Numbers ── */}
-          <div className="card fade-in-delay-2">
-            {sectionHead("Certificate Numbers")}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.5rem", alignItems:"start" }}>
-
-              {/* Itumalo */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label style={{ display:"block", marginBottom:"0.4rem" }}>
-                  Numera o le Itumalo <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
-                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Auto-set from District</span>
-                </label>
-                <input type="number" min="1" max="41" value={form.certItumalo} onChange={set("certItumalo")}
-                  placeholder="e.g. 1"
-                  style={{ width:"100%", boxSizing:"border-box",
-                    borderColor: certMismatch ? "#c0392b" : form.certItumalo ? "#155c31" : undefined,
-                    background: certMismatch ? "#fff5f5" : undefined }} />
-                {form.certItumalo && DISTRICT_NUM[Number(form.certItumalo)] && !certMismatch && (
-                  <p style={{ fontSize:"0.72rem", color:"#155c31", marginTop:"5px", fontStyle:"italic", letterSpacing:"0.03em" }}>
-                    ✓ {DISTRICT_NUM[Number(form.certItumalo)]}
-                  </p>
-                )}
-                {certMismatch && (
-                  <p style={{ fontSize:"0.7rem", color:"#c0392b", marginTop:"5px", lineHeight:1.4 }}>{certMismatch}</p>
-                )}
-              </div>
-
-              {/* Laupepa */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label style={{ display:"block", marginBottom:"0.4rem" }}>
-                  Numera ole Laupepa <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
-                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
-                </label>
-                <input type="text" inputMode="numeric" value={form.certLaupepa}
-                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
-                  onChange={e => setForm(f => ({ ...f, certLaupepa: e.target.value.replace(/[^0-9]/g,"") }))}
-                  placeholder="e.g. 12"
-                  style={{ width:"100%", boxSizing:"border-box", ...(!form.certLaupepa ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
-                {!form.certLaupepa
-                  ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
-                  : !/^\d+$/.test(String(form.certLaupepa))
-                    ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
-                    : null}
-              </div>
-
-              {/* Registry Book */}
-              <div className="form-group" style={{ margin:0 }}>
-                <label style={{ display:"block", marginBottom:"0.4rem" }}>
-                  Registry Book Numbers <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
-                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
-                </label>
-                <input type="text" inputMode="numeric" value={form.certRegBook}
-                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
-                  onChange={e => setForm(f => ({ ...f, certRegBook: e.target.value.replace(/[^0-9]/g,"") }))}
-                  onBlur={checkCertDuplicate}
-                  placeholder="e.g. 1234"
-                  style={{ width:"100%", boxSizing:"border-box", ...(!form.certRegBook ? { borderColor:"#c0392b", background:"#fff5f5" } : {}) }} />
-                {!form.certRegBook
-                  ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Required — numbers only</p>
-                  : !/^\d+$/.test(String(form.certRegBook))
-                    ? <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
-                    : null}
-              </div>
-            </div>
-
-            {/* Composed cert number preview */}
-            {(form.certItumalo || form.certLaupepa || form.certRegBook) && (
-              <div style={{ marginTop:"1.25rem", padding:"0.75rem 1.25rem", background:"#e8f5ed", borderRadius:"6px", border:"1px solid #c3e6cb", display:"flex", alignItems:"center", gap:"1rem" }}>
-                <span style={{ fontSize:"0.68rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.12em", textTransform:"uppercase", color:"#6b7280" }}>Certificate Number</span>
-                <strong style={{ fontFamily:"'Cinzel',serif", fontSize:"1rem", color:"#155c31", letterSpacing:"0.08em" }}>
-                  {[form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join(" / ")}
-                </strong>
-              </div>
-            )}
-          </div>
-
           {/* ── Intention ── */}
           <div className="card fade-in-delay-2">
             {sectionHead("Intention (Fa'amoemoe)")}
@@ -1192,7 +1115,21 @@ export default function Register({ userRole }) {
               </div>
               <div className="form-group">
                 <label>Aso tauaaoina ai e le ofisa (Office Date Received)</label>
-                <input type="date" value={form.dateOfficeReceived || ""} onChange={set("dateOfficeReceived")} />
+                <input type="date" value={form.dateOfficeReceived || ""} onChange={e => {
+                  const val = e.target.value;
+                  const updates = { dateOfficeReceived: val };
+                  if (val) {
+                    const d = new Date(val + "T00:00:00");
+                    const day = d.getDate();
+                    // 1st–23rd → 28th of same month; 24th–31st → 28th of next month
+                    let pubYear = d.getFullYear();
+                    let pubMonth = d.getMonth(); // 0-indexed
+                    if (day > 23) { pubMonth += 1; if (pubMonth > 11) { pubMonth = 0; pubYear += 1; } }
+                    const pub = `${pubYear}-${String(pubMonth + 1).padStart(2,"0")}-28`;
+                    updates.dateSavaliPublished = pub;
+                  }
+                  setForm(f => ({ ...f, ...updates }));
+                }} />
                 <p style={{ fontSize:"0.72rem", color:"#6b7280", marginTop:"4px", fontStyle:"italic" }}>
                   ⓘ Date the office received the application after Saofai
                 </p>
@@ -1468,7 +1405,7 @@ export default function Register({ userRole }) {
             })()}
           </div>
 
-          {/* ── Isi Faamatalaga — last field ── */}
+          {/* ── Isi Faamatalaga ── */}
           <div className="card fade-in-delay-4">
             {sectionHead("Isi Faamatalaga (Notes)")}
             <div className="form-group">
@@ -1476,6 +1413,77 @@ export default function Register({ userRole }) {
               <textarea rows={4} value={form.notes} onChange={set("notes")}
                 placeholder="Any additional notes, context or remarks…" style={{ resize:"vertical", width:"100%" }} />
             </div>
+          </div>
+
+          {/* ── Certificate Numbers — last section ── */}
+          <div className="card fade-in-delay-4">
+            {sectionHead("Certificate Numbers")}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"1.5rem", alignItems:"start" }}>
+
+              {/* Itumalo */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Numera o le Itumalo <span style={{ color:"#c0392b", fontWeight:700 }}>*</span>
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Auto-set from District</span>
+                </label>
+                <input type="number" min="1" max="41" value={form.certItumalo} onChange={set("certItumalo")}
+                  placeholder="e.g. 1"
+                  style={{ width:"100%", boxSizing:"border-box",
+                    borderColor: certMismatch ? "#c0392b" : form.certItumalo ? "#155c31" : undefined,
+                    background: certMismatch ? "#fff5f5" : undefined }} />
+                {form.certItumalo && DISTRICT_NUM[Number(form.certItumalo)] && !certMismatch && (
+                  <p style={{ fontSize:"0.72rem", color:"#155c31", marginTop:"5px", fontStyle:"italic", letterSpacing:"0.03em" }}>
+                    ✓ {DISTRICT_NUM[Number(form.certItumalo)]}
+                  </p>
+                )}
+                {certMismatch && (
+                  <p style={{ fontSize:"0.7rem", color:"#c0392b", marginTop:"5px", lineHeight:1.4 }}>{certMismatch}</p>
+                )}
+              </div>
+
+              {/* Laupepa — optional */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Numera ole Laupepa
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Volume / Book number</span>
+                </label>
+                <input type="text" inputMode="numeric" value={form.certLaupepa}
+                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
+                  onChange={e => setForm(f => ({ ...f, certLaupepa: e.target.value.replace(/[^0-9]/g,"") }))}
+                  placeholder="e.g. 12"
+                  style={{ width:"100%", boxSizing:"border-box" }} />
+                {form.certLaupepa && !/^\d+$/.test(String(form.certLaupepa)) && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
+                )}
+              </div>
+
+              {/* Registry Book — optional */}
+              <div className="form-group" style={{ margin:0 }}>
+                <label style={{ display:"block", marginBottom:"0.4rem" }}>
+                  Registry Book Numbers
+                  <span style={{ display:"block", fontSize:"0.68rem", color:"#9ca3af", fontWeight:400, letterSpacing:"0.03em", marginTop:"2px" }}>Entry number</span>
+                </label>
+                <input type="text" inputMode="numeric" value={form.certRegBook}
+                  onKeyDown={e => { if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) e.preventDefault(); }}
+                  onChange={e => setForm(f => ({ ...f, certRegBook: e.target.value.replace(/[^0-9]/g,"") }))}
+                  onBlur={checkCertDuplicate}
+                  placeholder="e.g. 1234"
+                  style={{ width:"100%", boxSizing:"border-box" }} />
+                {form.certRegBook && !/^\d+$/.test(String(form.certRegBook)) && (
+                  <p style={{ fontSize:"0.72rem", color:"#c0392b", marginTop:"4px" }}>✗ Numbers only — no letters or symbols</p>
+                )}
+              </div>
+            </div>
+
+            {/* Composed cert number preview */}
+            {(form.certItumalo || form.certLaupepa || form.certRegBook) && (
+              <div style={{ marginTop:"1.25rem", padding:"0.75rem 1.25rem", background:"#e8f5ed", borderRadius:"6px", border:"1px solid #c3e6cb", display:"flex", alignItems:"center", gap:"1rem" }}>
+                <span style={{ fontSize:"0.68rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.12em", textTransform:"uppercase", color:"#6b7280" }}>Certificate Number</span>
+                <strong style={{ fontFamily:"'Cinzel',serif", fontSize:"1rem", color:"#155c31", letterSpacing:"0.08em" }}>
+                  {[form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join(" / ")}
+                </strong>
+              </div>
+            )}
           </div>
 
           <div className="fade-in-delay-4" style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", flexWrap: "wrap", alignItems: "center" }}>
