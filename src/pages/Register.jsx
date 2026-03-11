@@ -347,7 +347,6 @@ const EMPTY = {
   // Objection
   objection: "no",
   objectionDate: "",
-  objectionApplicationDate: "",  // Aso faaulu ai le talosaga
   objectionApplicantName: "",    // Suafa o le na faaulua le talosaga
   objectionActingRegistrar: "",  // Suafa o le sui resitala
   objectionFileNumber: "",       // File #
@@ -364,8 +363,8 @@ export default function Register({ userRole }) {
     //          "upheld"    = petition upheld → registration voided
     const isDismissed = outcome === "dismissed";
     const confirmMsg = isDismissed
-      ? `Objection Dismissed — court dismissed the petition for "${form.mataiTitle}".\n\nThe title will return to the normal registration process. You will need to enter a registration date (at least 4 months from Savali published date).`
-      : `Petition Upheld — the court upheld the petition against "${form.mataiTitle}".\n\nThis will VOID the registration. A certificate CANNOT be printed. This action cannot be undone.`;
+      ? `Objection Resolved — the objection was dismissed by court for "${form.mataiTitle}".\n\nThe title will proceed with registration. You will need to enter a registration date (at least 4 months from Savali published date).`
+      : `Petition Successful — the court upheld the petition against "${form.mataiTitle}".\n\nThis will VOID the registration. A certificate CANNOT be printed. This action cannot be undone.`;
     if (!window.confirm(confirmMsg)) return;
     setResolvingObj(true);
     try {
@@ -393,10 +392,12 @@ export default function Register({ userRole }) {
       cacheClear("registrations");
       if (isDismissed) {
         setForm(f => ({ ...f, objection: "resolved", status: "pending" }));
-        setSuccess("Objection dismissed. Enter a registration date (≥4 months from Savali published date) and save to complete registration.");
+        setSuccess("✓ Objection resolved — proceed with registration. Enter a registration date below (must be at least 4 months from the Savali published date) then save the record.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         setForm(f => ({ ...f, objection: "petition_won", status: "void", dateRegistration: "" }));
-        setSuccess("Petition upheld — registration is now VOID. A certificate cannot be printed for this title.");
+        setSuccess("✗ Petition successful — this registration is now VOID. A certificate cannot be printed for this title.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch(err) {
       setError("Failed to update: " + err.message);
@@ -627,7 +628,7 @@ export default function Register({ userRole }) {
           data.dateRegistration    = toDateStr(data.dateRegistration);
           data.dateIssued          = toDateStr(data.dateIssued) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
           data.dateBirth           = toDateStr(data.dateBirth);
-          data.objectionDate            = toDateStr(data.objectionDate);
+          data.objectionDate = toDateStr(data.objectionDate);
 
           // ── 2. Cert number: parse combined string if parts missing ──
           if (!data.certItumalo && !data.certLaupepa && !data.certRegBook && data.mataiCertNumber) {
@@ -841,8 +842,8 @@ export default function Register({ userRole }) {
           changes: changes.join(" | ")
         });
         cacheClear("registrations");
-        setSuccess("Record updated successfully.");
-        // Stay on this page — success message shown inline, user can continue editing or navigate away
+        setSuccess("✓ Record updated successfully.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         const certNum = [form.certItumalo, form.certLaupepa, form.certRegBook].filter(Boolean).join("/");
         // Never save an auto-calculated dateRegistration — only save if staff manually entered it
@@ -1347,14 +1348,14 @@ export default function Register({ userRole }) {
                       disabled={resolvingObj}
                       onClick={() => handleResolveObjection("dismissed")}
                       style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#f0faf4", border:"1px solid #1a5c3570", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
-                      {resolvingObj ? "…" : "✓ Objection Dismissed"}
+                      {resolvingObj ? "…" : "✓ Objection Resolved — Proceed"}
                     </button>
                     <button
                       type="button"
                       disabled={resolvingObj}
                       onClick={() => handleResolveObjection("upheld")}
                       style={{ padding:"0.4rem 0.9rem", fontFamily:"'Cinzel',serif", fontSize:"0.66rem", letterSpacing:"0.07em", background:"#fef2f2", border:"1px solid #c0392b70", borderRadius:"3px", color:"#8b1a1a", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
-                      {resolvingObj ? "…" : "✗ Petition Upheld"}
+                      {resolvingObj ? "…" : "✗ Petition Successful — Void"}
                     </button>
                   </div>
                 )}

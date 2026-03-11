@@ -553,11 +553,13 @@ export default function Certificate({ userRole }) {
             <strong style={{ color:"#1a1a1a" }}>{record.mataiTitle} — {record.holderName}</strong>
           </p>
           <p style={{ color:"rgba(26,26,26,0.55)", fontSize:"0.88rem", marginBottom:"2rem", lineHeight:"1.6" }}>
-            {record.objection === "resolved"
-              ? <>This title had an objection that was dismissed by court. Enter the registration date in the record to make the certificate available.</>
-              : record.dateRegistration
+            {record.objection === "resolved" && !record.dateRegistration
+              ? <>The objection was dismissed by court. Open the record and enter a registration date (at least 4 months from the Savali published date) to make the certificate available.</>
+              : record.objection === "resolved" && record.dateRegistration
                 ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed.</>
-                : <>This record does not have a registration date yet. Once the 4-month Savali publication period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
+                : record.dateRegistration
+                  ? <>The registration date for this title is <strong>{formatDate(record.dateRegistration)}</strong>. The certificate will be available once that date has passed.</>
+                  : <>This record does not have a registration date yet. Once the 4-month Savali publication period is complete, it will appear in <strong>Notifications → Ready to Register</strong> for staff to confirm.</>
             }
           </p>
           <div style={{ display:"flex", gap:"1rem", justifyContent:"center" }}>
