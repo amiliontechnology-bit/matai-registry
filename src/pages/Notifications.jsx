@@ -6,8 +6,7 @@ import { logAudit } from "../utils/audit";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -60,57 +59,11 @@ function isMonthlyRunDay() {
   return (mo === 1 && isLeap) ? day === 28 : day === 29;
 }
 
-async function openPDF(_title, html) {
-  // Render the HTML report into an off-screen div, capture with html2canvas,
-  // then open as a real PDF in a new browser tab — same pipeline as the certificate.
-  const container = document.createElement("div");
-  container.style.cssText = "position:fixed;left:-9999px;top:0;width:1050px;background:#fff;padding:0;margin:0;";
-  container.innerHTML = html;
-  document.body.appendChild(container);
-  try {
-    await new Promise(r => setTimeout(r, 700)); // fonts + images settle
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      width: 1050,
-      windowWidth: 1050,
-    });
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-    const pdf  = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = pdf.internal.pageSize.getHeight();
-    const scale = pdfW / imgW;
-    const pagePixH = Math.floor(pdfH / scale);
-    let yOffset = 0, pageNum = 0;
-    while (yOffset < imgH) {
-      if (pageNum > 0) pdf.addPage();
-      const sliceH = Math.min(pagePixH, imgH - yOffset);
-      const slice  = document.createElement("canvas");
-      slice.width  = imgW;
-      slice.height = sliceH;
-      slice.getContext("2d").drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, sliceH);
-      pdf.addImage(slice.toDataURL("image/png"), "PNG", 0, 0, pdfW, sliceH * scale);
-      yOffset += pagePixH;
-      pageNum++;
-    }
-    // Open as embedded PDF in new browser tab — user can save/print from native browser PDF UI
-    const pdfData = pdf.output("datauristring");
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(
-        `<html><head><title>${_title}</title><style>*{margin:0;padding:0}body{height:100vh;display:flex}</style></head>` +
-        `<body><embed width="100%" height="100%" src="${pdfData}" type="application/pdf"/></body></html>`
-      );
-    }
-  } catch(err) {
-    console.error("PDF generation failed:", err);
-    alert("PDF generation failed: " + err.message);
-  } finally {
-    document.body.removeChild(container);
-  }
+function openPDF(title, html) {
+  const blob = new Blob([html], { type: "text/html" });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, "_blank");
+  if (win) win.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
 }
 
 function reportHeader(title, subtitle, count, generatedBy) {
@@ -153,6 +106,7 @@ export default function Notifications({ userRole }) {
   const [filterWindow, setFilterWindow] = useState(120);
   const [confirming, setConfirming] = useState(null);
   const [activeTab, setActiveTab]       = useState(location.state?.tab || "proclamation");
+  const scrollSection = location.state?.section || null;
   const [alertPage, setAlertPage]       = useState(1);
   const [objPage, setObjPage]           = useState(1);
   const [readyPage, setReadyPage]       = useState(1);
@@ -174,6 +128,13 @@ export default function Notifications({ userRole }) {
     }, (err) => { console.error(err); setLoading(false); });
     return () => unsub();
   }, []);
+
+  // Scroll to a specific section when navigated here with state.section
+  useEffect(() => {
+    if (!scrollSection) return;
+    const el = document.getElementById(`section-${scrollSection}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [scrollSection, loading]);
 
   const genBy = user?.displayName || user?.email || "Admin";
 
@@ -457,7 +418,7 @@ export default function Notifications({ userRole }) {
     }
   };
 
-  const printObjectionReport = async () => {
+  const printObjectionReport = () => {
     // Both active and resolved — full history for court purposes
     const allObj = [...activeObjRecords, ...resolvedObjRecords];
     const activeRows = activeObjRecords.map((r,i) => `<tr>
@@ -507,7 +468,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"objection", count: allObj.length });
   };
 
-  const printNewMataiReport = async () => {
+  const printNewMataiReport = () => {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = newMataiRecords.map((r,i) => `<tr>
@@ -531,7 +492,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"new_matai", count: newMataiRecords.length });
   };
 
-  const printReadyReport = async () => {
+  const printReadyReport = () => {
     const now = new Date();
     const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const rows = readyToRegister.map((r,i) => {
@@ -557,7 +518,7 @@ export default function Notifications({ userRole }) {
     logAudit("REPORT_PDF", { type:"ready_all", count: readyToRegister.length });
   };
 
-  const printMonthlyFullReport = async () => {
+  const printMonthlyFullReport = () => {
     const now = new Date();
     const MONTHS_L = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const monthLabel = `${MONTHS_L[now.getMonth()]} ${now.getFullYear()}`;
@@ -640,7 +601,7 @@ export default function Notifications({ userRole }) {
   };
 
   // ── Styles ─────────────────────────────────────────────
-  const printDuplicatesReport = async () => {
+  const printDuplicatesReport = () => {
     if (duplicateGroups.length === 0) return;
     const rows = duplicateGroups.flatMap(({ certNum, records: grp }) =>
       grp.map((r, i) => {
@@ -980,7 +941,7 @@ export default function Notifications({ userRole }) {
               </div>
 
               {/* Ready to register — confirm button */}
-              <div style={sStyle}>
+              <div id="section-ready" style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                   <div>
                     <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1e6b3c", textTransform:"uppercase" }}>

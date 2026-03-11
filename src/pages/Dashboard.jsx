@@ -243,7 +243,7 @@ export default function Dashboard({ userRole }) {
 
         {/* ── Ready to Register banner ── */}
         {readyToRegCount > 0 && (
-          <Link to="/notifications" state={{ tab:"ready" }} style={{ textDecoration:"none" }}>
+          <Link to="/notifications" state={{ tab:"monthly", section:"ready" }} style={{ textDecoration:"none" }}>
             <div style={{ background:"#f0faf4", border:"1px solid #a7d7b8", borderLeft:"4px solid #1a5c35", borderRadius:"4px", padding:"0.75rem 1.25rem", marginBottom:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer" }}
               onMouseEnter={e => e.currentTarget.style.background="#dcf5e7"}
               onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
