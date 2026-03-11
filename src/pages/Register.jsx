@@ -355,6 +355,31 @@ const EMPTY = {
 export default function Register({ userRole }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [resolvingObj, setResolvingObj] = useState(false);
+
+  const handleResolveObjection = async () => {
+    if (!window.confirm(
+      `Resolve the objection for "${form.mataiTitle}"?\n\n` +
+      `This will mark the objection as resolved. The title will return to the normal registration process.`
+    )) return;
+    setResolvingObj(true);
+    try {
+      await updateDoc(doc(db, "registrations", id), {
+        objection: "resolved",
+        objectionResolvedAt: serverTimestamp(),
+        objectionResolvedBy: auth.currentUser?.email || "unknown",
+        updatedAt: serverTimestamp(),
+      });
+      await logAudit("OBJECTION_RESOLVED", { mataiTitle: form.mataiTitle, recordId: id });
+      cacheClear("registrations");
+      setForm(f => ({ ...f, objection: "resolved" }));
+      setSuccess("Objection resolved. The title will return to the normal registration process.");
+    } catch(err) {
+      setError("Failed to resolve objection: " + err.message);
+    } finally {
+      setResolvingObj(false);
+    }
+  };
   const location = useLocation();
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
@@ -1224,6 +1249,7 @@ export default function Register({ userRole }) {
                 }}>
                   <option value="no">No — No objection</option>
                   <option value="yes">Yes — Objection filed</option>
+                  <option value="resolved" disabled>Resolved — Objection resolved</option>
                 </select>
               </div>
               {form.objection === "yes" && (
@@ -1260,12 +1286,28 @@ export default function Register({ userRole }) {
                     placeholder="LC number / Court decision reference" />
                 </div>
               </div>
-              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px" }}>
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:"4px", display:"flex", justifyContent:"space-between", alignItems:"center", gap:"1rem", flexWrap:"wrap" }}>
                 <p style={{ fontSize:"0.85rem", color:"#8b1a1a", fontWeight:600 }}>
                   ⚠ Objection filed — this title cannot be registered until resolved through court.
                 </p>
+                {isEdit && perms.canEdit && (
+                  <button
+                    type="button"
+                    disabled={resolvingObj}
+                    onClick={handleResolveObjection}
+                    style={{ padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.08em", background:"#f0faf4", border:"1px solid #1a5c3570", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", whiteSpace:"nowrap", opacity: resolvingObj ? 0.6 : 1 }}>
+                    {resolvingObj ? "Resolving…" : "✓ Resolve Objection"}
+                  </button>
+                )}
               </div>
             </>)}
+            {form.objection === "resolved" && (
+              <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#f0faf4", border:"1px solid #a7d7b8", borderRadius:"4px" }}>
+                <p style={{ fontSize:"0.85rem", color:"#1a5c35", fontWeight:600 }}>
+                  ✓ Objection resolved — this title has returned to the normal registration process.
+                </p>
+              </div>
+            )}
             {form.objection === "no" && form.dateSavaliPublished && (() => {
               const hint = regDateHint(form.dateSavaliPublished);
               if (!hint) return null;

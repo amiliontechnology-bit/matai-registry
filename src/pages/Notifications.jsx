@@ -177,38 +177,6 @@ export default function Notifications({ userRole }) {
 
   const genBy = user?.displayName || user?.email || "Admin";
 
-  const resolveObjection = async (r) => {
-    const confirmed = window.confirm(
-      `Resolve objection for "${r.mataiTitle}" — ${r.holderName}?\n\n` +
-      `This marks the objection as resolved. The title will return to the normal process and will appear in ` +
-      `"Ready to Register" once the Savali publication period is complete.`
-    );
-    if (!confirmed) return;
-    setConfirming(r.id);
-    try {
-      await updateDoc(doc(db, "registrations", r.id), {
-        objection: "resolved",
-        objectionResolvedAt: serverTimestamp(),
-        objectionResolvedBy: genBy,
-        status: "pending",
-        updatedAt: serverTimestamp(),
-      });
-      await logAudit("OBJECTION_RESOLVED", {
-        mataiTitle: r.mataiTitle,
-        recordId: r.id,
-        resolvedBy: genBy,
-      });
-      cacheClear("registrations");
-      setRecords(prev => prev.map(rec =>
-        rec.id === r.id ? { ...rec, objection: "resolved" } : rec
-      ));
-    } catch(err) {
-      alert("Failed to resolve: " + err.message);
-    } finally {
-      setConfirming(null);
-    }
-  };
-
   const confirmIncomplete = async (r) => {
     if (!window.confirm(
       `Confirm "${r.mataiTitle}" as a valid registry record?\n\nSome fields are still empty (${r._missingFields?.join(", ")}).\n\nThis will mark the record as accepted in the system. Missing fields can still be filled in later.`
@@ -881,39 +849,27 @@ export default function Notifications({ userRole }) {
                 : objectionRecords.length === 0
                   ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ No objections recorded.</div>
                   : <>{objPaged.map(r => (
-                    <div key={r.id} style={{ background:"#fdf8f8", border:"1px solid #e8b4b430", borderLeft:"4px solid #8b1a1a", borderRadius:"3px", padding:"0.85rem 1.1rem", marginBottom:"0.6rem" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
-                        <div>
-                          <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#8b1a1a" }}>{r.mataiTitle||"—"}</span>
-                          <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
-                        </div>
-                        <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+                    <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
+                      <div style={{ background:"#fdf8f8", border:"1px solid #e8b4b430", borderLeft:"4px solid #8b1a1a", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
+                        onMouseEnter={e => e.currentTarget.style.background="#fdf0f0"}
+                        onMouseLeave={e => e.currentTarget.style.background="#fdf8f8"}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
+                          <div>
+                            <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#8b1a1a" }}>{r.mataiTitle||"—"}</span>
+                            <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
+                          </div>
                           <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:"#8b1a1a", background:"#8b1a1a15", padding:"2px 8px", borderRadius:"2px" }}>⚠ OBJECTION</span>
                         </div>
+                        <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
+                          <span>📍 {r.village}, {r.district}</span>
+                          <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
+                          <span style={{ color:"#8b1a1a" }}>📋 Objection: {fmtDate(r.objectionDate)}</span>
+                          {r.objectionFileNumber && <span>📁 {r.objectionFileNumber}</span>}
+                          {r.objectionLCNumber && <span>⚖ {r.objectionLCNumber}</span>}
+                        </div>
+                        <p style={{ fontSize:"0.72rem", color:"#1a5c35", marginTop:"0.5rem", fontStyle:"italic" }}>Open record to resolve →</p>
                       </div>
-                      <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)", marginBottom:"0.75rem" }}>
-                        <span>📍 {r.village}, {r.district}</span>
-                        <span>🗓 Published: {fmtDate(r.dateSavaliPublished)}</span>
-                        <span style={{ color:"#8b1a1a" }}>📋 Objection filed: {fmtDate(r.objectionDate)}</span>
-                        {r.objectionFileNumber && <span>📁 File: {r.objectionFileNumber}</span>}
-                        {r.objectionLCNumber && <span>⚖ LC: {r.objectionLCNumber}</span>}
-                      </div>
-                      <div style={{ display:"flex", gap:"0.5rem" }}>
-                        <Link to={`/register/${r.id}`} style={{ textDecoration:"none" }}>
-                          <button style={{ padding:"0.3rem 0.8rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#fdf8f8", border:"1px solid #8b1a1a40", borderRadius:"3px", color:"#8b1a1a", cursor:"pointer" }}>
-                            ✎ View / Edit
-                          </button>
-                        </Link>
-                        {perms.canEdit && (
-                          <button
-                            disabled={confirming === r.id}
-                            onClick={() => resolveObjection(r)}
-                            style={{ padding:"0.3rem 0.8rem", fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.06em", background:"#f0faf4", border:"1px solid #1a5c3560", borderRadius:"3px", color:"#1a5c35", cursor:"pointer", opacity: confirming === r.id ? 0.5 : 1 }}>
-                            {confirming === r.id ? "Resolving…" : "✓ Resolve Objection"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    </Link>
                   ))}
                   <Pager page={objPageSafe} totalPages={objTotalPages} setPage={setObjPage} /></>
                 }
