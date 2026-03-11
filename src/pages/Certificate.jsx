@@ -459,20 +459,7 @@ export default function Certificate({ userRole }) {
       });
       pdf.restoreGraphicsState();
 
-      // 6. Security footer — printed into PDF outside certificate image
-      const printedBy = auth.currentUser?.email || "unknown";
-      const printedAt = new Date().toLocaleString("en-WS", { timeZone: "Pacific/Apia" });
-      pdf.setFontSize(6.5);
-      pdf.setTextColor(130, 130, 130);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(
-        `CONTROLLED COPY — ${newPrintId} — Printed by: ${printedBy} — ${printedAt} (Samoa Time)`,
-        pageW / 2,
-        pageH - 3,
-        { align: "center" }
-      );
-
-      // 7. Open in new tab — user can print from there, file is not auto-saved
+      // 6. Open in new tab — user can print from there, file is not auto-saved
       const blobUrl = pdf.output("bloburl");
       window.open(blobUrl, "_blank");
 
@@ -483,8 +470,6 @@ export default function Certificate({ userRole }) {
     } finally {
       setGenerating(false);
       setPrintId(null); // clear the stamp from the screen after capture
-    }
-  };
     }
   };
 
