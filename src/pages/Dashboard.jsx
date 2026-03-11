@@ -6,7 +6,6 @@ import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
-import StatusTag from "../components/StatusTag";
 import { seedTestData } from "../utils/seedData";
 
 const fmtDate = (str) => {
@@ -410,7 +409,16 @@ export default function Dashboard({ userRole }) {
                         })()}
                       </td>
                       <td>
-                        <StatusTag record={r} canEdit={perms.canEdit} />
+                        <span style={{
+                                          fontFamily:"'Cinzel',serif", fontSize:"0.58rem", letterSpacing:"0.1em",
+                                          textTransform:"uppercase", padding:"2px 7px", borderRadius:"3px",
+                                          ...(r.status==="completed"     ? {background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"} :
+                                              r.status==="pepa_samasama" ? {background:"#f3f4f6",color:"#374151",border:"1px solid #d1d5db"} :
+                                              r.status==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
+                                                                           {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
+                                        }}>
+                                          {r.status==="completed"?"Completed":r.status==="pepa_samasama"?"Pepa Samasama":r.status==="void"?"Void":"In Progress"}
+                                        </span>
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:"0.2rem" }}>

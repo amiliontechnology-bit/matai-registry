@@ -5,8 +5,6 @@ import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import Sidebar from "../components/Sidebar";
-import StatusTag from "../components/StatusTag";
-import { getStatusCategory } from "../utils/statusHelpers";
 import { cacheSet } from "../utils/cache";
 
 const fmtDate = (str) => {
@@ -30,6 +28,12 @@ function effectiveRegDate(r) {
   return reg <= today
     ? `${reg.getFullYear()}-${String(reg.getMonth()+1).padStart(2,"0")}-${String(reg.getDate()).padStart(2,"0")}`
     : null;
+}
+
+function getStatusCat(r) {
+  if (r.status === "completed") return "completed";
+  if (r.status === "pepa_samasama") return "pepa_samasama";
+  return "in_progress";
 }
 
 const PAGE_SIZE = 30;
@@ -88,7 +92,7 @@ export default function RegistryView({ userRole, statusFilter }) {
 
   const lower = search.toLowerCase();
   const filtered = records.filter(r => {
-    if (getStatusCategory(r) !== statusFilter) return false;
+    if (getStatusCat(r) !== statusFilter) return false;
     const matchSearch = !search ||
       r.mataiTitle?.toLowerCase().includes(lower) ||
       r.holderName?.toLowerCase().includes(lower) ||
@@ -192,7 +196,7 @@ export default function RegistryView({ userRole, statusFilter }) {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign:"center", padding:"4rem" }}>
               <p style={{ color:"#9ca3af", fontStyle:"italic" }}>
-                {records.filter(r => getStatusCategory(r) === statusFilter).length === 0 ? cfg.empty : "No records match your search."}
+                {records.filter(r => getStatusCat(r) === statusFilter).length === 0 ? cfg.empty : "No records match your search."}
               </p>
             </div>
           ) : (
@@ -234,7 +238,16 @@ export default function RegistryView({ userRole, statusFilter }) {
                         })()}
                       </td>
                       <td>
-                        <StatusTag record={r} canEdit={perms.canEdit} />
+                        <span style={{
+                                          fontFamily:"'Cinzel',serif", fontSize:"0.58rem", letterSpacing:"0.1em",
+                                          textTransform:"uppercase", padding:"2px 7px", borderRadius:"3px",
+                                          ...(r.status==="completed"     ? {background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"} :
+                                              r.status==="pepa_samasama" ? {background:"#f3f4f6",color:"#374151",border:"1px solid #d1d5db"} :
+                                              r.status==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
+                                                                           {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
+                                        }}>
+                                          {r.status==="completed"?"Completed":r.status==="pepa_samasama"?"Pepa Samasama":r.status==="void"?"Void":"In Progress"}
+                                        </span>
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:"0.2rem" }}>

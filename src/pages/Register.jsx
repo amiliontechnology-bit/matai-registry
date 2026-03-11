@@ -6,7 +6,6 @@ import { auth, db } from "../firebase";
 import { logAudit, diffRecords } from "../utils/audit";
 import { getPermissions } from "../utils/roles";
 import { cacheGet, cacheSet, cacheClear } from "../utils/cache";
-import { classifyStatus } from "../utils/statusClassify";
 import Sidebar from "../components/Sidebar";
 
 
@@ -840,9 +839,9 @@ export default function Register({ userRole }) {
         autoStatus = "void";
       } else if (form.status === "pepa_samasama") {
         // Stays pepa until reg date passes — classifier handles that
-        autoStatus = classifyStatus({ ...draftRecord, status: "pepa_samasama" });
+        autoStatus = "pepa_samasama";
       } else {
-        autoStatus = classifyStatus(draftRecord);
+        autoStatus = draftRecord.status === "void" ? "void" : "in_progress";
       }
       const saveForm = { ...form, dateRegistration: finalRegDate2, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
@@ -863,7 +862,8 @@ export default function Register({ userRole }) {
         const isAutoCalc = calcResult && form.dateRegistration === calcResult.dateStr;
         const finalRegDate = isAutoCalc ? "" : form.dateRegistration;
         const regPassed = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
-        const autoStatus = classifyStatus({ ...form, dateRegistration: finalRegDate });
+        const regP = finalRegDate && new Date(finalRegDate + "T00:00:00") <= new Date();
+        const autoStatus = regP ? "completed" : form.status === "pepa_samasama" ? "pepa_samasama" : form.status === "void" ? "void" : "in_progress";
         const saveForm = { ...form, dateRegistration: finalRegDate, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
         const docRef = await addDoc(collection(db, "registrations"), { ...saveForm, createdAt: serverTimestamp() });
         await logAudit("CREATE", { mataiTitle: form.mataiTitle, holderName: form.holderName, district: form.district, village: form.village });
