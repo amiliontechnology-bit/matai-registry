@@ -7,7 +7,7 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
 
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -94,7 +94,7 @@ function makePDF(title, subtitle, count, generatedBy, columns, rows, extraSectio
 
   // Main table
   if (columns && rows && rows.length > 0) {
-    autoTable(pdf, {
+    pdf.autoTable( {
       startY,
       head: [columns],
       body: rows,
@@ -106,7 +106,7 @@ function makePDF(title, subtitle, count, generatedBy, columns, rows, extraSectio
     });
     startY = pdf.lastAutoTable.finalY + 6;
   } else if (columns) {
-    autoTable(pdf, {
+    pdf.autoTable( {
       startY,
       head: [columns],
       body: [["No records found", ...Array(columns.length - 1).fill("")]],
@@ -130,7 +130,7 @@ function makePDF(title, subtitle, count, generatedBy, columns, rows, extraSectio
       pdf.setDrawColor(...(sec.color || [26, 92, 53]));
       pdf.line(14, startY, pageW - 14, startY);
       startY += 3;
-      autoTable(pdf, {
+      pdf.autoTable( {
         startY,
         head: [sec.columns],
         body: sec.rows.length > 0 ? sec.rows : [["No records", ...Array(sec.columns.length - 1).fill("")]],
