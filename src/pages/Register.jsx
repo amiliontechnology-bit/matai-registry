@@ -373,7 +373,7 @@ export default function Register({ userRole }) {
             objection: "resolved",
             objectionResolvedAt: serverTimestamp(),
             objectionResolvedBy: auth.currentUser?.email || "unknown",
-            status: "pending",
+            status: "in_progress",
             updatedAt: serverTimestamp(),
           }
         : {
@@ -391,7 +391,7 @@ export default function Register({ userRole }) {
       });
       cacheClear("registrations");
       if (isDismissed) {
-        setForm(f => ({ ...f, objection: "resolved", status: "pending" }));
+        setForm(f => ({ ...f, objection: "resolved", status: "in_progress" }));
         setSuccess("✓ Objection resolved — proceed with registration. Enter a registration date below (must be at least 4 months from the Savali published date) then save the record.");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {

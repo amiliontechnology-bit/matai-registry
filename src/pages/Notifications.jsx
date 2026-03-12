@@ -257,7 +257,7 @@ export default function Notifications({ userRole }) {
     try {
       await updateDoc(doc(db, "registrations", r.id), {
         incompleteConfirmed: true,
-        status: r.dateRegistration ? "completed" : "pending",
+        status: r.dateRegistration ? "completed" : "in_progress",
         updatedAt: serverTimestamp(),
         confirmedBy: genBy,
         confirmedAt: serverTimestamp(),
