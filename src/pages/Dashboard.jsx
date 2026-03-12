@@ -97,8 +97,9 @@ export default function Dashboard({ userRole }) {
     const matchGender = filterGender === "All" || r.gender === filterGender;
     const getStatusCat = (r) => {
       if (r.status === "void" || r.objection === "petition_won") return "void";
-      if (r.status === "completed") return "completed";
       if (r.status === "pepa_samasama") return "pepa_samasama";
+      if (r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date()) return "completed";
+      if (r.status === "completed") return "completed";
       return "in_progress";
     };
     const matchStatus = filterStatus === "All" || getStatusCat(r) === filterStatus;
@@ -417,7 +418,7 @@ export default function Dashboard({ userRole }) {
                                               r.status==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
                                                                            {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
                                         }}>
-                                          {r.status==="completed"?"Completed":r.status==="pepa_samasama"?"Pepa Samasama":r.status==="void"?"Void":"In Progress"}
+                                          {getStatusCat(r)==="completed"?"Completed":getStatusCat(r)==="pepa_samasama"?"Pepa Samasama":getStatusCat(r)==="void"?"Void":"In Progress"}
                                         </span>
                       </td>
                       <td>
