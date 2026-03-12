@@ -33,8 +33,18 @@ function effectiveRegDate(r) {
 function getStatusCat(r) {
   if (r.status === "void" || r.objection === "petition_won") return "void";
   if (r.status === "pepa_samasama") return "pepa_samasama";
-  // Treat as completed if reg date is set and in the past — catches records saved before the fix
-  if (r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date()) return "completed";
+  // Resolve dateRegistration whether it's a string or a Firestore Timestamp
+  let regDate = null;
+  if (r.dateRegistration) {
+    if (typeof r.dateRegistration === "string") {
+      regDate = new Date(r.dateRegistration + "T00:00:00");
+    } else if (typeof r.dateRegistration?.toDate === "function") {
+      regDate = r.dateRegistration.toDate();
+    } else if (r.dateRegistration instanceof Date) {
+      regDate = r.dateRegistration;
+    }
+  }
+  if (regDate && !isNaN(regDate) && regDate <= new Date()) return "completed";
   if (r.status === "completed") return "completed";
   return "in_progress";
 }
@@ -244,10 +254,10 @@ export default function RegistryView({ userRole, statusFilter }) {
                         <span style={{
                                           fontFamily:"'Cinzel',serif", fontSize:"0.58rem", letterSpacing:"0.1em",
                                           textTransform:"uppercase", padding:"2px 7px", borderRadius:"3px",
-                                          ...(r.status==="completed"     ? {background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"} :
-                                              r.status==="pepa_samasama" ? {background:"#f3f4f6",color:"#374151",border:"1px solid #d1d5db"} :
-                                              r.status==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
-                                                                           {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
+                                          ...(getStatusCat(r)==="completed"     ? {background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"} :
+                                              getStatusCat(r)==="pepa_samasama" ? {background:"#f3f4f6",color:"#374151",border:"1px solid #d1d5db"} :
+                                              getStatusCat(r)==="void"          ? {background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"} :
+                                                                                   {background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"})
                                         }}>
                                           {getStatusCat(r)==="completed"?"Completed":getStatusCat(r)==="pepa_samasama"?"Pepa Samasama":getStatusCat(r)==="void"?"Void":"In Progress"}
                                         </span>
