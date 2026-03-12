@@ -83,6 +83,24 @@ export default function Dashboard({ userRole }) {
   const villages = ["All", ...new Set(records.map(r => r.village).filter(Boolean))].sort();
   const genders = ["All", "Male", "Female"];
 
+  const getStatusCat = (r) => {
+    if (r.status === "void" || r.objection === "petition_won") return "void";
+    if (r.status === "pepa_samasama") return "pepa_samasama";
+    let regDate = null;
+    if (r.dateRegistration) {
+      if (typeof r.dateRegistration === "string") {
+        regDate = new Date(r.dateRegistration + "T00:00:00");
+      } else if (typeof r.dateRegistration?.toDate === "function") {
+        regDate = r.dateRegistration.toDate();
+      } else if (r.dateRegistration instanceof Date) {
+        regDate = r.dateRegistration;
+      }
+    }
+    if (regDate && !isNaN(regDate) && regDate <= new Date()) return "completed";
+    if (r.status === "completed") return "completed";
+    return "in_progress";
+  };
+
   const filtered = records.filter(r => {
     const s = search.toLowerCase();
     const matchSearch = !search ||
@@ -95,23 +113,6 @@ export default function Dashboard({ userRole }) {
     const matchType = filterType === "All" || r.mataiType === filterType;
     const matchVillage = filterVillage === "All" || r.village === filterVillage;
     const matchGender = filterGender === "All" || r.gender === filterGender;
-    const getStatusCat = (r) => {
-      if (r.status === "void" || r.objection === "petition_won") return "void";
-      if (r.status === "pepa_samasama") return "pepa_samasama";
-      let regDate = null;
-      if (r.dateRegistration) {
-        if (typeof r.dateRegistration === "string") {
-          regDate = new Date(r.dateRegistration + "T00:00:00");
-        } else if (typeof r.dateRegistration?.toDate === "function") {
-          regDate = r.dateRegistration.toDate();
-        } else if (r.dateRegistration instanceof Date) {
-          regDate = r.dateRegistration;
-        }
-      }
-      if (regDate && !isNaN(regDate) && regDate <= new Date()) return "completed";
-      if (r.status === "completed") return "completed";
-      return "in_progress";
-    };
     const matchStatus = filterStatus === "All" || getStatusCat(r) === filterStatus;
     const matchDateFrom = !filterDateFrom || (r.dateRegistration && r.dateRegistration >= filterDateFrom);
     const matchDateTo = !filterDateTo || (r.dateRegistration && r.dateRegistration <= filterDateTo);
