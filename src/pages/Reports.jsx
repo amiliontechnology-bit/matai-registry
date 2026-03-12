@@ -180,7 +180,7 @@ export default function Reports({ userRole }) {
     !r.dateSavaliPublished && !r.dateRegistration && r.objection !== "yes"
   );
 
-  const objAll = records.filter(r => r.objection === "yes");
+  const objAll = records.filter(r => r.objection === "yes" || r.objection === "resolved" || r.objection === "petition_won");
 
   const procAll = records.filter(r => {
     if (r.objection === "yes" || r.dateRegistration || !r.dateSavaliPublished) return false;
@@ -259,13 +259,39 @@ export default function Reports({ userRole }) {
   const rowReady  = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35;font-weight:600">${fmtDate(effectiveRegDate(r)||autoRegDate(r.dateSavaliPublished))}</span>`],i);
   const rowNew    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateConferred)],i);
   const rowProc   = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35">${fmtDate(autoRegDate(r.dateSavaliPublished))}</span>`],i);
-  const rowObj    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`],i);
+  const rowObj    = (r,i) => {
+    const resolvedAt = r.objectionResolvedAt
+      ? (typeof r.objectionResolvedAt?.toDate === "function"
+          ? fmtDate(r.objectionResolvedAt.toDate().toISOString().split("T")[0])
+          : fmtDate(r.objectionResolvedAt))
+      : "—";
+    const statusHtml = r.objection === "petition_won"
+      ? `<span style="color:#c0392b;font-weight:700">⛔ VOID</span>`
+      : r.objection === "resolved"
+        ? `<span style="color:#1a5c35;font-weight:700">✓ RESOLVED</span>`
+        : `<span style="color:#8b1a1a;font-weight:700">ACTIVE</span>`;
+    return mkRow([
+      i+1,
+      `<strong>${r.mataiTitle||"—"}</strong>`,
+      r.holderName||"—",
+      r.village||"—",
+      r.district||"—",
+      fmtDate(r.dateSavaliPublished),
+      `<span style="color:#8b1a1a;font-weight:600">${fmtDate(r.objectionDate)}</span>`,
+      r.objectionApplicantName||"—",
+      r.objectionActingRegistrar||"—",
+      r.objectionFileNumber||"—",
+      r.objectionLCNumber||"—",
+      resolvedAt,
+      statusHtml,
+    ], i);
+  };
   const rowReg    = (r,i) => mkRow([i+1,`<strong>${r.mataiTitle||"—"}</strong>`,r.holderName||"—",r.mataiType||"—",r.village||"—",r.district||"—",fmtDate(r.dateSavaliPublished),`<span style="color:#1a5c35;font-weight:600">${fmtDate(r.dateRegistration)}</span>`],i);
 
   const HDR_READY = ["#","Matai Title","Holder","Village","District","Published Date","Reg. Date"];
   const HDR_NEW   = ["#","Matai Title","Holder","Type","Village","District","Date Conferred"];
   const HDR_PROC  = ["#","Matai Title","Holder","Village","District","Published Date","Auto Reg. Date"];
-  const HDR_OBJ   = ["#","Matai Title","Holder","Village","District","Published Date","Objection Date"];
+  const HDR_OBJ   = ["#","Matai Title","Holder","Village","District","Published Date","Petition Date","Applicant","Acting Registrar","File #","LC #","Resolved Date","Status"];
   const HDR_REG   = ["#","Matai Title","Holder","Type","Village","District","Published Date","Registered"];
 
   // Monthly PDFs
@@ -486,7 +512,18 @@ export default function Reports({ userRole }) {
                           : h==="Reg. Date" ? fmtDate(effectiveRegDate(r)||autoRegDate(r.dateSavaliPublished))
                           : h==="Auto Reg. Date" ? fmtDate(autoRegDate(r.dateSavaliPublished))
                           : h==="Date Conferred" ? fmtDate(r.dateConferred)
+                          : h==="Petition Date" ? fmtDate(r.objectionDate)
                           : h==="Objection Date" ? fmtDate(r.objectionDate)
+                          : h==="Applicant" ? (r.objectionApplicantName||"—")
+                          : h==="Acting Registrar" ? (r.objectionActingRegistrar||"—")
+                          : h==="File #" ? (r.objectionFileNumber||"—")
+                          : h==="LC #" ? (r.objectionLCNumber||"—")
+                          : h==="Resolved Date" ? (r.objectionResolvedAt
+                              ? fmtDate((typeof r.objectionResolvedAt?.toDate === "function"
+                                  ? r.objectionResolvedAt.toDate()
+                                  : new Date(r.objectionResolvedAt)).toISOString().split("T")[0])
+                              : "—")
+                          : h==="Status" ? (r.objection === "petition_won" ? "VOID" : r.objection === "resolved" ? "Resolved" : "Active")
                           : h==="Registered" ? fmtDate(r.dateRegistration)
                           : "—"}
                       </td>
