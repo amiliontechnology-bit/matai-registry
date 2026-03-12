@@ -217,6 +217,10 @@ export default function Notifications({ userRole }) {
   const [alertPage, setAlertPage]       = useState(1);
   const [objPage, setObjPage]           = useState(1);
   const [readyPage, setReadyPage]       = useState(1);
+  const [resolvedObjMonthFilter, setResolvedObjMonthFilter] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
+  });
   const N_PAGE = 20;
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
@@ -319,6 +323,17 @@ export default function Notifications({ userRole }) {
   const objectionRecords = records.filter(r => r.objection === "yes" || r.objection === "resolved" || r.objection === "petition_won");
   const activeObjRecords   = objectionRecords.filter(r => r.objection === "yes");
   const resolvedObjRecords = objectionRecords.filter(r => r.objection === "resolved");
+
+  // Resolved objections filtered by selected month/year (using objectionResolvedAt)
+  const [resolvedObjFilterYear, resolvedObjFilterMonth] = resolvedObjMonthFilter.split("-").map(Number);
+  const resolvedObjSelLabel = `${MONTHS[resolvedObjFilterMonth-1]} ${resolvedObjFilterYear}`;
+  const resolvedObjFiltered = resolvedObjRecords.filter(r => {
+    if (!r.objectionResolvedAt) return false;
+    const d = typeof r.objectionResolvedAt?.toDate === "function"
+      ? r.objectionResolvedAt.toDate()
+      : new Date(r.objectionResolvedAt);
+    return d.getFullYear() === resolvedObjFilterYear && (d.getMonth()+1) === resolvedObjFilterMonth;
+  });
   const voidObjRecords     = objectionRecords.filter(r => r.objection === "petition_won");
 
   // Duplicate cert number records — check mataiCertNumber OR compose from parts
@@ -474,66 +489,71 @@ export default function Notifications({ userRole }) {
   };
 
   const printObjectionReport = () => {
-    // Both active and resolved — full history for court purposes
     const allObj = [...activeObjRecords, ...resolvedObjRecords, ...voidObjRecords];
-    const activeRows = activeObjRecords.map((r,i) => `<tr>
-      <td>${i+1}</td>
-      <td><strong>${r.mataiTitle||"—"}</strong></td>
-      <td>${r.holderName||"—"}</td>
-      <td>${r.village||"—"}</td>
-      <td>${r.district||"—"}</td>
-      <td>${fmtDate(r.dateSavaliPublished)}</td>
-      <td>${fmtDate(r.objectionDate)}</td>
-      <td>${r.objectionApplicantName||"—"}</td>
-      <td>${r.objectionFileNumber||"—"}</td>
-      <td>${r.objectionLCNumber||"—"}</td>
-      <td style="color:#8b1a1a;font-weight:700">ACTIVE</td>
-    </tr>`).join("");
-    const resolvedRows = resolvedObjRecords.map((r,i) => {
-      const resolvedDate = r.objectionResolvedAt
-        ? (typeof r.objectionResolvedAt?.toDate === "function"
-            ? fmtDate(r.objectionResolvedAt.toDate().toISOString().split("T")[0])
-            : fmtDate(r.objectionResolvedAt))
-        : "—";
-      return `<tr style="background:#f5faf7">
-        <td>${activeObjRecords.length + i + 1}</td>
-        <td><strong>${r.mataiTitle||"—"}</strong></td>
-        <td>${r.holderName||"—"}</td>
-        <td>${r.village||"—"}</td>
-        <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateSavaliPublished)}</td>
-        <td>${fmtDate(r.objectionDate)}</td>
-        <td>${r.objectionApplicantName||"—"}</td>
-        <td>${r.objectionFileNumber||"—"}</td>
-        <td>${r.objectionLCNumber||"—"}</td>
-        <td style="color:#1a5c35;font-weight:700">RESOLVED ${resolvedDate}</td>
-      </tr>`;
-    }).join("");
-    const voidRows = voidObjRecords.map((r,i) => `<tr style="background:#fff0f0">
-        <td>${activeObjRecords.length + resolvedObjRecords.length + i + 1}</td>
-        <td><strong>${r.mataiTitle||"—"}</strong></td>
-        <td>${r.holderName||"—"}</td>
-        <td>${r.village||"—"}</td>
-        <td>${r.district||"—"}</td>
-        <td>${fmtDate(r.dateSavaliPublished)}</td>
-        <td>${fmtDate(r.objectionDate)}</td>
-        <td>${r.objectionApplicantName||"—"}</td>
-        <td>${r.objectionFileNumber||"—"}</td>
-        <td>${r.objectionLCNumber||"—"}</td>
-        <td style="color:#c0392b;font-weight:700">⛔ VOID — Petition Upheld</td>
-      </tr>`).join("");
-    const html = reportHeader(
-        "Objections Report — Full History",
-        `Active: ${activeObjRecords.length} | Dismissed: ${resolvedObjRecords.length} | Voided: ${voidObjRecords.length} | Total: ${allObj.length}`,
-        allObj.length, genBy)
-      + `<table><thead><tr>
-          <th>#</th><th>Matai Title</th><th>Holder</th><th>Village</th><th>District</th>
-          <th>Published Date</th><th>Petition Date</th><th>Applicant</th><th>File #</th><th>LC #</th><th>Status</th>
-        </tr></thead><tbody>${activeRows}${resolvedRows}${voidRows}</tbody></table>
-      <div class="footer">Samoa Matai Title Registry — Resitalaina o Matai</div>
-      </body></html>`;
-    openPDF("Objections Report", html);
+    const resolvedAtLabel = (r) => {
+      if (!r.objectionResolvedAt) return "—";
+      const d = typeof r.objectionResolvedAt?.toDate === "function"
+        ? r.objectionResolvedAt.toDate() : new Date(r.objectionResolvedAt);
+      return fmtDate(d.toISOString().split("T")[0]);
+    };
+    const columns = ["#","Matai Title","Holder","Village","District","Published","Petition Date","Applicant","Acting Registrar","File #","LC #","Status"];
+    const rows = allObj.map((r, i) => {
+      let status = "ACTIVE";
+      if (r.objection === "resolved")     status = `RESOLVED ${resolvedAtLabel(r)}`;
+      if (r.objection === "petition_won") status = "VOID — Petition Upheld";
+      return [
+        i+1,
+        r.mataiTitle||"—",
+        r.holderName||"—",
+        r.village||"—",
+        r.district||"—",
+        fmtDate(r.dateSavaliPublished),
+        fmtDate(r.objectionDate),
+        r.objectionApplicantName||"—",
+        r.objectionActingRegistrar||"—",
+        r.objectionFileNumber||"—",
+        r.objectionLCNumber||"—",
+        status,
+      ];
+    });
+    const blobUrl = makePDF(
+      "Objections Report — Full History",
+      `Active: ${activeObjRecords.length} | Dismissed: ${resolvedObjRecords.length} | Voided: ${voidObjRecords.length} | Total: ${allObj.length}`,
+      allObj.length, genBy, columns, rows
+    );
+    window.open(blobUrl, "_blank");
     logAudit("REPORT_PDF", { type:"objection", count: allObj.length });
+  };
+
+  const printResolvedObjMonthlyReport = () => {
+    const resolvedAtLabel = (r) => {
+      if (!r.objectionResolvedAt) return "—";
+      const d = typeof r.objectionResolvedAt?.toDate === "function"
+        ? r.objectionResolvedAt.toDate() : new Date(r.objectionResolvedAt);
+      return fmtDate(d.toISOString().split("T")[0]);
+    };
+    const columns = ["#","Matai Title","Holder","Village","District","Published","Petition Date","Resolved Date","Applicant","Acting Registrar","File #","LC #"];
+    const rows = resolvedObjFiltered.map((r, i) => [
+      i+1,
+      r.mataiTitle||"—",
+      r.holderName||"—",
+      r.village||"—",
+      r.district||"—",
+      fmtDate(r.dateSavaliPublished),
+      fmtDate(r.objectionDate),
+      resolvedAtLabel(r),
+      r.objectionApplicantName||"—",
+      r.objectionActingRegistrar||"—",
+      r.objectionFileNumber||"—",
+      r.objectionLCNumber||"—",
+    ]);
+    const blobUrl = makePDF(
+      `Resolved Objections — ${resolvedObjSelLabel}`,
+      `Objections dismissed by court in ${resolvedObjSelLabel}`,
+      resolvedObjFiltered.length, genBy, columns, rows
+    );
+    window.open(blobUrl, "_blank");
+    logAudit("REPORT_PDF", { type:"resolved_objections_monthly", month: resolvedObjSelLabel, count: resolvedObjFiltered.length });
   };
 
   const printNewMataiReport = () => {
@@ -894,7 +914,7 @@ export default function Notifications({ userRole }) {
               </div>
             )}
 
-            {activeTab === "objection" && (
+            {activeTab === "objection" && (<>
               <div style={sStyle}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.5rem" }}>
                   <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#8b1a1a", textTransform:"uppercase" }}>
@@ -993,9 +1013,80 @@ export default function Notifications({ userRole }) {
                   </div>
                 )}
               </div>
-            )}
 
-            {/* ── Monthly reports tab ── */}
+              {/* Resolved Objections Monthly Report */}
+              <div style={{ ...sStyle, marginTop:"1.5rem", borderLeft:"4px solid #1a5c35" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem", flexWrap:"wrap", gap:"0.5rem" }}>
+                  <div>
+                    <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", letterSpacing:"0.15em", color:"#1a5c35", textTransform:"uppercase" }}>
+                      ◈ Resolved Objections — Monthly Report
+                    </p>
+                    <p style={{ fontSize:"0.78rem", color:"rgba(26,26,26,0.45)", marginTop:"4px" }}>
+                      Objections dismissed by court — filter by month and year
+                    </p>
+                  </div>
+                  <div style={{ display:"flex", gap:"0.5rem", alignItems:"center", flexWrap:"wrap" }}>
+                    <div>
+                      <label style={{ fontSize:"0.72rem", color:"rgba(26,26,26,0.55)", marginRight:"6px" }}>Month</label>
+                      <input
+                        type="month"
+                        value={resolvedObjMonthFilter}
+                        onChange={e => setResolvedObjMonthFilter(e.target.value)}
+                        style={{ fontSize:"0.78rem", padding:"0.28rem 0.5rem", border:"1px solid #d1d5db", borderRadius:"3px", fontFamily:"'Cinzel',serif" }}
+                      />
+                    </div>
+                    {perms.canPrint && (
+                      <button
+                        onClick={printResolvedObjMonthlyReport}
+                        disabled={resolvedObjFiltered.length === 0}
+                        style={{ fontSize:"0.68rem", padding:"0.35rem 0.8rem", fontFamily:"'Cinzel',serif", letterSpacing:"0.08em", textTransform:"uppercase", background: resolvedObjFiltered.length===0 ? "#f3f4f6" : "#1a5c3515", border:`1px solid ${resolvedObjFiltered.length===0?"#e5e7eb":"#1a5c35"}`, color: resolvedObjFiltered.length===0 ? "#9ca3af" : "#1a5c35", borderRadius:"3px", cursor: resolvedObjFiltered.length===0 ? "not-allowed" : "pointer" }}>
+                        📄 {resolvedObjSelLabel} ({resolvedObjFiltered.length})
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {loading ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
+                : resolvedObjFiltered.length === 0
+                  ? <div style={{ textAlign:"center", padding:"2rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>
+                      No objections resolved in {resolvedObjSelLabel}.
+                    </div>
+                  : resolvedObjFiltered.map(r => {
+                      const resolvedDate = r.objectionResolvedAt
+                        ? (() => {
+                            const d = typeof r.objectionResolvedAt?.toDate === "function"
+                              ? r.objectionResolvedAt.toDate() : new Date(r.objectionResolvedAt);
+                            return fmtDate(d.toISOString().split("T")[0]);
+                          })()
+                        : "—";
+                      return (
+                        <Link key={r.id} to={`/register/${r.id}`} style={{ textDecoration:"none", display:"block" }}>
+                          <div style={{ background:"#f0faf4", border:"1px solid #a7d7b850", borderLeft:"4px solid #1a5c35", borderRadius:"3px", padding:"0.85rem 1.1rem", cursor:"pointer", marginBottom:"0.6rem" }}
+                            onMouseEnter={e => e.currentTarget.style.background="#e6f5ec"}
+                            onMouseLeave={e => e.currentTarget.style.background="#f0faf4"}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
+                              <div>
+                                <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.92rem", fontWeight:"700", color:"#1a5c35" }}>{r.mataiTitle||"—"}</span>
+                                <span style={{ fontSize:"0.82rem", color:"rgba(26,26,26,0.6)", marginLeft:"8px" }}>{r.holderName}</span>
+                              </div>
+                              <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.65rem", fontWeight:"700", color:"#1a5c35", background:"#1a5c3520", padding:"2px 8px", borderRadius:"2px" }}>✓ RESOLVED</span>
+                            </div>
+                            <div style={{ display:"flex", gap:"1.2rem", flexWrap:"wrap", fontSize:"0.77rem", color:"rgba(26,26,26,0.55)" }}>
+                              <span>📍 {r.village}, {r.district}</span>
+                              <span>📋 Petition: {fmtDate(r.objectionDate)}</span>
+                              <span>✓ Resolved: {resolvedDate}</span>
+                              {r.objectionApplicantName && <span>👤 {r.objectionApplicantName}</span>}
+                              {r.objectionFileNumber && <span>📁 {r.objectionFileNumber}</span>}
+                              {r.objectionLCNumber && <span>⚖ LC# {r.objectionLCNumber}</span>}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })
+                }
+              </div>
+            </>)}
+
+            {/* Monthly reports tab */}
             {activeTab === "monthly" && (<>
 
               {/* New Matai titles */}
