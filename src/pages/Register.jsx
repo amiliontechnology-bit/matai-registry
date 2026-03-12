@@ -836,10 +836,10 @@ export default function Register({ userRole }) {
       if (form.status === "void" || form.objection === "petition_won") {
         autoStatus = "void";
       } else if (form.status === "pepa_samasama") {
-        // Stays pepa until reg date passes — classifier handles that
-        autoStatus = "pepa_samasama";
+        // If reg date has now passed, promote out of pepa_samasama to completed
+        autoStatus = regPassed2 ? "completed" : "pepa_samasama";
       } else {
-        autoStatus = draftRecord.status === "void" ? "void" : "in_progress";
+        autoStatus = regPassed2 ? "completed" : "in_progress";
       }
       const saveForm = { ...form, dateRegistration: finalRegDate2, mataiCertNumber: certNum || form.mataiCertNumber, status: autoStatus };
       await updateDoc(doc(db, "registrations", id), { ...saveForm, updatedAt: serverTimestamp() });
