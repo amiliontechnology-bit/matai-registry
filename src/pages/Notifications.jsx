@@ -7,7 +7,6 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { cacheClear, cacheGet, cacheSet, cachedFetch } from "../utils/cache";
 import Sidebar from "../components/Sidebar";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -62,101 +61,107 @@ function isMonthlyRunDay() {
 }
 
 // ── PDF helpers — generates a proper PDF blob (like the certificate) ─────────
-function makePDF(title, subtitle, count, generatedBy, columns, rows, extraSections) {
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+function makePDF(title, subtitle, count, generatedBy, columns, rows) {
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const mL = 10, mR = 10;
+  const contentW = pageW - mL - mR;
+  const colW = columns.length > 0 ? contentW / columns.length : contentW;
+  const rowH = 8;
+  const hdrH = 9;
 
-  // Header bar
-  pdf.setFillColor(26, 92, 53);
-  pdf.rect(0, 0, pageW, 22, "F");
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(9);
-  pdf.text("MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA", pageW / 2, 8, { align: "center" });
-  pdf.setFontSize(13);
-  pdf.text(title.toUpperCase(), pageW / 2, 16, { align: "center" });
-
-  // Subtitle + meta
-  pdf.setTextColor(80, 80, 80);
-  pdf.setFont("helvetica", "italic");
-  pdf.setFontSize(8);
-  pdf.text(subtitle, pageW / 2, 27, { align: "center" });
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7.5);
-  const now = new Date();
-  const dateStr = `${String(now.getDate()).padStart(2,"0")}-${String(now.getMonth()+1).padStart(2,"0")}-${now.getFullYear()}`;
-  pdf.text(`Printed: ${dateStr}`, 14, 33);
-  pdf.text(`${title} — ${count} record${count !== 1 ? "s" : ""}`, pageW - 14, 33, { align: "right" });
-  pdf.setDrawColor(200, 200, 200);
-  pdf.line(14, 35, pageW - 14, 35);
-
-  let startY = 38;
-
-  // Main table
-  if (columns && rows && rows.length > 0) {
-    pdf.autoTable( {
-      startY,
-      head: [columns],
-      body: rows,
-      theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 2.5, font: "helvetica", textColor: [26, 26, 26] },
-      headStyles: { fillColor: [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
-      alternateRowStyles: { fillColor: [245, 250, 247] },
-      margin: { left: 14, right: 14 },
-    });
-    startY = pdf.lastAutoTable.finalY + 6;
-  } else if (columns) {
-    pdf.autoTable( {
-      startY,
-      head: [columns],
-      body: [["No records found", ...Array(columns.length - 1).fill("")]],
-      theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 2.5, fontStyle: "italic", textColor: [150, 150, 150] },
-      headStyles: { fillColor: [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
-      margin: { left: 14, right: 14 },
-    });
-    startY = pdf.lastAutoTable.finalY + 6;
-  }
-
-  // Extra sections (for combined reports)
-  if (extraSections) {
-    for (const sec of extraSections) {
-      if (startY > 250) { pdf.addPage(); startY = 15; }
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(8);
-      pdf.setTextColor(...(sec.color || [26, 92, 53]));
-      pdf.text(sec.title.toUpperCase(), 14, startY);
-      startY += 3;
-      pdf.setDrawColor(...(sec.color || [26, 92, 53]));
-      pdf.line(14, startY, pageW - 14, startY);
-      startY += 3;
-      pdf.autoTable( {
-        startY,
-        head: [sec.columns],
-        body: sec.rows.length > 0 ? sec.rows : [["No records", ...Array(sec.columns.length - 1).fill("")]],
-        theme: "grid",
-        styles: { fontSize: 7.5, cellPadding: 2.5, font: "helvetica", textColor: [26, 26, 26] },
-        headStyles: { fillColor: sec.color || [26, 92, 53], textColor: 255, fontStyle: "bold", fontSize: 7 },
-        alternateRowStyles: { fillColor: [245, 250, 247] },
-        margin: { left: 14, right: 14 },
-      });
-      startY = pdf.lastAutoTable.finalY + 8;
+  const drawFooter = () => {
+    const totalPages = pdf.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setFontSize(6);
+      pdf.setTextColor(160, 160, 160);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("Samoa Matai Title Registry — Resitalaina o Matai", pageW / 2, pageH - 4, { align: "center" });
+      pdf.text(`${p} / ${totalPages}`, pageW - mR, pageH - 4, { align: "right" });
     }
-  }
+  };
 
-  // Footer on every page
-  const pageCount = pdf.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    pdf.setPage(i);
-    const pW = pdf.internal.pageSize.getWidth();
-    const pH = pdf.internal.pageSize.getHeight();
-    pdf.setFontSize(6.5);
-    pdf.setTextColor(160, 160, 160);
+  const drawHeaderBar = () => {
+    pdf.setFillColor(26, 92, 53);
+    pdf.rect(0, 0, pageW, 20, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7.5);
+    pdf.text("MATAGALUEGA O FAAMASINOGA MA LE FAAFOEINA O TULAGA TAU FAAMASINOGA", pageW / 2, 7, { align: "center" });
+    pdf.setFontSize(13);
+    pdf.text(title.toUpperCase(), pageW / 2, 15, { align: "center" });
+    pdf.setTextColor(60, 60, 60);
+    pdf.setFont("helvetica", "italic");
+    pdf.setFontSize(7.5);
+    pdf.text(subtitle, pageW / 2, 25, { align: "center" });
     pdf.setFont("helvetica", "normal");
-    pdf.text("Samoa Matai Title Registry — Resitalaina o Matai", pW / 2, pH - 6, { align: "center" });
-    pdf.text(`${i} / ${pageCount}`, pW - 14, pH - 6, { align: "right" });
-  }
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 100, 100);
+    const now = new Date();
+    const d = `${String(now.getDate()).padStart(2,"0")}-${String(now.getMonth()+1).padStart(2,"0")}-${now.getFullYear()}`;
+    pdf.text(`Printed: ${d}`, mL, 31);
+    pdf.text(`${count} record${count !== 1 ? "s" : ""}`, pageW - mR, 31, { align: "right" });
+    pdf.setDrawColor(180, 180, 180);
+    pdf.line(mL, 33, pageW - mR, 33);
+  };
 
+  const drawTableHeader = (y) => {
+    pdf.setFillColor(26, 92, 53);
+    pdf.rect(mL, y, contentW, hdrH, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    columns.forEach((col, i) => {
+      pdf.text(String(col), mL + i * colW + 2, y + 6);
+    });
+    return y + hdrH;
+  };
+
+  // ── Page 1 header ────────────────────────────────────────────────────────
+  drawHeaderBar();
+  let y = 37;
+  y = drawTableHeader(y);
+
+  // ── Rows ─────────────────────────────────────────────────────────────────
+  const dataRows = rows.length > 0 ? rows : [Array(columns.length).fill("")];
+  const isEmpty  = rows.length === 0;
+
+  dataRows.forEach((row, ri) => {
+    if (y + rowH > pageH - 10) {
+      pdf.addPage();
+      y = 10;
+      y = drawTableHeader(y);
+    }
+    if (ri % 2 === 0) {
+      pdf.setFillColor(245, 250, 247);
+      pdf.rect(mL, y, contentW, rowH, "F");
+    }
+    pdf.setDrawColor(210, 210, 210);
+    pdf.rect(mL, y, contentW, rowH);
+    if (isEmpty) {
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(7);
+      pdf.text("No records found", mL + 4, y + 5.5);
+    } else {
+      pdf.setTextColor(30, 30, 30);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      row.forEach((cell, ci) => {
+        const txt = String(cell ?? "—");
+        const maxW = colW - 4;
+        const truncated = pdf.getTextWidth(txt) > maxW
+          ? txt.substring(0, Math.floor(txt.length * maxW / pdf.getTextWidth(txt)) - 1) + "…"
+          : txt;
+        pdf.text(truncated, mL + ci * colW + 2, y + 5.5);
+      });
+    }
+    y += rowH;
+  });
+
+  drawFooter();
   return pdf.output("bloburl");
 }
 
