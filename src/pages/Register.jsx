@@ -1359,22 +1359,9 @@ export default function Register({ userRole }) {
               </div>
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#f0faf4", border:"1px solid #a7d7b8", borderRadius:"4px" }}>
                 <p style={{ fontSize:"0.85rem", color:"#1a5c35", fontWeight:600 }}>
-                  ✓ Objection dismissed — this title has returned to the normal registration process. Enter a registration date below and save to complete registration.
+                  ✓ Objection dismissed — this title has returned to the normal registration process. Enter the registration date in the <strong>Aso na Resitala ai (Date of Registration)</strong> field above and save to complete registration.
                 </p>
               </div>
-              {/* Registration date entry for post-objection records */}
-              {isEdit && (
-                <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff8e1", border:"1px solid #ffe082", borderRadius:"4px" }}>
-                  <p style={{ fontSize:"0.82rem", color:"#7a5c00", marginBottom:"0.6rem", fontWeight:600 }}>
-                    ⚠ Enter the registration date to complete the process (must be at least 4 months from Savali published date: {form.dateSavaliPublished ? new Date(new Date(form.dateSavaliPublished + "T00:00:00").setMonth(new Date(form.dateSavaliPublished + "T00:00:00").getMonth()+4)).toLocaleDateString("en-WS",{day:"2-digit",month:"long",year:"numeric"}) : "—"}).
-                  </p>
-                  <div className="form-group" style={{ maxWidth:"240px" }}>
-                    <label style={{ fontSize:"0.8rem" }}>Registration Date</label>
-                    <input type="date" value={form.dateRegistration || ""} onChange={set("dateRegistration")}
-                      min={form.dateSavaliPublished ? (() => { const d=new Date(form.dateSavaliPublished+"T00:00:00"); d.setMonth(d.getMonth()+4); return d.toISOString().split("T")[0]; })() : ""} />
-                  </div>
-                </div>
-              )}
             </>)}
             {form.objection === "petition_won" && (
               <div style={{ marginTop:"0.75rem", padding:"0.75rem 1rem", background:"#fff0f0", border:"2px solid #c0392b", borderRadius:"4px" }}>
