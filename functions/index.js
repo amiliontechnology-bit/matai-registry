@@ -305,3 +305,46 @@ exports.deleteUser = functions
     });
     return { success: true };
   });
+
+// ── Scheduled daily Firestore export backup ───────────────────────────────
+// Runs every day at 2:00 AM Samoa time (UTC+13 → 13:00 UTC previous day)
+// Exports to Cloud Storage bucket: gs://resitalaina-o-matai-backups
+// Requires: Firestore Admin role granted to the default service account
+// Setup: gsutil mb -l australia-southeast1 gs://resitalaina-o-matai-backups
+exports.scheduledFirestoreBackup = functions
+  .region("australia-southeast1")
+  .pubsub.schedule("0 13 * * *")   // 13:00 UTC = 02:00 Samoa (UTC+13)
+  .timeZone("UTC")
+  .onRun(async () => {
+    const projectId  = process.env.GCLOUD_PROJECT || "resitalaina-o-matai";
+    const bucket     = `gs://${projectId}-backups`;
+    const timestamp  = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const outputUri  = `${bucket}/firestore/${timestamp}`;
+
+    const client = new admin.firestore.v1.FirestoreAdminClient();
+    const databaseName = client.databasePath(projectId, "(default)");
+
+    try {
+      const [operation] = await client.exportDocuments({
+        name:       databaseName,
+        outputUriPrefix: outputUri,
+        collectionIds: [], // empty = export all collections
+      });
+      console.log(`Backup started: ${operation.name} → ${outputUri}`);
+
+      // Log to auditLog
+      await admin.firestore().collection("auditLog").add({
+        action:    "SCHEDULED_BACKUP",
+        outputUri,
+        operation: operation.name,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Backup failed:", err.message);
+      await admin.firestore().collection("auditLog").add({
+        action:    "BACKUP_FAILED",
+        error:     err.message,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
