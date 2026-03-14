@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 
@@ -9,18 +10,56 @@ export default function Sidebar({ userRole, userEmail }) {
   const loc   = useLocation();
   const perms = getPermissions(userRole);
   const [open, setOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
+
+  // Live notification count — overdue + ready to register + incomplete DOB + active objections
+  useEffect(() => {
+    if (!perms.canViewNotifications) return;
+    const unsub = onSnapshot(collection(db, "registrations"), (snap) => {
+      const recs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const today = new Date(); today.setHours(0,0,0,0);
+
+      const calcReg = (proc) => {
+        if (!proc || !/^\d{4}-\d{2}-\d{2}$/.test(proc)) return null;
+        const p = new Date(proc + "T00:00:00");
+        const t = new Date(p.getFullYear(), p.getMonth() + 4, 1);
+        const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+        const reg = new Date(t.getFullYear(), t.getMonth(), Math.min(29, last));
+        return reg <= today ? reg : null;
+      };
+
+      const ready     = recs.filter(r => !r.dateRegistration && r.objection !== "yes" && r.status !== "completed" && r.status !== "void" && r.dateSavaliPublished && calcReg(r.dateSavaliPublished)).length;
+      const incomplete = recs.filter(r => !r.dateBirth || r.dateBirth.trim() === "").length;
+      const objections = recs.filter(r => r.objection === "yes").length;
+      const dupMap = new Map();
+      recs.forEach(r => {
+        const k = (r.certItumalo && r.certLaupepa && r.certRegBook) ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}` : r.mataiCertNumber || "";
+        if (k) dupMap.set(k, (dupMap.get(k)||0)+1);
+      });
+      const dups = [...dupMap.values()].filter(v => v > 1).length;
+      setNotifCount(ready + incomplete + objections + dups);
+    });
+    return () => unsub();
+  }, [perms.canViewNotifications]);
 
   const handleLogout = async () => {
     await logAudit("LOGOUT");
     signOut(auth);
   };
 
-  const navItem = (to, icon, label) => {
+  const navItem = (to, icon, label, badge = 0) => {
     const active = loc.pathname === to || loc.pathname.startsWith(to + "/");
     return (
       <Link to={to} className={`nav-item${active ? " active" : ""}`} onClick={() => setOpen(false)}>
         <span style={{ fontSize:"14px", minWidth:"18px", textAlign:"center" }}>{icon}</span>
-        <span>{label}</span>
+        <span style={{ flex:1 }}>{label}</span>
+        {badge > 0 && (
+          <span style={{
+            background:"#c0392b", color:"#fff", fontSize:"0.55rem", fontWeight:700,
+            padding:"1px 5px", borderRadius:"10px", minWidth:"16px", textAlign:"center",
+            lineHeight:"16px", fontFamily:"Arial,sans-serif", letterSpacing:0
+          }}>{badge > 99 ? "99+" : badge}</span>
+        )}
       </Link>
     );
   };
@@ -86,7 +125,7 @@ export default function Sidebar({ userRole, userEmail }) {
           {perms.canAdd    && navItem("/import",          "↑",   "Import")}
           {perms.canExport && navItem("/export",          "📊",  "Export")}
           {perms.canViewReports && navItem("/reports",   "📋",  "Reports")}
-          {perms.canViewNotifications && navItem("/notifications","🔔",  "Notifications")}
+          {perms.canViewNotifications && navItem("/notifications", "🔔", "Notifications", notifCount)}
           {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
           {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}
           {perms.canDataManage && navItem("/data-manage",  "🗄️",  "Data Manage")}

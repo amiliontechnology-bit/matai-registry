@@ -49,6 +49,8 @@ export default function Dashboard({ userRole }) {
   const [seedMsg, setSeedMsg] = useState("");
   const [page, setPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [sortCol, setSortCol]   = useState(null);
+  const [sortDir, setSortDir]   = useState("asc");
   const PAGE_SIZE = 25;
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
@@ -120,13 +122,37 @@ export default function Dashboard({ userRole }) {
     return matchSearch && matchDistrict && matchType && matchVillage && matchGender && matchStatus && matchDateFrom && matchDateTo;
   });
 
+  // Sort
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    if (!sortCol) return 0;
+    let va = "", vb = "";
+    if (sortCol === "cert")    { va = [a.certItumalo,a.certLaupepa,a.certRegBook].filter(Boolean).join("/") || a.mataiCertNumber || ""; vb = [b.certItumalo,b.certLaupepa,b.certRegBook].filter(Boolean).join("/") || b.mataiCertNumber || ""; }
+    if (sortCol === "title")   { va = a.mataiTitle||""; vb = b.mataiTitle||""; }
+    if (sortCol === "holder")  { va = a.holderName||""; vb = b.holderName||""; }
+    if (sortCol === "type")    { va = a.mataiType||""; vb = b.mataiType||""; }
+    if (sortCol === "village") { va = a.village||""; vb = b.village||""; }
+    if (sortCol === "district"){ va = a.district||""; vb = b.district||""; }
+    if (sortCol === "regdate") { va = a.dateRegistration||""; vb = b.dateRegistration||""; }
+    if (sortCol === "status")  { va = getStatusCat(a); vb = getStatusCat(b); }
+    const cmp = va.localeCompare(vb, undefined, { numeric: true });
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("asc"); }
+    setPage(1);
+  };
+
+  const sortArrow = (col) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+
   const hasActiveFilters = filterDistrict !== "All" || filterType !== "All" || filterVillage !== "All" || filterGender !== "All" || filterStatus !== "All" || filterDateFrom || filterDateTo || search;
   const clearAllFilters = () => { setSearch(""); setFilterDistrict("All"); setFilterType("All"); setFilterVillage("All"); setFilterGender("All"); setFilterStatus("All"); setFilterDateFrom(""); setFilterDateTo(""); setPage(1); };
 
   // Reset to page 1 when filters change
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const totalPages = Math.ceil(sortedFiltered.length / PAGE_SIZE);
   const safePage = Math.min(page, Math.max(1, totalPages));
-  const pageRecords = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageRecords = sortedFiltered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const normalizeType = (t) => (t || "").trim().toLowerCase();
   const totalAli        = records.filter(r => normalizeType(r.mataiType) === "ali'i" || normalizeType(r.mataiType) === "alii").length;
@@ -372,7 +398,7 @@ export default function Dashboard({ userRole }) {
 
         {/* ── Results count ── */}
         <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.68rem", color:"#6b7280", letterSpacing:"0.1em", marginBottom:"0.85rem" }}>
-          Showing <strong style={{ color:"#155c31" }}>{filtered.length === 0 ? 0 : `${(safePage-1)*PAGE_SIZE+1}–${Math.min(safePage*PAGE_SIZE, filtered.length)}`}</strong> of <strong>{records.length}</strong> records
+          Showing <strong style={{ color:"#155c31" }}>{sortedFiltered.length === 0 ? 0 : `${(safePage-1)*PAGE_SIZE+1}–${Math.min(safePage*PAGE_SIZE, sortedFiltered.length)}`}</strong> of <strong>{sortedFiltered.length}</strong> records
         </p>
 
         {/* ── Table ── */}
@@ -391,8 +417,23 @@ export default function Dashboard({ userRole }) {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {["Cert No.", "Matai Title", "Holder", "Type", "Nu'u", "Itūmālō", "Reg. Date", "Status", "Actions"].map(h => (
-                      <th key={h}>{h}</th>
+                    {[
+                      ["Cert No.",  "cert"],
+                      ["Matai Title","title"],
+                      ["Holder",   "holder"],
+                      ["Type",     "type"],
+                      ["Nu'u",     "village"],
+                      ["Itūmālō",  "district"],
+                      ["Reg. Date","regdate"],
+                      ["Status",   "status"],
+                      ["Actions",  null],
+                    ].map(([label, col]) => (
+                      <th key={label}
+                        onClick={col ? () => toggleSort(col) : undefined}
+                        style={{ cursor: col ? "pointer" : "default", userSelect:"none", whiteSpace:"nowrap" }}
+                        title={col ? "Click to sort" : undefined}>
+                        {label}{col ? <span style={{ fontSize:"0.6rem", opacity:0.5, marginLeft:"3px" }}>{sortArrow(col)}</span> : null}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -451,11 +492,11 @@ export default function Dashboard({ userRole }) {
                             ) : null;
                           })()}
                           {perms.canEdit ? (
-                            <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
+                            <Link to={`/register/${r.id}`} state={{ recordIds: sortedFiltered.map(x => x.id) }}>
                               <button className="btn-ghost" style={{ padding:"3px 6px" }} title="Edit">✎</button>
                             </Link>
                           ) : (
-                            <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }}>
+                            <Link to={`/register/${r.id}`} state={{ recordIds: sortedFiltered.map(x => x.id) }}>
                               <button className="btn-ghost" style={{ padding:"3px 6px" }} title="View">👁</button>
                             </Link>
                           )}
@@ -556,11 +597,11 @@ export default function Dashboard({ userRole }) {
                   {/* Actions */}
                   <div style={{ display:"flex", gap:"0.5rem", flexWrap:"wrap" }}>
                     {perms.canEdit ? (
-                      <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }} style={{ textDecoration:"none" }}>
+                      <Link to={`/register/${r.id}`} state={{ recordIds: sortedFiltered.map(x => x.id) }} style={{ textDecoration:"none" }}>
                         <button className="btn-secondary" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem" }}>✎ Edit</button>
                       </Link>
                     ) : (
-                      <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }} style={{ textDecoration:"none" }}>
+                      <Link to={`/register/${r.id}`} state={{ recordIds: sortedFiltered.map(x => x.id) }} style={{ textDecoration:"none" }}>
                         <button className="btn-secondary" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem" }}>👁 View</button>
                       </Link>
                     )}
