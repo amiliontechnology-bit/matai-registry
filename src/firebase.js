@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+// import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check"; // Re-enable with App Check
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,16 +16,15 @@ export const app  = initializeApp(firebaseConfig);
 export const db   = getFirestore(app);
 export const auth = getAuth(app);
 
-// App Check — only enabled in production with a real reCAPTCHA site key
-// Dev environment skips App Check entirely to avoid debug token registration hassle
-const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-
-if (siteKey) {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(siteKey),
-    isTokenAutoRefreshEnabled: true,
-  });
-}
+// App Check — temporarily disabled pending reCAPTCHA v3 key verification
+// Re-enable once correct v3 key is confirmed working in Google reCAPTCHA admin
+// const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+// if (siteKey) {
+//   initializeAppCheck(app, {
+//     provider: new ReCaptchaV3Provider(siteKey),
+//     isTokenAutoRefreshEnabled: true,
+//   });
+// }
 
 // Secondary app used ONLY for creating new users
 // This prevents the admin from being signed out when creating a new user
