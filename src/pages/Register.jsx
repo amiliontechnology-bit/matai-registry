@@ -549,9 +549,16 @@ export default function Register({ userRole }) {
     return { dateStr: result.dateStr, display: fmtDateDMY(result.dateStr), isPast: result.isPast };
   };
 
+  const MAX_PHOTO_BYTES = 800 * 1024; // 800KB limit per photo
+
   const handleIdImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > MAX_PHOTO_BYTES) {
+      alert("Photo ID image is too large (max 800KB). Please resize the image and try again.");
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => setForm(f => ({ ...f, photoIdImage: ev.target.result }));
     reader.readAsDataURL(file);
@@ -560,6 +567,11 @@ export default function Register({ userRole }) {
   const handleHolderPhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > MAX_PHOTO_BYTES) {
+      alert("Holder photo is too large (max 800KB). Please resize the image and try again.");
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => setForm(f => ({ ...f, holderPhoto: ev.target.result }));
     reader.readAsDataURL(file);
