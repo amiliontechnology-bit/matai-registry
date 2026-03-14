@@ -1,35 +1,13 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (DISABLED)
 
+# Disabled — production is now served from smrs.mjca.gov.ws via Firebase Hosting
+# GitHub Pages was the old deployment target and is no longer used
 on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: write
+  workflow_dispatch: # manual trigger only — disabled from auto-deploy
 
 jobs:
   deploy-pages:
+    if: false # never runs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Build for GitHub Pages
-        run: |
-          npm run build
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+      - run: echo "GitHub Pages deployment is disabled. Use Firebase Hosting (smrs.mjca.gov.ws)."
