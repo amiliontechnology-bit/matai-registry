@@ -25,7 +25,7 @@ jobs:
 
       - name: Build for Firebase (root URL)
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          VITE_FIREBASE_API_KEY: "AIzaSyBA5afvNbvfkMrFFaaVBR7kcGFWOyxzoCk"
           VITE_FIREBASE_AUTH_DOMAIN: "resitalaina-o-matai.firebaseapp.com"
           VITE_FIREBASE_PROJECT_ID: "resitalaina-o-matai"
           VITE_FIREBASE_STORAGE_BUCKET: "resitalaina-o-matai.firebasestorage.app"

@@ -3,13 +3,15 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 // import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check"; // Re-enable with App Check
 
+// Firebase config — values are public by design (Firebase API keys are not secrets)
+// They are also passed as env vars in CI so the build always has them
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || "AIzaSyBA5afvNbvfkMrFFaaVBR7kcGFWOyxzoCk",
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || "resitalaina-o-matai.firebaseapp.com",
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || "resitalaina-o-matai",
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || "resitalaina-o-matai.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1066492699678",
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || "1:1066492699678:web:e2e6e0859d192be347ba0f",
 };
 
 export const app  = initializeApp(firebaseConfig);
