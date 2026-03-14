@@ -613,7 +613,7 @@ export default function Notifications({ userRole }) {
     const fmtSection = (title, color, headers, rows) =>
       rows.length === 0 ? "" :
       `<h2 style="font-family:Georgia,serif;color:${color};font-size:1rem;margin:1.5rem 0 0.4rem;border-bottom:2px solid ${color};padding-bottom:4px">${title} (${rows.length})</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:0.5rem">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:0.5rem;min-width:580px">
         <thead><tr>${headers.map(h=>`<th style="background:${color};color:#fff;padding:5px 8px;text-align:left">${h}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
@@ -865,7 +865,7 @@ export default function Notifications({ userRole }) {
                   ? <p style={{ fontStyle:"italic", color:"#9ca3af" }}>Loading…</p>
                   : incompleteRecords.length === 0
                     ? <div style={{ textAlign:"center", padding:"2.5rem", color:"rgba(26,26,26,0.35)", fontStyle:"italic" }}>✅ All records have complete information.</div>
-                    : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                    : <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem", minWidth:"600px" }}>
                         <thead>
                           <tr style={{ borderBottom:"2px solid rgba(124,58,237,0.2)" }}>
                             {["Matai Title","Holder","Village","District","Missing Fields","Action"].map(h => (
@@ -909,7 +909,7 @@ export default function Notifications({ userRole }) {
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </table></div>
                 }
               </div>
             )}

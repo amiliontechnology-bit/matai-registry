@@ -480,7 +480,7 @@ export default function Users({ userRole }) {
               <div style={{ textAlign:"center", padding:"4rem", color:"#6b7280", fontStyle:"italic" }}>Loading users…</div>
             ) : (
               <div style={{ background:"#fff", border:"1px solid #d1d5db", borderRadius:"6px", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.08)", marginBottom:"2rem" }}>
-                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", minWidth:"640px" }}>
                   <thead>
                     <tr style={{ background:"#155c31" }}>
                       <th style={th}>Name / Email</th>

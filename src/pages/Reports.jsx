@@ -641,7 +641,7 @@ export default function Reports({ userRole }) {
                   <p style={{ fontSize:"0.73rem", color:"rgba(26,26,26,0.45)", marginBottom:"0.75rem", fontStyle:"italic" }}>
                     Showing {registeredFiltered.length} record{registeredFiltered.length!==1?"s":""} — {selMonthLabel}
                   </p>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                  <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem", minWidth:"640px" }}>
                     <thead>
                       <tr style={{ background:"#155c31" }}>
                         {["Matai Title","Holder","Type","Village","District","Published Date","Registered"].map(h => (
@@ -678,7 +678,7 @@ export default function Reports({ userRole }) {
                       📄 Generate All Records Report
                     </button>}
                   </div>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem" }}>
+                  <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.82rem", minWidth:"640px" }}>
                     <thead>
                       <tr style={{ background:"#2d6a4f" }}>
                         {["Matai Title","Holder","Type","Village","District","Published Date","Registered"].map(h => (
@@ -823,7 +823,7 @@ export default function Reports({ userRole }) {
             const allSel = rows.length>0 && rows.every(r=>savaliSelected.has(r.id));
             return (
               <div style={{overflowX:"auto",marginBottom:"1.25rem"}}>
-                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{width:"100%",borderCollapse:"collapse",minWidth:"580px"}}>
                   <thead>
                     <tr>
                       <th style={{...TH,width:"38px"}}><input type="checkbox" checked={allSel} onChange={()=>{const s=new Set(savaliSelected);rows.forEach(r=>allSel?s.delete(r.id):s.add(r.id));setSavaliSelected(s);}}/></th>

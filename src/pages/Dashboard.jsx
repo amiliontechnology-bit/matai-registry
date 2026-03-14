@@ -385,7 +385,7 @@ export default function Dashboard({ userRole }) {
               </p>
             </div>
           ) : (
-            <div style={{ overflowX:"auto" }}>
+            <div className="table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>

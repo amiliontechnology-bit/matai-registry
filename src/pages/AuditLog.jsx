@@ -143,7 +143,7 @@ export default function AuditLog({ userRole }) {
           <div style={{ textAlign:"center", padding:"3rem", color:"#1e6b3c", fontStyle:"italic" }}>Loading audit log…</div>
         ) : (
           <div style={{ background:"#ffffff", border:"1px solid rgba(45,122,79,0.18)", borderRadius:"4px", overflowX:"auto" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+            <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}><table style={{ width:"100%", borderCollapse:"collapse", minWidth:"640px" }}>
               <thead>
                 <tr style={{ borderBottom:"1px solid rgba(45,122,79,0.25)", background:"rgba(30,107,60,0.06)" }}>
                   {["Timestamp","User","Action","Details"].map(h => (

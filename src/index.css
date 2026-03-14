@@ -519,8 +519,24 @@ nav.no-print {
   /* Form grids — single column */
   div[style*="grid-template-columns: 1fr 1fr"],
   div[style*="gridTemplateColumns: \"1fr 1fr\""],
-  div[style*="gridTemplateColumns:'1fr 1fr'"] {
+  div[style*="gridTemplateColumns:'1fr 1fr'"],
+  div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  div[style*="gridTemplateColumns: \"1fr 1fr 1fr\""] {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Stat cards — 2 col on mobile */
+  div[style*="repeat(4,1fr)"],
+  div[style*="repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Hide less critical dashboard columns on mobile */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4),
+  .data-table th:nth-child(6),
+  .data-table td:nth-child(6) {
+    display: none;
   }
 
   /* Buttons — ensure they don't overflow */
