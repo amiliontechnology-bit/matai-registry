@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { getPermissions } from "../utils/roles";
 import { logAudit } from "../utils/audit";
 import { Link, Navigate, useLocation } from "react-router-dom";
@@ -249,62 +248,7 @@ export default function Notifications({ userRole }) {
   }, [scrollSection, loading]);
 
   const genBy = user?.displayName || user?.email || "Admin";
-  const [emailSending, setEmailSending]   = useState(false);
-  const [emailResult,  setEmailResult]    = useState("");
-  const [staffEmails,  setStaffEmails]    = useState([]);
-  const [selEmail,     setSelEmail]       = useState("");
-
-  // Load staff emails for email target selector
-  useEffect(() => {
-    getDocs(collection(db, "users")).then(snap => {
-      const emails = snap.docs.map(d => d.data().email).filter(Boolean);
-      setStaffEmails(emails);
-      if (emails.length > 0) setSelEmail(emails[0]);
-    }).catch(() => {});
-  }, []);
-
-  const sendReadyEmail = async () => {
-    if (!selEmail) return;
-    setEmailSending(true); setEmailResult("");
-    try {
-      const fns = getFunctions(undefined, "australia-southeast1");
-      const fn  = httpsCallable(fns, "sendNotification");
-      const readyList = readyToRegister.map((r, i) =>
-        `<tr style="background:${i%2===0?"#f9fafb":"#fff"}">
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;font-family:Georgia,serif;font-weight:700;color:#155c31">${r.mataiTitle||"—"}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee">${r.holderName||"—"}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee">${r.village||"—"}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee">${r.district||"—"}</td>
-        </tr>`
-      ).join("");
-      const html = `<div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
-        <div style="background:#0d2818;padding:20px 24px;border-radius:6px 6px 0 0">
-          <h2 style="color:#4ade80;font-family:Georgia,serif;margin:0;font-size:1rem;letter-spacing:0.08em">SAMOA MATAI TITLE REGISTRY</h2>
-          <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:0.8rem">Ministry of Justice, Courts &amp; Administration</p>
-        </div>
-        <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 6px 6px">
-          <h3 style="color:#155c31;font-family:Georgia,serif;margin:0 0 8px">Records Ready to Register</h3>
-          <p style="color:#6b7280;font-size:0.88rem;margin:0 0 20px">The following ${readyToRegister.length} record${readyToRegister.length!==1?"s are":" is"} ready to be confirmed. Please log in to the registry to confirm registration.</p>
-          <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-            <thead><tr style="background:#155c31">
-              <th style="padding:8px 10px;color:#fff;text-align:left">Matai Title</th>
-              <th style="padding:8px 10px;color:#fff;text-align:left">Holder</th>
-              <th style="padding:8px 10px;color:#fff;text-align:left">Village</th>
-              <th style="padding:8px 10px;color:#fff;text-align:left">District</th>
-            </tr></thead>
-            <tbody>${readyList}</tbody>
-          </table>
-          <p style="margin:20px 0 0;font-size:0.8rem;color:#9ca3af">Sent by ${genBy} &bull; Samoa Matai Registry</p>
-        </div>
-      </div>`;
-      await fn({ toEmail: selEmail, subject: `Matai Registry — ${readyToRegister.length} Record${readyToRegister.length!==1?"s":""} Ready to Register`, htmlBody: html });
-      setEmailResult("✓ Email sent successfully to " + selEmail);
-    } catch(err) {
-      setEmailResult("✗ Failed: " + (err.message || "Unknown error"));
-    } finally {
-      setEmailSending(false);
-    }
-  };
+;
 
   const confirmIncomplete = async (r) => {
     if (!window.confirm(
@@ -1329,39 +1273,7 @@ export default function Notifications({ userRole }) {
             </div>
             </>)}
 
-            {/* ── Email notification ── */}
-            <div style={{ marginTop:"1.25rem", padding:"1rem 1.25rem", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"6px" }}>
-              <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.62rem", letterSpacing:"0.12em", textTransform:"uppercase", color:"#155c31", marginBottom:"0.75rem" }}>
-                📧 Email Notification — Ready to Register
-              </p>
-              {readyToRegister.length === 0 ? (
-                <p style={{ fontSize:"0.78rem", color:"#9ca3af", fontStyle:"italic" }}>No records currently ready to register.</p>
-              ) : (
-                <>
-                  <p style={{ fontSize:"0.78rem", color:"#374151", marginBottom:"0.75rem" }}>
-                    Send a summary of <strong>{readyToRegister.length}</strong> ready-to-register record{readyToRegister.length!==1?"s":""} to a staff member.
-                  </p>
-                  <div style={{ display:"flex", gap:"0.5rem", alignItems:"center", flexWrap:"wrap" }}>
-                    <select value={selEmail} onChange={e => setSelEmail(e.target.value)}
-                      style={{ fontSize:"0.78rem", padding:"0.4rem 0.6rem", border:"1px solid #d1d5db", borderRadius:"4px", fontFamily:"'Cinzel',serif", minWidth:"220px" }}>
-                      {staffEmails.map(e => <option key={e} value={e}>{e}</option>)}
-                      {staffEmails.length === 0 && <option value="">No staff emails found</option>}
-                    </select>
-                    <button onClick={sendReadyEmail} disabled={emailSending || !selEmail || readyToRegister.length === 0}
-                      style={{ padding:"0.4rem 1rem", fontFamily:"'Cinzel',serif", fontSize:"0.68rem", letterSpacing:"0.06em", textTransform:"uppercase",
-                        background: emailSending ? "#9ca3af" : "#155c31", color:"#fff", border:"none", borderRadius:"4px",
-                        cursor: emailSending ? "not-allowed" : "pointer" }}>
-                      {emailSending ? "Sending…" : "Send Email"}
-                    </button>
-                  </div>
-                  {emailResult && (
-                    <p style={{ marginTop:"0.6rem", fontSize:"0.78rem", color: emailResult.startsWith("✓") ? "#155c31" : "#c0392b", fontWeight:600 }}>
-                      {emailResult}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+
           </div>
 
         </div>
