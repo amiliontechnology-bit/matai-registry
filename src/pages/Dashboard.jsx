@@ -48,6 +48,7 @@ export default function Dashboard({ userRole }) {
   const [seeding, setSeeding] = useState(false);
   const [seedMsg, setSeedMsg] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const PAGE_SIZE = 25;
   const perms = getPermissions(userRole);
   const user  = auth.currentUser;
@@ -385,7 +386,8 @@ export default function Dashboard({ userRole }) {
               </p>
             </div>
           ) : (
-            <div className="table-wrap">
+            <div style={{ display:"grid", gridTemplateColumns: selectedRecord ? "1fr 320px" : "1fr", gap:"1rem", alignItems:"start" }}>
+            <div className="table-wrap" style={{ minWidth:0 }}>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -396,7 +398,10 @@ export default function Dashboard({ userRole }) {
                 </thead>
                 <tbody>
                   {pageRecords.map(r => (
-                    <tr key={r.id}>
+                    <tr key={r.id}
+                      onClick={() => setSelectedRecord(prev => prev?.id === r.id ? null : r)}
+                      style={{ cursor:"pointer", background: selectedRecord?.id === r.id ? "#e8f5ed" : undefined }}
+                    >
                       <td style={{ fontFamily:"'Cinzel',serif", fontSize:"0.72rem", color:"#6b7280", whiteSpace:"nowrap" }}>
                         {r.certItumalo && r.certLaupepa && r.certRegBook
                           ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
@@ -464,6 +469,116 @@ export default function Dashboard({ userRole }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* ── Preview Panel ── */}
+            {selectedRecord && (() => {
+              const r = selectedRecord;
+              const sc = getStatusCat(r);
+              const regPassed = r.dateRegistration && new Date(r.dateRegistration + "T00:00:00") <= new Date();
+              const certNum = r.certItumalo && r.certLaupepa && r.certRegBook
+                ? `${r.certItumalo}/${r.certLaupepa}/${r.certRegBook}`
+                : r.mataiCertNumber || r.refNumber || "—";
+              const initials = (r.holderName || "").split(" ").map(w => w[0]).filter(Boolean).slice(0,2).join("").toUpperCase();
+              return (
+                <div style={{ background:"#fff", border:"1px solid rgba(21,92,49,0.15)", borderRadius:"8px", padding:"1.25rem", position:"sticky", top:"1rem", minWidth:0 }}>
+                  {/* Header */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"1rem" }}>
+                    <div style={{ display:"flex", gap:"10px", alignItems:"flex-start" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"50%", background:"#d1fae5", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.8rem", fontWeight:700, color:"#065f46", flexShrink:0 }}>
+                        {initials || "?"}
+                      </div>
+                      <div>
+                        <p style={{ fontFamily:"'Cinzel',serif", fontWeight:700, fontSize:"0.95rem", color:"#155c31", margin:0, letterSpacing:"0.04em" }}>{r.mataiTitle || "—"}</p>
+                        <p style={{ fontSize:"0.82rem", color:"#6b7280", margin:"2px 0 0" }}>{r.holderName || "—"}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSelectedRecord(null)}
+                      style={{ background:"none", border:"none", cursor:"pointer", fontSize:"1rem", color:"#9ca3af", padding:"0", lineHeight:1 }}>✕</button>
+                  </div>
+
+                  {/* Status + cert */}
+                  <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"1rem" }}>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.58rem", letterSpacing:"0.1em", textTransform:"uppercase", padding:"2px 8px", borderRadius:"3px",
+                      ...(sc==="completed"?{background:"#dcfce7",color:"#15803d",border:"1px solid #86efac"}:sc==="void"?{background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"}:{background:"#fef3c7",color:"#92400e",border:"1px solid #fcd34d"}) }}>
+                      {sc==="completed"?"Completed":sc==="void"?"Void":sc==="pepa_samasama"?"Pepa Samasama":"In Progress"}
+                    </span>
+                    <span style={{ fontFamily:"'Cinzel',serif", fontSize:"0.7rem", color:"#9ca3af" }}>{certNum}</span>
+                  </div>
+
+                  <hr style={{ border:"none", borderTop:"1px solid rgba(21,92,49,0.1)", margin:"0 0 0.85rem" }} />
+
+                  {/* Fields */}
+                  {[
+                    [["Type", r.mataiType||"—"], ["Gender", r.gender||"—"]],
+                    [["Date of birth", fmtDate(r.dateBirth)], ["Village of birth", r.nuuFanau||"—"]],
+                    [["District", r.district||"—"], ["Village", r.village||"—"]],
+                    [["Faapogai", r.faapogai||"—"], ["Family name", r.familyName||"—"]],
+                  ].map((row, ri) => (
+                    <div key={ri} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem", marginBottom:"0.6rem" }}>
+                      {row.map(([label, val]) => (
+                        <div key={label}>
+                          <p style={{ fontSize:"0.6rem", color:"#9ca3af", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 1px", fontWeight:600 }}>{label}</p>
+                          <p style={{ fontSize:"0.8rem", color:"#111827", margin:0 }}>{val}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  <hr style={{ border:"none", borderTop:"1px solid rgba(21,92,49,0.1)", margin:"0.75rem 0" }} />
+
+                  {/* Dates */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.5rem", marginBottom:"0.85rem" }}>
+                    {[
+                      ["Conferred", fmtDate(r.dateConferred)],
+                      ["Published", fmtDate(r.dateSavaliPublished)],
+                      ["Registered", fmtDate(r.dateRegistration)],
+                    ].map(([label, val]) => (
+                      <div key={label}>
+                        <p style={{ fontSize:"0.6rem", color:"#9ca3af", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 1px", fontWeight:600 }}>{label}</p>
+                        <p style={{ fontSize:"0.8rem", color:"#111827", margin:0 }}>{val||"—"}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {r.notes && (
+                    <>
+                      <hr style={{ border:"none", borderTop:"1px solid rgba(21,92,49,0.1)", margin:"0 0 0.75rem" }} />
+                      <div>
+                        <p style={{ fontSize:"0.6rem", color:"#9ca3af", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 3px", fontWeight:600 }}>Notes</p>
+                        <p style={{ fontSize:"0.8rem", color:"#374151", margin:0, lineHeight:1.5 }}>{r.notes}</p>
+                      </div>
+                    </>
+                  )}
+
+                  <hr style={{ border:"none", borderTop:"1px solid rgba(21,92,49,0.1)", margin:"0.75rem 0" }} />
+
+                  {/* Actions */}
+                  <div style={{ display:"flex", gap:"0.5rem", flexWrap:"wrap" }}>
+                    {perms.canEdit ? (
+                      <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }} style={{ textDecoration:"none" }}>
+                        <button className="btn-secondary" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem" }}>✎ Edit</button>
+                      </Link>
+                    ) : (
+                      <Link to={`/register/${r.id}`} state={{ recordIds: filtered.map(x => x.id) }} style={{ textDecoration:"none" }}>
+                        <button className="btn-secondary" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem" }}>👁 View</button>
+                      </Link>
+                    )}
+                    {perms.canPrint && (regPassed || r.incompleteConfirmed) ? (
+                      <Link to={`/certificate/${r.id}`} style={{ textDecoration:"none" }}>
+                        <button className="btn-primary" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem" }}>🏅 Certificate</button>
+                      </Link>
+                    ) : (
+                      <button className="btn-primary" disabled style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem", opacity:0.4, cursor:"not-allowed" }}>🏅 Certificate</button>
+                    )}
+                    {perms.canDelete && (
+                      <button className="btn-ghost" style={{ fontSize:"0.72rem", padding:"0.35rem 0.8rem", color:"#991b1b", borderColor:"rgba(153,27,27,0.3)", marginLeft:"auto" }}
+                        onClick={() => { handleDelete(r.id, r.mataiTitle); setSelectedRecord(null); }}>✕ Delete</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             </div>
           )}
         </div>
