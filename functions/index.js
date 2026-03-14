@@ -316,27 +316,36 @@ exports.scheduledFirestoreBackup = functions
   .pubsub.schedule("0 13 * * *")   // 13:00 UTC = 02:00 Samoa (UTC+13)
   .timeZone("UTC")
   .onRun(async () => {
-    const projectId  = process.env.GCLOUD_PROJECT || "resitalaina-o-matai";
-    const bucket     = `gs://${projectId}-backups`;
-    const timestamp  = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const outputUri  = `${bucket}/firestore/${timestamp}`;
-
-    const client = new admin.firestore.v1.FirestoreAdminClient();
-    const databaseName = client.databasePath(projectId, "(default)");
+    const projectId = process.env.GCLOUD_PROJECT || "resitalaina-o-matai";
+    const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const bucket    = `gs://${projectId}-backups`;
+    const outputUri = `${bucket}/firestore/${timestamp}`;
 
     try {
-      const [operation] = await client.exportDocuments({
-        name:       databaseName,
-        outputUriPrefix: outputUri,
-        collectionIds: [], // empty = export all collections
+      // Use Google Cloud Firestore Admin REST API via googleapis
+      // Requires the default service account to have:
+      //   - roles/datastore.importExportAdmin  (search "Firestore" in IAM)
+      //   - roles/storage.admin on the backup bucket
+      const { GoogleAuth } = require("google-auth-library");
+      const auth = new GoogleAuth({
+        scopes: ["https://www.googleapis.com/auth/cloud-platform"],
       });
-      console.log(`Backup started: ${operation.name} → ${outputUri}`);
+      const client = await auth.getClient();
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`;
+      const res = await client.request({
+        url,
+        method: "POST",
+        data: {
+          outputUriPrefix: outputUri,
+          collectionIds: [], // empty = all collections
+        },
+      });
 
-      // Log to auditLog
+      console.log(`Backup started → ${outputUri}`, res.data);
       await admin.firestore().collection("auditLog").add({
         action:    "SCHEDULED_BACKUP",
         outputUri,
-        operation: operation.name,
+        operation: res.data.name || "started",
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (err) {
