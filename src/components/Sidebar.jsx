@@ -32,7 +32,7 @@ export default function Sidebar({ userRole, userEmail }) {
         <button className="hamburger" onClick={() => setOpen(o => !o)} aria-label="Menu">
           <span /><span /><span />
         </button>
-        <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
+        <img src={"/mjca_logo.jpeg"} alt="MJCA"
           style={{ height:"36px", objectFit:"contain", borderRadius:"3px" }} />
         <span style={{ fontFamily:"'Cinzel Decorative',serif", fontSize:"0.75rem", color:"#4ade80" }}>
           Matai Registry
@@ -47,7 +47,7 @@ export default function Sidebar({ userRole, userEmail }) {
         {/* ── Logo ── */}
         <div className="sidebar-logo">
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.5rem", marginBottom:"0.5rem" }}>
-            <img src={process.env.PUBLIC_URL + "/mjca_logo.jpeg"} alt="MJCA"
+            <img src={"/mjca_logo.jpeg"} alt="MJCA"
               style={{ width:"110px", height:"auto", objectFit:"contain", borderRadius:"4px" }} />
             <p style={{ fontFamily:"'Cinzel',serif", fontSize:"0.55rem", color:"rgba(255,255,255,0.3)",
               letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"center" }}>
@@ -90,7 +90,7 @@ export default function Sidebar({ userRole, userEmail }) {
           {perms.canViewUsers && navItem("/users",        "👤",  "Users")}
           {perms.canViewAudit && navItem("/audit",        "📋",  "Audit Log")}
           {perms.canDataManage && navItem("/data-manage",  "🗄️",  "Data Manage")}
-          {process.env.REACT_APP_ENV !== "development" && navItem("/mfa-setup", "🔐", "MFA Setup")}
+          {import.meta.env.VITE_ENV !== "development" && navItem("/mfa-setup", "🔐", "MFA Setup")}
         </nav>
 
         {/* ── Sign out ── */}

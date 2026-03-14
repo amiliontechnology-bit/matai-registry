@@ -110,7 +110,7 @@ export default function Login() {
 
         {/* Logo & title */}
         <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-          <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+          <img src={"/emblem.png"} alt="Samoa Emblem"
             style={{ width: "90px", height: "auto", objectFit: "contain", marginBottom: "1rem", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))" }} />
           <h1 style={{ fontFamily:"'Cinzel Decorative', serif", fontSize:"1.4rem", color:"#155c31", letterSpacing:"0.05em", marginBottom:"0.3rem" }}>
             Samoa Matai Registry

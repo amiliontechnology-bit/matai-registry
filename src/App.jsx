@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 // Suppress console.error in production builds
-if (process.env.NODE_ENV === 'production') {
+if (import.meta.env.PROD) {
   console.error = () => {};
   console.warn  = () => {};
 }
@@ -112,7 +112,7 @@ export default function App() {
   return (
     <HashRouter>
       {/* Dev environment banner */}
-      {process.env.REACT_APP_ENV === "development" && (
+      {import.meta.env.VITE_ENV === "development" && (
         <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:99999, background:"#b45309", color:"#fff", textAlign:"center", padding:"5px 0", fontSize:"0.72rem", fontFamily:"Arial,sans-serif", letterSpacing:"0.08em", fontWeight:700 }}>
           ⚠ DEVELOPMENT / TESTING ENVIRONMENT — Not production data
         </div>
@@ -136,7 +136,7 @@ export default function App() {
           boxShadow: "0 4px 20px rgba(0,0,0,0.4)", zIndex: 9999,
           maxWidth: "calc(100vw - 2rem)", boxSizing: "border-box"
         }}>
-          <img src={process.env.PUBLIC_URL + "/icon-72x72.png"} alt="" style={{ width: 36, height: 36, borderRadius: 6 }} />
+          <img src={"/icon-72x72.png"} alt="" style={{ width: 36, height: 36, borderRadius: 6 }} />
           <div>
             <p style={{ fontFamily: "'Cinzel',serif", fontSize: "0.72rem", color: "#4ade80", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "2px" }}>Install App</p>
             <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.65)", margin: 0 }}>Add Matai Registry to your home screen</p>

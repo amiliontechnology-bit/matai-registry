@@ -796,14 +796,14 @@ export default function Certificate({ userRole }) {
                 position:"absolute", inset:0, zIndex:2, pointerEvents:"none",
                 display:"flex", alignItems:"center", justifyContent:"center"
               }}>
-                <img src={process.env.PUBLIC_URL + "/emblem.png"} alt=""
+                <img src={"/emblem.png"} alt=""
                   style={{ width:"420px", height:"420px", objectFit:"contain", opacity:0.055 }} />
               </div>
 
               {/* ── HEADER ── */}
               <div style={{ position:"relative", zIndex:3, padding:"24px 70px 18px", display:"flex", alignItems:"center", gap:"28px", borderBottom:"2px solid #1a5c35" }}>
                 <div style={{ flexShrink:0 }}>
-                  <img src={process.env.PUBLIC_URL + "/emblem.png"} alt="Samoa Emblem"
+                  <img src={"/emblem.png"} alt="Samoa Emblem"
                     style={{ width:"95px", height:"95px", objectFit:"contain" }} />
                 </div>
                 <div>

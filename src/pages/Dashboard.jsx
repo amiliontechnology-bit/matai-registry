@@ -209,7 +209,7 @@ export default function Dashboard({ userRole }) {
                 <button className="btn-primary">＋ Register Title</button>
               </Link>
             )}
-            {process.env.REACT_APP_ENV === "development" && getPermissions(userRole).canDelete && (
+            {import.meta.env.VITE_ENV === "development" && getPermissions(userRole).canDelete && (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"0.3rem" }}>
                 <button onClick={handleSeed} disabled={seeding}
                   style={{ background:"#4a1d96", color:"white", border:"none", padding:"0.5rem 1.1rem", borderRadius:"4px", fontFamily:"'Cinzel',serif", fontSize:"0.72rem", letterSpacing:"0.08em", cursor: seeding ? "not-allowed" : "pointer", opacity: seeding ? 0.6 : 1, whiteSpace:"nowrap" }}>

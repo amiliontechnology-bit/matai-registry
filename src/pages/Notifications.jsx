@@ -909,7 +909,8 @@ export default function Notifications({ userRole }) {
                             </tr>
                           ))}
                         </tbody>
-                      </table></div>
+                      </table>
+                      </div>
                 }
               </div>
             )}
